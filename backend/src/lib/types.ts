@@ -1,0 +1,220 @@
+// Shared domain types for Yaar.
+
+export interface StudentProfile {
+  id: string;
+  name: string;
+  country: string; // e.g. "Nepal", "India"
+  gpa?: string; // free text, grading systems vary
+  intendedLevel: "undergraduate" | "graduate";
+  intendedMajor?: string;
+  budgetUsdPerYear?: number;
+  testStatus?: string; // e.g. "TOEFL not taken", "IELTS 6.5"
+  careerGoal?: string;
+  targetIntake?: string; // e.g. "Fall 2027"
+  // Persona signals (optional, backward compatible). These let the system tell a
+  // rural first-gen student apart from an urban well-resourced one and adapt.
+  gradeLevel?: "9" | "10" | "11" | "12" | "gap" | "bachelors";
+  isRural?: boolean;
+  firstGen?: boolean; // first in family to attend college / study abroad
+  schoolHasCounselor?: boolean;
+  schoolHasClubs?: boolean;
+  familiarWithProcess?: boolean; // does the student/family understand US admissions
+  wontGoWithoutAid?: boolean;
+  createdAt: string;
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface RoadmapStep {
+  phase: string; // e.g. "Test prep"
+  timeframe: string; // e.g. "Jun - Aug 2026"
+  actions: string[];
+  why: string;
+}
+
+export interface Roadmap {
+  summary: string;
+  realisticOutcome: string;
+  steps: RoadmapStep[];
+  estimatedTotalCostUsd?: string;
+  redFlags: string[];
+}
+
+export interface School {
+  name: string;
+  city?: string;
+  state?: string;
+  admitRate?: number; // 0..1
+  netPriceUsd?: number;
+  inStateTuitionUsd?: number;
+  outOfStateTuitionUsd?: number;
+  medianEarningsUsd?: number;
+  size?: number;
+  url?: string;
+  category?: "reach" | "match" | "safety";
+  fitReason?: string;
+}
+
+export interface VisaTurn {
+  role: "officer" | "student";
+  text: string;
+}
+
+export interface VisaScore {
+  overall: number; // 0..100
+  recommendation: string;
+  dimensions: {
+    name: string;
+    score: number; // 0..100
+    note: string;
+  }[];
+  redFlags: string[];
+  drills: string[];
+}
+
+export interface SpeakingScore {
+  band: number; // e.g. IELTS 0..9 or TOEFL 0..30 depending on exam
+  exam: string;
+  criteria: {
+    name: string;
+    score: number;
+    feedback: string;
+  }[];
+  improvedAnswer: string;
+  drills: string[];
+}
+
+// ---- Personal intelligence: persona, journey, memory, engagement ----
+
+export type PersonaTag =
+  | "rural_first_gen"
+  | "urban_resourced"
+  | "high_achieve_low_income"
+  | "late_senior"
+  | "grad_masters"
+  | "strong_stem_weak_english"
+  | "aid_dependent";
+
+export type JourneyStage =
+  | "orientation"
+  | "foundation"
+  | "profile_building"
+  | "testing"
+  | "school_list"
+  | "applications"
+  | "finances_aid"
+  | "visa_prep"
+  | "pre_departure";
+
+export interface JourneyState {
+  id: string;
+  profileId: string;
+  path: "UG_STANDARD" | "UG_COMPRESSED" | "UG_RURAL_BOOTSTRAP" | "GRAD";
+  personaTags: { tag: PersonaTag; confidence: number; source: "rule" | "ai" | "confirmed" }[];
+  currentStage: JourneyStage;
+  pacing: "patient" | "steady" | "aggressive";
+  stages: { stage: JourneyStage; status: "locked" | "available" | "active" | "done" }[];
+  updatedAt: string;
+}
+
+export interface MemoryFact {
+  id: string;
+  profileId: string;
+  key: string; // canonical slug for dedupe, e.g. "goal.major"
+  type: "profile" | "context" | "goal" | "constraint" | "skill" | "preference" | "sensitive";
+  value: string;
+  confidence: number; // 0..1
+  source: "student_stated" | "inferred" | "module_outcome";
+  status: "active" | "superseded";
+  createdAt: string;
+}
+
+export interface TimelineEvent {
+  id: string;
+  profileId: string;
+  ts: string;
+  kind: "signup" | "suggestion" | "action_taken" | "module_run" | "outcome" | "milestone" | "note";
+  module?: string;
+  summary: string;
+  status?: "open" | "done" | "skipped";
+}
+
+export interface ActionItem {
+  id: string;
+  profileId: string;
+  title: string;
+  why: string;
+  module: string; // ModuleKey-ish for deep-linking
+  source: string; // e.g. "weekly_opportunity_drop"
+  tags?: string[]; // gap tags this action closes
+  status: "suggested" | "in_progress" | "done" | "skipped" | "expired";
+  dueAt?: string;
+  followUpAt?: string;
+  followUpCount: number;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
+export interface InboxItem {
+  id: string;
+  profileId: string;
+  kind: "opportunity" | "followup" | "nudge" | "celebration";
+  title: string;
+  body: string;
+  cta?: { label: string; actionItemId?: string; url?: string };
+  read: boolean;
+  source: "gemini" | "mock";
+  createdAt: string;
+}
+
+export interface Opportunity {
+  id: string;
+  title: string;
+  category: string;
+  provider?: string;
+  url?: string;
+  summary: string;
+  majors: string[]; // includes "any"
+  levels: ("undergraduate" | "graduate" | "highschool")[];
+  regions: string[]; // includes "global"
+  cost: "free" | "low" | "high" | "pays_student";
+  lowBandwidth: boolean;
+  requiresSchoolSupport: boolean;
+  selfStartable: boolean;
+  strengthens: string[]; // gap tags it closes
+  firstStepHint?: string;
+}
+
+export interface StudentDocument {
+  id: string;
+  profileId: string;
+  kind: "i20" | "admit" | "funding" | "ds160" | "other";
+  filename?: string;
+  text: string; // extracted text content
+  createdAt: string;
+}
+
+export interface AppUser {
+  id: string;
+  googleSub: string;
+  email: string;
+  name: string;
+  profileId?: string;
+  createdAt: string;
+}
+
+export interface RiskReport {
+  id: string;
+  profileId: string;
+  overall: number; // 0..100 readiness
+  summary: string;
+  extracted: { field: string; value: string }[]; // key facts pulled from the docs
+  inconsistencies: string[]; // mismatches the AI found across docs
+  weakPoints: string[]; // what a consular officer would push on
+  dimensions: { name: string; score: number; note: string }[];
+  recommendation: string;
+  createdAt: string;
+}
