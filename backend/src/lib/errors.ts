@@ -24,7 +24,19 @@ export function notFoundHandler(_req: Request, res: Response): void {
 
 // Final error handler (must have 4 args for Express to treat it as such).
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction): void {
-  const status = err instanceof HttpError ? err.status : 500;
+  // Respect a status carried by the error (e.g. body-parser's 413 too-large or 400
+  // bad-JSON) so those surface correctly instead of being masked as a 500.
+  const carried =
+    err && typeof err === "object"
+      ? (err as { status?: unknown; statusCode?: unknown })
+      : undefined;
+  const status = err instanceof HttpError
+    ? err.status
+    : typeof carried?.status === "number"
+    ? carried.status
+    : typeof carried?.statusCode === "number"
+    ? carried.statusCode
+    : 500;
   const message = err instanceof Error ? err.message : "Internal server error";
   if (status >= 500) console.error("[error]", err);
   if (res.headersSent) return;

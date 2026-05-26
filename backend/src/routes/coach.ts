@@ -58,7 +58,14 @@ Write the recommender package now.`,
       logistics: ["Share the deadline for each school", "How the letter is submitted (usually an email link)", "Your final school list"],
     }),
   });
-  res.json({ ...data, source });
+  // Defensive normalization in case the model returns partial JSON.
+  res.json({
+    requestMessage: typeof data?.requestMessage === "string" ? data.requestMessage : "",
+    bragSheet: Array.isArray(data?.bragSheet) ? data.bragSheet : [],
+    projectSummary: typeof data?.projectSummary === "string" ? data.projectSummary : "",
+    logistics: Array.isArray(data?.logistics) ? data.logistics : [],
+    source,
+  });
 });
 
 // ---------- Family + funding coach ----------
@@ -113,7 +120,16 @@ Return ONLY JSON: { "costExplanation": string, "sponsorStory": string, "gapAnaly
         "Simple version for parents: the US school needs to see that our family can pay for one year up front, on paper. Let's make sure our real documents clearly show that, or choose a school that fits our budget.",
     }),
   });
-  res.json({ ...data, gapUsd: gap, source });
+  // Defensive normalization in case the model returns partial JSON.
+  res.json({
+    costExplanation: typeof data?.costExplanation === "string" ? data.costExplanation : "",
+    sponsorStory: typeof data?.sponsorStory === "string" ? data.sponsorStory : "",
+    gapAnalysis: typeof data?.gapAnalysis === "string" ? data.gapAnalysis : "",
+    howToClose: Array.isArray(data?.howToClose) ? data.howToClose : [],
+    parentExplainer: typeof data?.parentExplainer === "string" ? data.parentExplainer : "",
+    gapUsd: gap,
+    source,
+  });
 });
 
 // ---------- Grade 9-12 milestone plan (parent-program product) ----------
@@ -164,7 +180,24 @@ Build a term-by-term milestone plan from grade ${b.gradeLevel} through grade 12.
       ],
     }),
   });
-  res.json({ ...data, source });
+  // Defensive normalization in case the model returns partial JSON.
+  res.json({
+    overview: typeof data?.overview === "string" ? data.overview : "",
+    terms: Array.isArray(data?.terms)
+      ? data.terms.map((t) => ({
+          term: typeof t?.term === "string" ? t.term : "",
+          focus: typeof t?.focus === "string" ? t.focus : "",
+          milestones: Array.isArray(t?.milestones)
+            ? t.milestones.map((m) => ({
+                area: typeof m?.area === "string" ? m.area : "",
+                action: typeof m?.action === "string" ? m.action : "",
+                proof: typeof m?.proof === "string" ? m.proof : "",
+              }))
+            : [],
+        }))
+      : [],
+    source,
+  });
 });
 
 // ---------- F-1 status guard (informational) ----------
@@ -201,5 +234,12 @@ Return ONLY JSON: { "answer": string, "mustDo": string[], "checkWithDSO": true, 
       disclaimer: "This is general information, not legal advice. Always confirm with your DSO and, if needed, an immigration attorney before acting.",
     }),
   });
-  res.json({ ...data, source });
+  // Defensive normalization in case the model returns partial JSON.
+  res.json({
+    answer: typeof data?.answer === "string" ? data.answer : "",
+    mustDo: Array.isArray(data?.mustDo) ? data.mustDo : [],
+    checkWithDSO: typeof data?.checkWithDSO === "boolean" ? data.checkWithDSO : true,
+    disclaimer: typeof data?.disclaimer === "string" ? data.disclaimer : "",
+    source,
+  });
 });

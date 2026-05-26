@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { api, type HealthMode } from "../api/client";
+import ErrorBoundary from "./ErrorBoundary";
 import { getProfileId } from "../lib/progress";
 import AuthButton from "./AuthButton";
 import ThemeToggle from "./ThemeToggle";
@@ -164,7 +165,9 @@ export default function Layout() {
               exit={reduce ? undefined : { opacity: 0, y: -8 }}
               transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             >
-              <Outlet />
+              <ErrorBoundary resetKey={location.pathname}>
+                <Outlet />
+              </ErrorBoundary>
             </motion.div>
           </AnimatePresence>
         </div>

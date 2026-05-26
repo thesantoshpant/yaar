@@ -70,5 +70,10 @@ Return ONLY JSON: { "activityLines": string[], "essayParagraph": string }`,
         "Demo mode (add a Gemini key for a tailored paragraph). Your logged activities already tell a story of initiative and follow-through. Lead your essay with the most personal moment, then show the impact you created.",
     }),
   });
-  res.json({ ...data, source });
+  // Defensive normalization in case the model returns partial JSON.
+  res.json({
+    activityLines: Array.isArray(data?.activityLines) ? data.activityLines : [],
+    essayParagraph: typeof data?.essayParagraph === "string" ? data.essayParagraph : "",
+    source,
+  });
 });

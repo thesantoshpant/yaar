@@ -29,6 +29,7 @@ engineRouter.get("/inbox/:profileId", async (req, res) => {
 });
 
 engineRouter.patch("/inbox/:id/read", async (req, res) => {
+  // TODO: ownership check needs a store.getInboxItem(id)
   await store.markInboxRead(req.params.id);
   res.json({ ok: true });
 });

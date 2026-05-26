@@ -102,5 +102,20 @@ Return ONLY JSON: { "overall": number 0-100, "recommendation": string, "dimensio
     prompt: `Country: ${country}.${docBlock(documents)}\nTranscript:\n${convo}\n\nScore it now.`,
     mock: () => mockScore(history),
   });
-  res.json({ score: data, source });
+
+  // Defensive normalization in case the model returns partial JSON.
+  const score: VisaScore = {
+    overall: typeof data?.overall === "number" && Number.isFinite(data.overall) ? Math.max(0, Math.min(100, data.overall)) : 0,
+    recommendation: typeof data?.recommendation === "string" ? data.recommendation : "",
+    dimensions: Array.isArray(data?.dimensions)
+      ? data.dimensions.map((d) => ({
+          name: typeof d?.name === "string" ? d.name : "",
+          score: typeof d?.score === "number" && Number.isFinite(d.score) ? d.score : 0,
+          note: typeof d?.note === "string" ? d.note : "",
+        }))
+      : [],
+    redFlags: Array.isArray(data?.redFlags) ? data.redFlags : [],
+    drills: Array.isArray(data?.drills) ? data.drills : [],
+  };
+  res.json({ score, source });
 });

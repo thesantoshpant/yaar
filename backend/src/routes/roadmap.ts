@@ -87,5 +87,21 @@ Return ONLY JSON matching this TypeScript type:
 Create the roadmap now.`;
 
   const { data, source } = await generateJson<Roadmap>({ prompt, system, mock: () => mockRoadmap(b) });
-  res.json({ roadmap: data, source });
+
+  // Defensive normalization in case the model returns partial JSON.
+  const roadmap: Roadmap = {
+    summary: typeof data?.summary === "string" ? data.summary : "",
+    realisticOutcome: typeof data?.realisticOutcome === "string" ? data.realisticOutcome : "",
+    estimatedTotalCostUsd: typeof data?.estimatedTotalCostUsd === "string" ? data.estimatedTotalCostUsd : undefined,
+    redFlags: Array.isArray(data?.redFlags) ? data.redFlags : [],
+    steps: Array.isArray(data?.steps)
+      ? data.steps.map((s) => ({
+          phase: typeof s?.phase === "string" ? s.phase : "",
+          timeframe: typeof s?.timeframe === "string" ? s.timeframe : "",
+          actions: Array.isArray(s?.actions) ? s.actions : [],
+          why: typeof s?.why === "string" ? s.why : "",
+        }))
+      : [],
+  };
+  res.json({ roadmap, source });
 });

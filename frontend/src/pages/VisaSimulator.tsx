@@ -86,7 +86,8 @@ export default function VisaSimulator() {
       setReportPaid(res.paid);
       setNeedsPayment(!!res.needsPayment);
       setNeedsAccount(!!res.needsAccount);
-      markCompleted("visa");
+      // Note: the visa milestone is marked complete only after the mock interview is
+      // scored (see finish()), not just for generating a document report.
       setTimeout(() => reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     } catch {
       setRiskError(true);

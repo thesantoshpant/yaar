@@ -254,11 +254,11 @@ export default function Dashboard() {
               <ScoreBar value={plan.progressPct} />
             </div>
             <div className="rounded-xl border border-brand-500/20 bg-brand-500/5 p-5">
-              <span className="badge bg-brand-500/15 text-brand-500">{MODULE_LABEL[plan.nextAction.module]}</span>
+              <span className="badge bg-brand-500/15 text-brand-500">{MODULE_LABEL[plan.nextAction.module] ?? "Next step"}</span>
               <h3 className="mt-2 font-display text-xl font-bold text-ink">{plan.nextAction.title}</h3>
               <p className="mt-1 text-muted">{plan.nextAction.why}</p>
               <div className="mt-4 flex flex-wrap items-center gap-3">
-                <button className="btn-primary" onClick={() => navigate(MODULE_ROUTE[plan.nextAction.module])}>
+                <button className="btn-primary" onClick={() => navigate(MODULE_ROUTE[plan.nextAction.module] ?? "/app")}>
                   Let's do it 🚀
                 </button>
                 <button className="text-sm font-medium text-muted hover:text-ink" onClick={() => navigate("/app/updates")}>

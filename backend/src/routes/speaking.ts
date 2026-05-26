@@ -63,5 +63,20 @@ Return ONLY JSON: { "band": number, "exam": "${examName}", "criteria": { "name":
     prompt: `Prompt: ${prompt}\n\nStudent answer (transcribed): ${answer}\n\nScore it now.`,
     mock: () => mockSpeakingScore(exam, answer),
   });
-  res.json({ score: data, source });
+
+  // Defensive normalization in case the model returns partial JSON.
+  const score: SpeakingScore = {
+    band: typeof data?.band === "number" && Number.isFinite(data.band) ? data.band : 0,
+    exam: typeof data?.exam === "string" ? data.exam : examName,
+    criteria: Array.isArray(data?.criteria)
+      ? data.criteria.map((c) => ({
+          name: typeof c?.name === "string" ? c.name : "",
+          score: typeof c?.score === "number" && Number.isFinite(c.score) ? c.score : 0,
+          feedback: typeof c?.feedback === "string" ? c.feedback : "",
+        }))
+      : [],
+    improvedAnswer: typeof data?.improvedAnswer === "string" ? data.improvedAnswer : "",
+    drills: Array.isArray(data?.drills) ? data.drills : [],
+  };
+  res.json({ score, source });
 });

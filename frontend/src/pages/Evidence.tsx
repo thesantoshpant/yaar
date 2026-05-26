@@ -31,8 +31,12 @@ export default function Evidence() {
 
   const load = useCallback(async () => {
     if (!profileId) return;
-    const res = await api.listEvidence(profileId);
-    setItems(res.evidence);
+    try {
+      const res = await api.listEvidence(profileId);
+      setItems(Array.isArray(res.evidence) ? res.evidence : []);
+    } catch {
+      // Leave existing items in place; a transient load failure shouldn't look like data loss.
+    }
   }, [profileId]);
 
   useEffect(() => {

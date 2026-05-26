@@ -88,5 +88,29 @@ Extra notes: ${notes ?? "none"}.
 Decide the next action now.`;
 
   const { data, source } = await generateJson<AgentPlan>({ system, prompt, mock: () => mockPlan(effectiveCompleted) });
-  res.json({ plan: data, source });
+
+  // Defensive normalization in case the model returns partial JSON.
+  const plan: AgentPlan = {
+    nextAction: normalizeAction(data?.nextAction),
+    alternatives: Array.isArray(data?.alternatives) ? data.alternatives.map(normalizeAction) : [],
+    progressPct: clampPct(data?.progressPct),
+    encouragement: typeof data?.encouragement === "string" ? data.encouragement : "",
+  };
+  res.json({ plan, source });
 });
+
+const VALID_MODULES: readonly ModuleKey[] = ["roadmap", "test_prep", "school_search", "applications", "finances", "visa"];
+
+function normalizeAction(a: Partial<NextAction> | undefined): NextAction {
+  const module = a && VALID_MODULES.includes(a.module as ModuleKey) ? (a.module as ModuleKey) : "roadmap";
+  return {
+    module,
+    title: typeof a?.title === "string" ? a.title : "Start with your roadmap",
+    why: typeof a?.why === "string" ? a.why : "",
+    autoRunnable: typeof a?.autoRunnable === "boolean" ? a.autoRunnable : false,
+  };
+}
+
+function clampPct(n: unknown): number {
+  return typeof n === "number" && Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
+}

@@ -3,7 +3,7 @@ import { api } from "../api/client";
 import type { SpeakingScore } from "../lib/types";
 import { markCompleted, getProfileId } from "../lib/progress";
 import { useAuthGate } from "../lib/authGate";
-import { Spinner, SourceBadge, ScoreBar, PageHeading } from "../components/ui";
+import { Spinner, SourceBadge, ScoreBar, PageHeading, ErrorNote } from "../components/ui";
 import Markdown from "../components/Markdown";
 
 export default function SpeakingPractice() {
@@ -14,6 +14,9 @@ export default function SpeakingPractice() {
   const [score, setScore] = useState<SpeakingScore | null>(null);
   const [source, setSource] = useState<string>();
   const [loading, setLoading] = useState(false);
+  const [promptLoading, setPromptLoading] = useState(false);
+  const [promptError, setPromptError] = useState(false);
+  const [scoreError, setScoreError] = useState(false);
 
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
@@ -41,11 +44,18 @@ export default function SpeakingPractice() {
 
       rec.onerror = (event: any) => {
         console.error("Speech recognition error", event);
-        if (event.error === "not-allowed") {
-          setRecognitionError("Microphone access was denied. Check permissions.");
-        } else {
-          setRecognitionError("An error occurred during voice transcription.");
-        }
+        const code = event?.error || "unknown";
+        const msg =
+          code === "not-allowed" || code === "service-not-allowed"
+            ? "Microphone or voice permission is blocked. Allow mic access in your browser, or just type your answer below."
+            : code === "network"
+              ? "Voice needs your browser's online speech service (works best in Chrome or Edge, on a stable connection). You can type your answer instead."
+              : code === "no-speech"
+                ? "I didn't catch any speech. Tap the mic and speak again, or type your answer."
+                : code === "audio-capture"
+                  ? "No microphone was found. Plug one in, or type your answer below."
+                  : `Voice isn't available right now (${code}). No worries, just type your answer below.`;
+        setRecognitionError(msg);
         setIsListening(false);
       };
 
@@ -76,20 +86,31 @@ export default function SpeakingPractice() {
   }
 
   async function getPrompt() {
-    const res = await api.speakingPrompt(exam);
-    setPrompt(res.prompt);
-    setScore(null);
-    setAnswer("");
+    setPromptLoading(true);
+    setPromptError(false);
+    try {
+      const res = await api.speakingPrompt(exam);
+      setPrompt(res.prompt);
+      setScore(null);
+      setAnswer("");
+    } catch {
+      setPromptError(true);
+    } finally {
+      setPromptLoading(false);
+    }
   }
 
   async function submit() {
     if (!prompt || !answer.trim()) return;
     setLoading(true);
+    setScoreError(false);
     try {
       const res = await api.speakingScore(exam, prompt, answer, getProfileId() || undefined);
       setScore(res.score);
       setSource(res.source);
       markCompleted("test_prep");
+    } catch {
+      setScoreError(true);
     } finally {
       setLoading(false);
     }
@@ -101,7 +122,7 @@ export default function SpeakingPractice() {
     <div className="space-y-6">
       <PageHeading
         title="Speaking practice 🎙️"
-        subtitle="Unlimited TOEFL & IELTS speaking practice, scored on the real rubric. Voice mode (Gemini Live) is coming — for now, speak your answer out loud and paste it in."
+        subtitle="Unlimited TOEFL and IELTS speaking practice, scored on the real rubric. Tap the mic to speak your answer (works best in Chrome), or just type it."
       />
 
       <div className="card">
@@ -113,10 +134,11 @@ export default function SpeakingPractice() {
               <option value="TOEFL">TOEFL</option>
             </select>
           </div>
-          <button className="btn-ghost" onClick={getPrompt}>
-            Get a prompt
+          <button className="btn-ghost" onClick={getPrompt} disabled={promptLoading}>
+            {promptLoading ? <Spinner label="Finding a prompt..." /> : "Get a prompt"}
           </button>
         </div>
+        {promptError && <div className="mt-3"><ErrorNote onRetry={getPrompt}>Couldn't load a prompt just now. Check your connection and try again.</ErrorNote></div>}
 
         {prompt && (
           <div className="mt-5">
@@ -188,6 +210,7 @@ export default function SpeakingPractice() {
                   </button>
                 )}
               </div>
+              {scoreError && <ErrorNote onRetry={() => submit()}>Couldn't score that just now. Check your connection and try again.</ErrorNote>}
             </div>
           </div>
         )}
