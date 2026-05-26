@@ -520,6 +520,46 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* What makes Yaar different — the deeper story (memory MOAT + AI company + parents) */}
+      <section className="mx-auto max-w-6xl px-6 py-20 border-b border-line">
+        <Reveal>
+          <h2 className="text-center font-display text-2xl font-bold text-ink sm:text-3xl">Not just a chatbot. A company that works for you.</h2>
+          <p className="mx-auto mt-2 max-w-2xl text-center text-muted">Three things make Yaar different from any agent or app you've tried.</p>
+        </Reveal>
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-80px" }}
+          className="mt-12 grid gap-5 lg:grid-cols-3"
+        >
+          <motion.div variants={staggerItem} className="card">
+            <div className="text-2xl">🧠</div>
+            <h3 className="mt-2 text-lg font-semibold text-ink">It actually remembers you</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-muted">
+              Every chat, document, and small win builds Yaar's private memory of you. Its advice gets sharper the more you use it, in your language, and you never start over.
+            </p>
+            <Link to="/app/memory" className="mt-3 inline-block text-sm font-medium text-brand-500 hover:underline">See your mind grow →</Link>
+          </motion.div>
+          <motion.div variants={staggerItem} className="card">
+            <div className="text-2xl">🏢</div>
+            <h3 className="mt-2 text-lg font-semibold text-ink">An AI company runs it</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-muted">
+              A team of AI employees plans, writes, supports, and checks in, meeting and deciding together, with a human approval valve. That is how Yaar stays free of bias and school commissions.
+            </p>
+            <Link to="/app/company" className="mt-3 inline-block text-sm font-medium text-brand-500 hover:underline">Watch the team work →</Link>
+          </motion.div>
+          <motion.div variants={staggerItem} className="card">
+            <div className="text-2xl">👪</div>
+            <h3 className="mt-2 text-lg font-semibold text-ink">Updates your family understands</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-muted">
+              Yaar writes an honest, plain update for your parents, in their language, that you share with one link. No login, no jargon, no false promises.
+            </p>
+            <Link to="/app/parent" className="mt-3 inline-block text-sm font-medium text-brand-500 hover:underline">See a parent update →</Link>
+          </motion.div>
+        </motion.div>
+      </section>
+
       {/* CTA */}
       <section className="relative mx-auto max-w-4xl overflow-hidden px-6 py-24 text-center">
         <Reveal>
