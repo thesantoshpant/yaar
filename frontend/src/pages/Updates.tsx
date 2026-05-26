@@ -3,13 +3,13 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { InboxItem } from "../lib/types";
 import { getProfileId } from "../lib/progress";
-import { Spinner, SourceBadge } from "../components/ui";
+import { Spinner, SourceBadge, PageHeading } from "../components/ui";
 
 const KIND_STYLE: Record<string, string> = {
-  opportunity: "bg-brand-100 text-brand-700",
-  followup: "bg-amber-100 text-amber-700",
-  celebration: "bg-emerald-100 text-emerald-700",
-  nudge: "bg-slate-100 text-slate-600",
+  opportunity: "bg-brand-500/12 text-brand-500",
+  followup: "bg-amber-500/12 text-amber-600 dark:text-amber-400",
+  celebration: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400",
+  nudge: "bg-surface-2 text-muted",
 };
 
 export default function Updates() {
@@ -25,7 +25,6 @@ export default function Updates() {
     try {
       const res = await api.getInbox(profileId);
       setItems(res.items);
-      // mark everything read so the nav badge clears
       res.items.filter((i) => !i.read).forEach((i) => void api.markInboxRead(i.id));
     } finally {
       setLoading(false);
@@ -60,11 +59,11 @@ export default function Updates() {
   if (!profileId) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-slate-900">Your updates</h1>
+        <PageHeading title="Your updates" />
         <div className="card">
-          <p className="text-slate-600">
+          <p className="text-muted">
             Set up your profile first so your counselor knows you. Head to the{" "}
-            <Link to="/app" className="font-medium text-brand-600 hover:underline">
+            <Link to="/app" className="font-medium text-brand-500 hover:underline">
               Dashboard
             </Link>{" "}
             and tell us about yourself.
@@ -76,35 +75,36 @@ export default function Updates() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Your updates</h1>
-          <p className="mt-1 text-slate-600">
-            Your counselor checks in here with personalized, unbiased next steps and follows up on what you said you would do.
-          </p>
-        </div>
-        <button className="btn-primary" onClick={runNow} disabled={running}>
-          {running ? <Spinner label="Thinking..." /> : "Run my updates now"}
-        </button>
-      </div>
+      <PageHeading
+        title="Your updates 🔔"
+        subtitle="Yaar drops your best moves for the week here and checks in on what you said you'd do. Like a friend who actually follows up."
+        action={
+          <button className="btn-primary" onClick={runNow} disabled={running}>
+            {running ? <Spinner label="Thinking..." /> : "Run my updates now"}
+          </button>
+        }
+      />
 
       {loading && items.length === 0 && <Spinner label="Loading your updates..." />}
 
       {!loading && items.length === 0 && (
-        <div className="card text-slate-600">
-          No updates yet. Click <strong>Run my updates now</strong> and your counselor will find this week's best moves for you.
+        <div className="card text-center text-muted">
+          <div className="text-4xl">📭</div>
+          <p className="mt-3">
+            Nothing here yet. Hit <strong className="text-ink">Run my updates now</strong> and Yaar will dig up this week's best moves for you.
+          </p>
         </div>
       )}
 
       <div className="space-y-3">
         {items.map((it) => (
-          <div key={it.id} className="card">
+          <div key={it.id} className="card transition-shadow duration-200 hover:shadow-lift">
             <div className="mb-2 flex items-center justify-between">
-              <span className={`badge ${KIND_STYLE[it.kind] ?? KIND_STYLE.nudge}`}>{it.kind}</span>
+              <span className={`badge capitalize ${KIND_STYLE[it.kind] ?? KIND_STYLE.nudge}`}>{it.kind}</span>
               <SourceBadge source={it.source} />
             </div>
-            <h3 className="text-base font-semibold text-slate-900">{it.title}</h3>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{it.body}</p>
+            <h3 className="text-base font-semibold text-ink">{it.title}</h3>
+            <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-muted">{it.body}</p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {it.cta?.url && (
                 <a

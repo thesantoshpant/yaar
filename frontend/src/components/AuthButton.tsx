@@ -13,10 +13,10 @@ export default function AuthButton() {
 
   if (user) {
     return (
-      <div className="text-xs text-slate-500">
-        Signed in as <span className="font-medium text-slate-700">{user.name}</span>
+      <div className="rounded-xl border border-line bg-surface-2/60 px-3 py-2 text-xs text-muted">
+        Signed in as <span className="font-medium text-ink">{user.name}</span>
         <button
-          className="ml-2 underline hover:text-slate-700"
+          className="ml-2 underline hover:text-ink"
           onClick={() => {
             clearAuth();
             setUser(null);

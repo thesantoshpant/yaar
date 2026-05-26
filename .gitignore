@@ -27,3 +27,6 @@ yarn-error.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# local AI / design tooling (UI/UX Pro Max skill, etc.)
+.claude/
