@@ -10,6 +10,7 @@ import { getEmployee, COMPANY_BRAIN, type Employee } from "../lib/org";
 import { YAAR_PRINCIPLES } from "../lib/prompts";
 import { dispatch } from "../lib/actionGateway";
 import { reviewAction } from "./evalAgent";
+import { companyKpis, recordDecision, recentDecisions } from "./companyIntel";
 import { store } from "../lib/store";
 import type { AgentAction, CompanyTask } from "../lib/types";
 
@@ -40,11 +41,7 @@ export function getLastBoardroom(): BoardroomResult | null {
 }
 
 async function gatherKpis(): Promise<string> {
-  const students = (await store.allProfileIds()).length;
-  const recent = await store.listActions({ limit: 50 });
-  const executed = recent.filter((a) => a.status === "executed").length;
-  const pending = recent.filter((a) => a.status === "pending_approval").length;
-  return `students=${students}, recent_agent_actions=${recent.length}, executed=${executed}, awaiting_human_approval=${pending}`;
+  return companyKpis();
 }
 
 interface Contribution {
@@ -105,8 +102,8 @@ export async function runBoardroom(topicArg?: string): Promise<BoardroomResult> 
 
   const ceo = getEmployee("ceo")!;
 
-  // 1. CEO opens.
-  const open = await speak(ceo, topic, kpis, turns, "Open the meeting: state the situation in one line and the single priority you want the team to rally around, then invite their input.", "Team, the priority is simple: turn our free visa-risk users into trusting paying families, and do it by being more helpful, never pushier. What's our highest-leverage move?");
+  // 1. CEO opens (aware of what the company already decided).
+  const open = await speak(ceo, topic, kpis, turns, `Open the meeting: state the situation in one line and the single priority you want the team to rally around, then invite their input. Recent decisions on record (build on them, don't repeat):\n${recentDecisions()}`, "Team, the priority is simple: turn our free visa-risk users into trusting paying families, and do it by being more helpful, never pushier. What's our highest-leverage move?");
   push(ceo, open.message);
 
   // 2. Each department head contributes, reading the discussion so far.
@@ -155,6 +152,7 @@ Return ONLY JSON: { "message": string, "tasks": [ { "title": string, "detail": s
   const review = await reviewAction({ type: "report", title: `Boardroom plan: ${topic}`, payload: `${close.data?.message ?? ""}\nTasks: ${tasks.map((t) => t.title).join("; ")}` });
   turns.push({ agentId: "eval", title: "Eval / QA Agent", department: "trust", message: review.approved ? `Approved. ${review.reason}` : `Held for revision. ${review.reason}`, ts: now() });
 
+  recordDecision("boardroom", close.data?.message ?? `Met on: ${topic}`);
   lastBoardroom = { topic, startedAt: now(), transcript: turns, tasks, actions, review, source };
   return lastBoardroom;
 }

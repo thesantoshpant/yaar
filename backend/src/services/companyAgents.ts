@@ -8,6 +8,7 @@ import { dispatch } from "../lib/actionGateway";
 import { store } from "../lib/store";
 import { config } from "../config";
 import { runMemoryAgent } from "./memoryAgent";
+import { companyKpis, recordDecision, recentDecisions } from "./companyIntel";
 import type { AgentAction, CompanyTask } from "../lib/types";
 
 // Daily cap on agent runs to control LLM spend.
@@ -42,8 +43,7 @@ export interface EmployeeRunResult {
 }
 
 async function gatherKpis(): Promise<string> {
-  const studentCount = (await store.allProfileIds()).length;
-  return `students=${studentCount}`;
+  return companyKpis();
 }
 
 function mockDecision(emp: Employee): AgentDecision {
@@ -107,9 +107,12 @@ You may ONLY propose actions of these types: ${emp.allowedActions.join(", ")}. K
 Return ONLY JSON: { "summary": string, "proposedActions": [ { "type": string, "channel"?: string, "title": string, "payload": string, "riskLevel": "low"|"medium"|"high" } ] }`;
 
   const prompt = `Company KPIs: ${kpis}.
+Recent company decisions (don't repeat these; build on them):
+${recentDecisions()}
 ${context ? `Extra context: ${context}\n` : ""}Decide what to do now. Propose 1 to 3 concrete actions, only within your allowed types.`;
 
   const { data, source } = await generateJson<AgentDecision>({ system, prompt, mock: () => mockDecision(emp) });
+  recordDecision(emp.id, data.summary ?? "");
 
   const actions: AgentAction[] = [];
   for (const pa of (data.proposedActions ?? []).slice(0, 5)) {
@@ -158,7 +161,7 @@ export async function orchestrate(): Promise<{ summary: string; tasks: CompanyTa
 Company context: ${COMPANY_BRAIN}
 You are the agentic CEO / chief of staff. Based on the KPIs, set 2 to 4 concrete tasks for this cycle, each assigned to exactly one department: marketing, customer_care, growth, or ops. Be strategic and lean; prioritize the one thing that moves the company most. Propose; the human founders approve anything involving money, partnerships, or public statements.
 Return ONLY JSON: { "summary": string, "tasks": [ { "title": string, "detail": string, "department": "marketing"|"customer_care"|"growth"|"ops" } ] }`,
-    prompt: `Company KPIs: ${kpis}. Decide this cycle's tasks now.`,
+    prompt: `Company KPIs: ${kpis}.\nRecent company decisions (build on these, don't repeat):\n${recentDecisions()}\nDecide this cycle's tasks now.`,
     mock: () => ({
       summary: "Demo mode. Priority: convert visa-risk-report users to paid, and ship one honest Nepal guide.",
       tasks: [
@@ -180,5 +183,6 @@ Return ONLY JSON: { "summary": string, "tasks": [ { "title": string, "detail": s
     if (r) worked.push(r);
     await store.updateTask(task.id, { status: "done", resolvedAt: new Date().toISOString() });
   }
+  recordDecision("ceo", data.summary ?? "");
   return { summary: data.summary ?? "", tasks, worked };
 }
