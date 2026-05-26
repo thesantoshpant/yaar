@@ -167,3 +167,115 @@ export const api = {
   consolidateMemory: (profileId: string) =>
     post<{ brief: string; insights: number; source: string }>(`/api/memory/${profileId}/consolidate`, {}),
 };
+
+// ---------------------------------------------------------------------------
+// Ops API — the autonomous-company control plane (admin-gated in prod, open on
+// localhost in dev). Kept separate from `api` because it carries an admin token
+// header rather than the per-user bearer token.
+// ---------------------------------------------------------------------------
+
+export type AutonomyMode = "dry_run" | "assist" | "live";
+
+export interface OpsEmployee {
+  id: string;
+  title: string;
+  department: string;
+  mission: string;
+  cadence: string;
+  allowedActions: string[];
+}
+
+export interface OrgResponse {
+  autonomyMode: AutonomyMode;
+  employees: OpsEmployee[];
+}
+
+export type ActionStatus = "dry_run" | "pending_approval" | "approved" | "executed" | "rejected" | "failed";
+
+export interface OpsAction {
+  id: string;
+  agentId: string;
+  department: string;
+  type: string;
+  external: boolean;
+  channel?: string;
+  title: string;
+  payload: unknown;
+  riskLevel: string;
+  status: ActionStatus;
+}
+
+export interface OpsTask {
+  id: string;
+  title: string;
+  detail: string;
+  department: string;
+  status: string;
+}
+
+export interface BoardroomTurn {
+  agentId: string;
+  title: string;
+  department: string;
+  message: string;
+  ts: number | string;
+}
+
+export interface BoardroomResponse {
+  topic?: string;
+  startedAt?: number | string;
+  source?: string;
+  review?: { approved: boolean; reason: string };
+  transcript: BoardroomTurn[];
+  tasks: OpsTask[];
+  actions: OpsAction[];
+}
+
+export interface RunEmployeeResponse {
+  employee: string;
+  title: string;
+  summary: string;
+  actions: OpsAction[];
+  source?: string;
+}
+
+function opsHeaders(): Record<string, string> {
+  const t = localStorage.getItem("yaar.adminToken");
+  return t ? { "X-Admin-Token": t } : {};
+}
+
+// Error that preserves the HTTP status so callers can detect 503 (admin required)
+// and prompt for an admin token rather than showing a generic failure.
+export class OpsError extends Error {
+  status: number;
+  constructor(path: string, status: number) {
+    super(`${path} failed: ${status}`);
+    this.name = "OpsError";
+    this.status = status;
+  }
+}
+
+async function opsGet<T>(path: string): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, { headers: { ...opsHeaders() } });
+  if (!res.ok) throw new OpsError(path, res.status);
+  return res.json() as Promise<T>;
+}
+
+async function opsPost<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...opsHeaders() },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new OpsError(path, res.status);
+  return res.json() as Promise<T>;
+}
+
+export const ops = {
+  getOrg: () => opsGet<OrgResponse>("/api/ops/org"),
+  runBoardroom: (topic?: string) => opsPost<BoardroomResponse>("/api/ops/boardroom", { topic }),
+  latestBoardroom: () => opsGet<BoardroomResponse>("/api/ops/boardroom/latest"),
+  listActions: () => opsGet<{ actions: OpsAction[] }>("/api/ops/actions"),
+  listTasks: () => opsGet<{ tasks: OpsTask[] }>("/api/ops/tasks"),
+  runEmployee: (id: string) => opsPost<RunEmployeeResponse>(`/api/ops/run/${id}`, {}),
+};

@@ -14,6 +14,7 @@ import Evidence from "./pages/Evidence";
 import Memory from "./pages/Memory";
 import SpeakingPractice from "./pages/SpeakingPractice";
 import VisaSimulator from "./pages/VisaSimulator";
+import Company from "./pages/Company";
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="evidence" element={<Evidence />} />
         <Route path="speaking" element={<SpeakingPractice />} />
         <Route path="visa" element={<VisaSimulator />} />
+        <Route path="company" element={<Company />} />
       </Route>
     </Routes>
   );

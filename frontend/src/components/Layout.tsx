@@ -26,6 +26,7 @@ const NAV: { to: string; label: string; end?: boolean; Icon: (p: IconProps) => J
   { to: "/app/evidence", label: "Evidence vault", Icon: I("M12 2l8 4v6c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-4zm-2 9l1.8 1.8L15 9") },
   { to: "/app/speaking", label: "Speaking prep", Icon: I("M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM5 11a7 7 0 0 0 14 0M12 18v3") },
   { to: "/app/visa", label: "Visa simulator", Icon: I("M9 12l2 2 4-4m-2.5-6.5a2 2 0 0 0-1 0L5 6v6c0 4 3 7 7 8 4-1 7-4 7-8V6l-5.5-2.5z") },
+  { to: "/app/company", label: "Company", Icon: I("M3 21h18M5 21V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v16M14 21V9a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v12M8 8h2M8 12h2M8 16h2") },
 ];
 
 export default function Layout() {
