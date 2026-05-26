@@ -5,6 +5,7 @@ import type { AgentPlan, ModuleKey, JourneyState } from "../lib/types";
 import { clearStudent, getCompleted } from "../lib/progress";
 import { useProfile } from "../lib/profile";
 import { Spinner, SourceBadge, ScoreBar, PageHeading, ErrorNote } from "../components/ui";
+import PersonaPicker from "../components/PersonaPicker";
 
 const MODULE_ROUTE: Record<ModuleKey, string> = {
   roadmap: "/app/roadmap",
@@ -138,6 +139,8 @@ export default function Dashboard() {
           )
         }
       />
+
+      {!hasProfile && <PersonaPicker />}
 
       <div className="card">
         <h2 className="text-lg font-semibold text-ink">About you</h2>

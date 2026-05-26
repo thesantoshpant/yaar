@@ -66,6 +66,10 @@ export const api = {
   getProfile: (id: string) =>
     get<{ profile: Record<string, unknown> }>(`/api/profile/${id}`),
 
+  // Sample students for instant demos / showing Yaar adapts to different journeys.
+  listPersonas: () => get<{ personas: { key: string; label: string; blurb: string }[] }>("/api/profile/personas"),
+  seedPersona: (persona: string) => post<{ profile: { id: string } }>("/api/profile/seed-persona", { persona }),
+
   getJourney: (profileId: string) => get<{ journey: JourneyState }>(`/api/journey/${profileId}`),
 
   completeModule: (profileId: string, module: string) =>

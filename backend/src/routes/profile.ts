@@ -4,9 +4,23 @@ import { store } from "../lib/store";
 import { classify } from "../lib/classify";
 import { recomputeJourney } from "../services/journey";
 import { seedProfileFacts } from "../services/memoryUpdate";
+import { listPersonas, seedPersona } from "../services/personaSeeds";
 import { assertOwnership } from "../lib/userAuth";
 
 export const profileRouter = Router();
+
+// Sample students for instant demos and to show Yaar adapts to different journeys.
+// Registered before "/:id" so "personas" isn't mistaken for a profile id.
+profileRouter.get("/personas", (_req, res) => {
+  res.json({ personas: listPersonas() });
+});
+
+profileRouter.post("/seed-persona", async (req, res) => {
+  const key = typeof req.body?.persona === "string" ? req.body.persona : "";
+  const profile = await seedPersona(key);
+  if (!profile) return res.status(404).json({ error: "Unknown persona" });
+  res.json({ profile });
+});
 
 const profileSchema = z.object({
   name: z.string().min(1),
