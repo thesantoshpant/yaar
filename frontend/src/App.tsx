@@ -15,11 +15,14 @@ import Memory from "./pages/Memory";
 import SpeakingPractice from "./pages/SpeakingPractice";
 import VisaSimulator from "./pages/VisaSimulator";
 import Company from "./pages/Company";
+import Parent from "./pages/Parent";
+import ParentShared from "./pages/ParentShared";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/parent/:token" element={<ParentShared />} />
       <Route path="/app" element={<ProfileProvider><AuthGateProvider><Layout /></AuthGateProvider></ProfileProvider>}>
         <Route index element={<Dashboard />} />
         <Route path="updates" element={<Updates />} />
@@ -33,6 +36,7 @@ export default function App() {
         <Route path="speaking" element={<SpeakingPractice />} />
         <Route path="visa" element={<VisaSimulator />} />
         <Route path="company" element={<Company />} />
+        <Route path="parent" element={<Parent />} />
       </Route>
     </Routes>
   );

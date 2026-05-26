@@ -166,7 +166,25 @@ export const api = {
     ),
   consolidateMemory: (profileId: string) =>
     post<{ brief: string; insights: number; source: string }>(`/api/memory/${profileId}/consolidate`, {}),
+
+  // Parent mode — a warm, plain-language update for a parent, in any language, plus a
+  // no-login shareable link.
+  generateParentReport: (profileId: string, language?: string) =>
+    post<{ report: ParentReport; shareToken: string; shareUrl: string }>(`/api/parent/${profileId}/report`, { language }),
+  getSharedParentReport: (token: string) => get<{ report: ParentReport }>(`/api/parent/shared/${token}`),
 };
+
+export interface ParentReport {
+  childName: string;
+  whereTheyAre: string;
+  doingWell: string;
+  watchFor: string;
+  theMoney: string;
+  howYouCanHelp: string[];
+  nextMilestones: string[];
+  language: string;
+  source: string;
+}
 
 // ---------------------------------------------------------------------------
 // Ops API — the autonomous-company control plane (admin-gated in prod, open on

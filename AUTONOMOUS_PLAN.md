@@ -13,7 +13,7 @@ acting as the founder. Free hand. Safe checkpoint: `main` @ `d696aec`. Work bran
 
 ## Backlog (priority order) — update status as I go
 1. [x] Agentic-company dashboard + visible agent-to-agent conversation. DONE (boardroom + Company HQ page).
-2. [~] Parent mode. Backend DONE (report any language + shareable link). TODO: frontend page (student generates/shares) + public /parent/:token view.
+2. [x] Parent mode FULLY DONE. Backend (report any language + shareable link) + frontend (student page /app/parent to generate/translate/share, public /parent/:token no-login view, shared ParentReportView).
 3. [ ] Persona demo seeds: one-click load distinct student journeys (rural first-gen / urban grad / aid-dependent) so the whole product is instantly demo-able and covers different students.
 4. [ ] Deepen intelligence: richer agent KPIs + per-agent memory/journal; a "what-if" plan simulator.
 5. [ ] UI/UX polish pass + accessibility + landing story tightening.
@@ -22,6 +22,7 @@ acting as the founder. Free hand. Safe checkpoint: `main` @ `d696aec`. Work bran
 8. [ ] Smoke-test/eval harness committed for failproofing + a judges' demo script.
 
 ## Log (newest first)
+- 2026-05-26: Item 2 FULLY DONE. Parent-mode frontend: /app/parent (pick language, generate, copy share link) + public /parent/:token no-login view + shared ParentReportView + nav "For parents". Frontend builds (447KB). Next: item 3 persona demo seeds.
 - 2026-05-26: Item 1 FULLY DONE (Company HQ dashboard frontend built: org chart, live boardroom transcript thread, action queue, autonomy badge; ops client with admin-token support). Item 2 backend DONE + verified (parent report in English & Nepali via Vertex, source=gemini, stateless shareable link roundtrips). Both committed, frontend builds (440KB). Next: item 2 frontend (parent page + public share view), then item 3 persona seeds.
 - 2026-05-26: Item 1 backend DONE. Built agentBoardroom.ts: CEO opens -> 5 dept heads contribute in sequence (each reads the discussion, references colleagues by name) -> CEO synthesizes decision + tasks -> eval/QA reviews. Routes actions through the gateway. Exposed at POST/GET /api/ops/boardroom. Verified live: real grounded multi-agent convo, source=gemini, eval approved. Next: frontend Company dashboard to visualize it.
 - 2026-05-26: Branched yaar-autobuild from main d696aec. Wrote this plan. Starting item 1.
