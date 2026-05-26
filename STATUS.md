@@ -120,6 +120,27 @@ Yaar is being built to run itself with AI "employees", in addition to serving st
 - Before `live`: add real social/WhatsApp integrations (with approved templates), per-recipient consent/opt-in,
   and wire `ADMIN_TOKEN` + `RESEND_*`. The plumbing and guardrails are all in place.
 
+## Security & integration fixes (external audit round 2, verified)
+
+- P0 auth/ownership: `userId` now binds a profile to its owner; `attachUser` + `assertOwnership` enforce ownership on
+  profile/journey/engine/risk/evidence/billing routes. Enforcement is ACTIVE when Google auth is configured
+  (GOOGLE_CLIENT_ID + JWT_SECRET) and open in local dev otherwise.
+- P0 risk monetization: anonymous requests get only a locked teaser (no full report); `/risk/latest` applies the
+  same preview lock unless entitled. Verified: anonymous report returns locked + needsAccount.
+- P0 document honesty: raw document text is no longer persisted (transient); only the derived report is saved, and
+  the UI copy now says exactly that.
+- P1 Stripe: the UI refetches the full report after checkout success (no stale locked preview).
+- P1 frontend client: updateProfile/markInboxRead/resolveAction now send auth headers and throw on non-2xx.
+- P1 opportunity engine: added missing gap tags (self_motivation, process_knowledge) and now skips done/skipped/
+  expired opportunities (no repeats).
+- P1 journey progress is server-side: `completedModules` on the journey (consistent across devices); the agent reads
+  it. Verified: completing "roadmap" advanced the stage. The frontend syncs completion to the server.
+- P1 evidence loop: "I did it" prompts logging evidence; logging evidence linked to an action completes it (which
+  advances gap state, since gaps derive from completed action tags).
+- P2 ops lock: `/api/ops` requires ADMIN_TOKEN off-localhost even in dry_run (open only from localhost in dev).
+- Integration: merged the friend's Gen-Z redesigned frontend; added Coaches and Evidence Vault pages + nav + client
+  methods in the same design system. Both apps build clean.
+
 ## Still open (priority order)
 1. Enforce auth + scope all data by userId (auth is wired but not enforced yet).
 2. Persist Stripe entitlements (currently in-memory) and add a webhook for reliability.

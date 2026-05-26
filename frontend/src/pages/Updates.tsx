@@ -18,6 +18,7 @@ export default function Updates() {
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
   const [resolving, setResolving] = useState<string | null>(null);
+  const [logged, setLogged] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!profileId) return;
@@ -46,11 +47,12 @@ export default function Updates() {
     }
   }
 
-  async function resolve(actionId: string, status: "done" | "skipped") {
+  async function resolve(actionId: string, status: "done" | "skipped", title?: string) {
     setResolving(actionId);
     try {
       await api.resolveAction(actionId, status);
       await load();
+      if (status === "done" && title) setLogged(title);
     } finally {
       setResolving(null);
     }
@@ -84,6 +86,22 @@ export default function Updates() {
           </button>
         }
       />
+
+      {logged && (
+        <div className="card flex flex-wrap items-center justify-between gap-3 border-emerald-500/30 bg-emerald-500/10">
+          <p className="text-sm text-ink">
+            Nice work on "{logged}". Save it as evidence so Yaar can use it in your applications later.
+          </p>
+          <div className="flex gap-2">
+            <Link className="btn-gold" to={`/app/evidence?title=${encodeURIComponent(logged)}`}>
+              Log evidence
+            </Link>
+            <button className="btn-ghost" onClick={() => setLogged(null)}>
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading && items.length === 0 && <Spinner label="Loading your updates..." />}
 
@@ -120,7 +138,7 @@ export default function Updates() {
                 <>
                   <button
                     className="btn-primary"
-                    onClick={() => resolve(it.cta!.actionItemId!, "done")}
+                    onClick={() => resolve(it.cta!.actionItemId!, "done", it.title)}
                     disabled={resolving === it.cta.actionItemId}
                   >
                     I did it

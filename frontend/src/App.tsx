@@ -7,6 +7,8 @@ import Counselor from "./pages/Counselor";
 import Roadmap from "./pages/Roadmap";
 import SchoolSearch from "./pages/SchoolSearch";
 import Applications from "./pages/Applications";
+import Coaches from "./pages/Coaches";
+import Evidence from "./pages/Evidence";
 import SpeakingPractice from "./pages/SpeakingPractice";
 import VisaSimulator from "./pages/VisaSimulator";
 
@@ -21,6 +23,8 @@ export default function App() {
         <Route path="roadmap" element={<Roadmap />} />
         <Route path="schools" element={<SchoolSearch />} />
         <Route path="applications" element={<Applications />} />
+        <Route path="coaches" element={<Coaches />} />
+        <Route path="evidence" element={<Evidence />} />
         <Route path="speaking" element={<SpeakingPractice />} />
         <Route path="visa" element={<VisaSimulator />} />
       </Route>

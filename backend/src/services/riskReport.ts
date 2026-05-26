@@ -78,10 +78,9 @@ export async function analyzeDocuments(docs: DocInput[]): Promise<ReportCore> {
 }
 
 export async function generateRiskReport(profileId: string, docs: DocInput[]): Promise<RiskReport> {
-  // persist the provided documents as first-class objects
-  for (const d of docs) {
-    if (d.text?.trim()) await store.addDocument({ profileId, kind: d.kind, filename: d.filename, text: d.text });
-  }
+  // Privacy: we do NOT persist the raw document text. We only analyze it in-memory
+  // and save the derived report (the student's owned artifact). This keeps the
+  // "we don't store your raw documents" promise honest.
   const core = await analyzeDocuments(docs);
   await store.addEvent({ profileId, kind: "module_run", module: "visa", summary: `Generated visa risk report (score ${core.overall})`, status: "done" });
   return store.saveRiskReport({ profileId, ...core });

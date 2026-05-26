@@ -308,4 +308,6 @@ export const GAP_TAGS = [
   "credential",
   "community_impact",
   "research",
+  "self_motivation",
+  "process_knowledge",
 ] as const;

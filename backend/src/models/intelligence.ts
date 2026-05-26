@@ -26,6 +26,7 @@ const journeySchema = new Schema(
     currentStage: { type: String, default: "orientation" },
     pacing: { type: String, default: "steady" },
     stages: { type: [Schema.Types.Mixed], default: [] },
+    completedModules: { type: [String], default: [] },
     updatedAt: { type: String, required: true },
   },
   { collection: "journeys" }

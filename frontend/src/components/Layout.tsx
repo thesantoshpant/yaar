@@ -21,6 +21,8 @@ const NAV: { to: string; label: string; end?: boolean; Icon: (p: IconProps) => J
   { to: "/app/roadmap", label: "Roadmap", Icon: I("M9 4v13l-5 3V7l5-3zm0 0l6 3m0 0l5-3v13l-5 3m0-13v13m-6-3l6 3") },
   { to: "/app/schools", label: "School search", Icon: I("M3 10l9-6 9 6-9 6-9-6zm3 4v5l6 3 6-3v-5") },
   { to: "/app/applications", label: "Applications", Icon: I("M14 3v5h5M9 13h6M9 17h6M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z") },
+  { to: "/app/coaches", label: "Coaches", Icon: I("M12 14l9-5-9-5-9 5 9 5zm0 0v7m-5-9.5V17l5 3 5-3v-5.5") },
+  { to: "/app/evidence", label: "Evidence vault", Icon: I("M12 2l8 4v6c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-4zm-2 9l1.8 1.8L15 9") },
   { to: "/app/speaking", label: "Speaking prep", Icon: I("M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM5 11a7 7 0 0 0 14 0M12 18v3") },
   { to: "/app/visa", label: "Visa simulator", Icon: I("M9 12l2 2 4-4m-2.5-6.5a2 2 0 0 0-1 0L5 6v6c0 4 3 7 7 8 4-1 7-4 7-8V6l-5.5-2.5z") },
 ];

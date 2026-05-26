@@ -18,6 +18,7 @@ export default function VisaSimulator() {
   const [riskLoading, setRiskLoading] = useState(false);
   const [reportPaid, setReportPaid] = useState(true);
   const [needsPayment, setNeedsPayment] = useState(false);
+  const [needsAccount, setNeedsAccount] = useState(false);
 
   // Return from Stripe checkout: confirm the session, then unlock.
   useEffect(() => {
@@ -26,10 +27,14 @@ export default function VisaSimulator() {
     if (sessionId) {
       api
         .billingConfirm(sessionId)
-        .then((r) => {
-          if (r.paid) {
-            setReportPaid(true);
-            setNeedsPayment(false);
+        .then(async (r) => {
+          if (!r.paid) return;
+          setReportPaid(true);
+          setNeedsPayment(false);
+          const pid = getProfileId();
+          if (pid) {
+            const latest = await api.riskLatest(pid); // fetch the now-unlocked full report
+            if (latest.report) setReport(latest.report);
           }
         })
         .catch(() => {});
@@ -45,6 +50,7 @@ export default function VisaSimulator() {
       setReport(res.report);
       setReportPaid(res.paid);
       setNeedsPayment(!!res.needsPayment);
+      setNeedsAccount(!!res.needsAccount);
       markCompleted("visa");
     } finally {
       setRiskLoading(false);
@@ -123,7 +129,8 @@ export default function VisaSimulator() {
           onChange={(e) => setDocuments(e.target.value)}
         />
         <p className="mt-1 text-xs text-faint">
-          Sent securely to analyze your interview risk and not saved after your session. Do not paste passwords.
+          We do not store your raw documents. Your report is saved to your account so you can track progress. Do
+          not paste passwords.
         </p>
         <button className="btn-primary mt-3" onClick={analyzeDocs} disabled={riskLoading || !documents.trim()}>
           {riskLoading ? <Spinner label="Analyzing..." /> : "Analyze my documents"}
@@ -177,6 +184,12 @@ export default function VisaSimulator() {
 
             {report.recommendation && (
               <p className="mt-3 rounded-xl border border-brand-500/15 bg-brand-500/5 p-3 text-sm text-ink">{report.recommendation}</p>
+            )}
+
+            {needsAccount && (
+              <div className="mt-4 rounded-xl border border-brand-500/30 bg-brand-500/10 p-4 text-sm text-ink">
+                This is a free preview. Set up your profile on the Dashboard to generate and save your full report.
+              </div>
             )}
 
             {needsPayment && !reportPaid && (

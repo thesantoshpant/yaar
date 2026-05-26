@@ -4,6 +4,7 @@ import { generateRiskReport, analyzeDocuments } from "../services/riskReport";
 import { isEntitled } from "../services/billing";
 import { store } from "../lib/store";
 import { hasStripe } from "../config";
+import { assertOwnership } from "../lib/userAuth";
 import type { RiskReport } from "../lib/types";
 
 export const riskRouter = Router();
@@ -38,19 +39,24 @@ riskRouter.post("/report", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { profileId, documents } = parsed.data;
 
-  if (profileId) {
-    const report = await generateRiskReport(profileId, documents);
-    if (await isEntitled(profileId)) return res.json({ report, paid: true });
-    return res.json({ report: preview(report), paid: false, needsPayment: hasStripe });
+  // Anonymous (no profile): only a locked teaser. A full report requires an account
+  // (and payment when billing is on) so the paywall cannot be bypassed by clearing storage.
+  if (!profileId) {
+    const core = await analyzeDocuments(documents);
+    const full: RiskReport = { id: "preview", profileId: "", createdAt: new Date().toISOString(), ...core };
+    return res.json({ report: preview(full), paid: false, needsAccount: true });
   }
 
-  // anonymous try-it path: analyze without persisting
-  const core = await analyzeDocuments(documents);
-  const report: RiskReport = { id: "preview", profileId: "", createdAt: new Date().toISOString(), ...core };
-  res.json({ report, paid: true, anonymous: true });
+  await assertOwnership(req, profileId);
+  const report = await generateRiskReport(profileId, documents);
+  if (await isEntitled(profileId)) return res.json({ report, paid: true });
+  return res.json({ report: preview(report), paid: false, needsPayment: hasStripe });
 });
 
 riskRouter.get("/latest/:profileId", async (req, res) => {
+  await assertOwnership(req, req.params.profileId);
   const report = await store.getLatestRiskReport(req.params.profileId);
-  res.json({ report, entitled: await isEntitled(req.params.profileId) });
+  const entitled = await isEntitled(req.params.profileId);
+  // Apply the same preview lock as /report so the full report never leaks unpaid.
+  res.json({ report: report && !entitled ? preview(report) : report, entitled });
 });

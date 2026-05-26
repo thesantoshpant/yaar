@@ -1,5 +1,6 @@
 import type {
   AgentPlan,
+  EvidenceArtifact,
   InboxItem,
   JourneyState,
   RiskReport,
@@ -34,6 +35,16 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function patch<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
 export interface HealthMode {
   gemini: "live" | "mock";
   collegeScorecard: "live" | "mock";
@@ -50,26 +61,21 @@ export const api = {
     post<{ profile: { id: string } }>("/api/profile", input),
 
   updateProfile: (id: string, input: Record<string, unknown>) =>
-    fetch(`${BASE}/api/profile/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    }),
+    patch<{ profile: { id: string } }>(`/api/profile/${id}`, input),
 
   getJourney: (profileId: string) => get<{ journey: JourneyState }>(`/api/journey/${profileId}`),
+
+  completeModule: (profileId: string, module: string) =>
+    post<{ journey: JourneyState }>(`/api/journey/${profileId}/complete`, { module }),
 
   runDrop: (profileId: string) => post<{ inbox: InboxItem[]; source: string }>(`/api/engine/run-now/${profileId}`, {}),
 
   getInbox: (profileId: string) => get<{ items: InboxItem[]; unread: number }>(`/api/engine/inbox/${profileId}`),
 
-  markInboxRead: (id: string) => fetch(`${BASE}/api/engine/inbox/${id}/read`, { method: "PATCH" }),
+  markInboxRead: (id: string) => patch<{ ok: boolean }>(`/api/engine/inbox/${id}/read`),
 
   resolveAction: (id: string, status: "in_progress" | "done" | "skipped") =>
-    fetch(`${BASE}/api/engine/action/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    }),
+    patch<{ action: unknown }>(`/api/engine/action/${id}`, { status }),
 
   roadmap: (input: Record<string, unknown>) =>
     post<{ roadmap: Roadmap; source: string }>("/api/roadmap", input),
@@ -96,10 +102,13 @@ export const api = {
     post<{ plan: AgentPlan; source: string }>("/api/agent/plan", { profileSummary, completed, profileId }),
 
   riskReport: (documents: { kind: string; text: string }[], profileId?: string) =>
-    post<{ report: RiskReport; paid: boolean; needsPayment?: boolean; anonymous?: boolean }>("/api/risk/report", {
+    post<{ report: RiskReport; paid: boolean; needsPayment?: boolean; needsAccount?: boolean }>("/api/risk/report", {
       documents,
       profileId,
     }),
+
+  riskLatest: (profileId: string) =>
+    get<{ report: RiskReport | null; entitled: boolean }>(`/api/risk/latest/${profileId}`),
 
   billingStatus: (profileId: string) =>
     get<{ billingEnabled: boolean; entitled: boolean }>(`/api/billing/status/${profileId}`),
@@ -114,4 +123,29 @@ export const api = {
 
   authGoogle: (credential: string) =>
     post<{ token: string; user: { id: string; email: string; name: string } }>("/api/auth/google", { credential }),
+
+  // Coaches
+  coachRecommender: (input: Record<string, unknown>) =>
+    post<{ requestMessage: string; bragSheet: string[]; projectSummary: string; logistics: string[]; source: string }>(
+      "/api/coach/recommender",
+      input
+    ),
+  coachFunding: (input: Record<string, unknown>) =>
+    post<{ costExplanation: string; sponsorStory: string; gapAnalysis: string; howToClose: string[]; parentExplainer: string; gapUsd: number | null; source: string }>(
+      "/api/coach/funding",
+      input
+    ),
+  coachMilestones: (input: Record<string, unknown>) =>
+    post<{ overview: string; terms: { term: string; focus: string; milestones: { area: string; action: string; proof: string }[] }[]; source: string }>(
+      "/api/coach/milestones",
+      input
+    ),
+  coachF1: (input: Record<string, unknown>) =>
+    post<{ answer: string; mustDo: string[]; checkWithDSO: boolean; disclaimer: string; source: string }>("/api/coach/f1-status", input),
+
+  // Evidence Vault
+  addEvidence: (input: Record<string, unknown>) => post<{ evidence: EvidenceArtifact }>("/api/evidence", input),
+  listEvidence: (profileId: string) => get<{ evidence: EvidenceArtifact[] }>(`/api/evidence/${profileId}`),
+  summarizeEvidence: (profileId: string) =>
+    post<{ activityLines: string[]; essayParagraph: string; source: string }>(`/api/evidence/${profileId}/summarize`, {}),
 };

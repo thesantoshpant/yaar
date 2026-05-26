@@ -2,6 +2,7 @@
 
 export interface StudentProfile {
   id: string;
+  userId?: string; // owner (set when created by a signed-in user); gates access
   name: string;
   country: string; // e.g. "Nepal", "India"
   gpa?: string; // free text, grading systems vary
@@ -117,6 +118,7 @@ export interface JourneyState {
   currentStage: JourneyStage;
   pacing: "patient" | "steady" | "aggressive";
   stages: { stage: JourneyStage; status: "locked" | "available" | "active" | "done" }[];
+  completedModules: string[]; // server-side source of truth for module completion
   updatedAt: string;
 }
 

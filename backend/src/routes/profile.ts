@@ -2,6 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { store } from "../lib/store";
 import { classify } from "../lib/classify";
+import { recomputeJourney } from "../services/journey";
+import { requireUser, assertOwnership } from "../lib/userAuth";
 
 export const profileRouter = Router();
 
@@ -27,12 +29,12 @@ const profileSchema = z.object({
 
 const updateSchema = profileSchema.partial();
 
-profileRouter.post("/", async (req, res) => {
+profileRouter.post("/", requireUser, async (req, res) => {
   const parsed = profileSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
-  const profile = await store.createProfile(parsed.data);
+  const profile = await store.createProfile({ ...parsed.data, userId: req.userId });
   // Seed the personalized journey + memory immediately so the student gets value at once.
   await store.upsertJourney(classify(profile));
   await store.addEvent({ profileId: profile.id, kind: "signup", summary: `Joined Yaar from ${profile.country}` });
@@ -45,16 +47,18 @@ profileRouter.post("/", async (req, res) => {
 });
 
 profileRouter.get("/:id", async (req, res) => {
+  await assertOwnership(req, req.params.id);
   const profile = await store.getProfile(req.params.id);
   if (!profile) return res.status(404).json({ error: "Not found" });
   res.json({ profile });
 });
 
 profileRouter.patch("/:id", async (req, res) => {
+  await assertOwnership(req, req.params.id);
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const profile = await store.updateProfile(req.params.id, parsed.data);
   if (!profile) return res.status(404).json({ error: "Not found" });
-  await store.upsertJourney(classify(profile)); // re-personalize after changes
+  await recomputeJourney(profile.id); // re-personalize, preserving completed-module progress
   res.json({ profile });
 });

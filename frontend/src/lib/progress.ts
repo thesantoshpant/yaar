@@ -56,6 +56,17 @@ export function markCompleted(module: ModuleKey): void {
   const set = new Set(getCompleted());
   set.add(module);
   localStorage.setItem(DONE_KEY, JSON.stringify([...set]));
+  // Also record completion server-side (source of truth, consistent across devices).
+  const pid = getProfileId();
+  if (pid) {
+    const base = import.meta.env.VITE_API_BASE ?? "http://localhost:4000";
+    const token = getToken();
+    void fetch(`${base}/api/journey/${pid}/complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ module }),
+    }).catch(() => {});
+  }
 }
 
 export function getProfileSummary(): string {

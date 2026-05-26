@@ -106,5 +106,5 @@ export function classify(profile: StudentProfile, from = new Date()): Omit<Journ
     status: (i === 0 ? "active" : "available") as "active" | "available",
   }));
 
-  return { profileId: profile.id, path, personaTags: tags, currentStage, pacing, stages };
+  return { profileId: profile.id, path, personaTags: tags, currentStage, pacing, stages, completedModules: [] };
 }

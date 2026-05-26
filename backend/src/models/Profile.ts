@@ -4,6 +4,7 @@ import type { StudentProfile } from "../lib/types";
 const profileSchema = new Schema<StudentProfile>(
   {
     id: { type: String, required: true, unique: true, index: true },
+    userId: { type: String, index: true },
     name: { type: String, required: true },
     country: { type: String, required: true },
     gpa: String,

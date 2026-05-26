@@ -2,10 +2,12 @@ import { Router } from "express";
 import { z } from "zod";
 import { createCheckoutUrl, confirmSession, isEntitled } from "../services/billing";
 import { hasStripe } from "../config";
+import { assertOwnership } from "../lib/userAuth";
 
 export const billingRouter = Router();
 
 billingRouter.get("/status/:profileId", async (req, res) => {
+  await assertOwnership(req, req.params.profileId);
   res.json({ billingEnabled: hasStripe, entitled: await isEntitled(req.params.profileId) });
 });
 
@@ -13,6 +15,7 @@ const checkoutSchema = z.object({ profileId: z.string().min(1) });
 billingRouter.post("/checkout", async (req, res) => {
   const parsed = checkoutSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  await assertOwnership(req, parsed.data.profileId);
   const url = await createCheckoutUrl(parsed.data.profileId);
   if (!url) return res.json({ url: null, free: true }); // billing disabled => already unlocked
   res.json({ url });

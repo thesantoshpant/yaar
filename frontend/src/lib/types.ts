@@ -89,6 +89,19 @@ export interface RiskReport {
   locked?: boolean;
 }
 
+export interface EvidenceArtifact {
+  id: string;
+  profileId: string;
+  title: string;
+  whatYouDid: string;
+  whoBenefited?: string;
+  proofUrl?: string;
+  skills: string[];
+  reflection?: string;
+  linkedActionItemId?: string;
+  createdAt: string;
+}
+
 export interface JourneyState {
   id: string;
   profileId: string;

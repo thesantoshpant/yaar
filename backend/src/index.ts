@@ -22,6 +22,7 @@ import { coachRouter } from "./routes/coach";
 import { evidenceRouter } from "./routes/evidence";
 import { opsRouter } from "./routes/ops";
 import { requireAdmin } from "./lib/adminAuth";
+import { attachUser } from "./lib/userAuth";
 import { startScheduler } from "./services/scheduler";
 import { rateLimit } from "./lib/rateLimit";
 import { notFoundHandler, errorHandler, installProcessGuards } from "./lib/errors";
@@ -33,6 +34,8 @@ app.use(cors({ origin: config.corsOrigins }));
 app.use(express.json({ limit: "1mb" }));
 // Basic abuse protection. AI endpoints are the costly ones, so cap a bit tighter.
 app.use("/api/", rateLimit({ windowMs: 60_000, max: 120 }));
+// Attach the signed-in user (if any) to every API request for ownership checks.
+app.use("/api", attachUser);
 
 app.get("/api/health", (_req, res) => {
   res.json({

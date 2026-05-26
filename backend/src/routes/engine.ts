@@ -3,11 +3,13 @@ import { z } from "zod";
 import { store } from "../lib/store";
 import { runWeeklyDrop } from "../services/opportunityEngine";
 import { followUpSweep } from "../services/engagement";
+import { assertOwnership } from "../lib/userAuth";
 
 export const engineRouter = Router();
 
 // The "magic" button: generate this student's personalized opportunity drop now.
 engineRouter.post("/run-now/:profileId", async (req, res) => {
+  await assertOwnership(req, req.params.profileId);
   const result = await runWeeklyDrop(req.params.profileId);
   if (!result) return res.status(404).json({ error: "Profile not found" });
   res.json(result);
@@ -21,6 +23,7 @@ engineRouter.post("/followups", async (_req, res) => {
 
 // Inbox feed for a student.
 engineRouter.get("/inbox/:profileId", async (req, res) => {
+  await assertOwnership(req, req.params.profileId);
   const items = await store.getInbox(req.params.profileId);
   res.json({ items, unread: items.filter((i) => !i.read).length });
 });
@@ -38,6 +41,7 @@ engineRouter.patch("/action/:id", async (req, res) => {
 
   const item = await store.getActionItem(req.params.id);
   if (!item) return res.status(404).json({ error: "Action not found" });
+  await assertOwnership(req, item.profileId);
 
   const status = parsed.data.status;
   const updated = await store.updateActionItem(req.params.id, {

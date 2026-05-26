@@ -70,21 +70,23 @@ agentRouter.post("/plan", async (req, res) => {
   // Persona + memory make the plan adapt to who the student actually is.
   let preamble = "";
   let pack = "";
+  let effectiveCompleted = completed;
   if (profileId) {
     const journey = await getOrCreateJourney(profileId);
     preamble = personaPreamble(journey);
     pack = await buildContextPack(profileId);
+    if (journey) effectiveCompleted = journey.completedModules ?? completed; // server truth
   }
 
   const system = `${AGENT_BRAIN_SYSTEM}${preamble ? `\n${preamble}` : ""}
 Return ONLY JSON: { "nextAction": { "module": one of the modules, "title": string, "why": string, "autoRunnable": boolean }, "alternatives": same-shape[], "progressPct": number 0-100, "encouragement": string }`;
 
   const prompt = `${pack ? `What you remember about this student:\n${pack}\n\n` : `Student profile: ${profileSummary ?? "unknown"}.\n`}Modules already completed: ${
-    completed.length ? completed.join(", ") : "none"
+    effectiveCompleted.length ? effectiveCompleted.join(", ") : "none"
   }.
 Extra notes: ${notes ?? "none"}.
 Decide the next action now.`;
 
-  const { data, source } = await generateJson<AgentPlan>({ system, prompt, mock: () => mockPlan(completed) });
+  const { data, source } = await generateJson<AgentPlan>({ system, prompt, mock: () => mockPlan(effectiveCompleted) });
   res.json({ plan: data, source });
 });

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { store } from "../lib/store";
 import { generateJson } from "../services/gemini";
 import { YAAR_PRINCIPLES } from "../lib/prompts";
+import { assertOwnership } from "../lib/userAuth";
 
 export const evidenceRouter = Router();
 
@@ -23,6 +24,7 @@ const createSchema = z.object({
 evidenceRouter.post("/", async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  await assertOwnership(req, parsed.data.profileId);
   const item = await store.addEvidence(parsed.data);
   await store.addEvent({
     profileId: item.profileId,
@@ -30,16 +32,23 @@ evidenceRouter.post("/", async (req, res) => {
     summary: `Logged evidence: ${item.title}`,
     status: "done",
   });
+  // Closing the loop: evidence linked to a suggested action completes it. Because
+  // gaps are computed from completed action tags, this also advances gap state.
+  if (item.linkedActionItemId) {
+    await store.updateActionItem(item.linkedActionItemId, { status: "done", resolvedAt: new Date().toISOString() });
+  }
   res.json({ evidence: item });
 });
 
 evidenceRouter.get("/:profileId", async (req, res) => {
+  await assertOwnership(req, req.params.profileId);
   const items = await store.getEvidence(req.params.profileId);
   res.json({ evidence: items });
 });
 
 // Turn the vault into application material.
 evidenceRouter.post("/:profileId/summarize", async (req, res) => {
+  await assertOwnership(req, req.params.profileId);
   const items = await store.getEvidence(req.params.profileId);
   if (items.length === 0) return res.json({ activityLines: [], essayParagraph: "", source: "mock" });
 

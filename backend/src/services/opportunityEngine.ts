@@ -17,6 +17,8 @@ const GAP_WEIGHT: Record<string, number> = {
   credential: 0.7,
   community_impact: 0.8,
   research: 0.4,
+  self_motivation: 0.5,
+  process_knowledge: 0.6,
 };
 
 type Gaps = Record<string, { have: boolean; weight: number }>;
@@ -111,12 +113,9 @@ export async function runWeeklyDrop(profileId: string, take = 4): Promise<DropRe
   const gaps = await computeGaps(profile);
   const monthsLeft = monthsToIntake(profile.targetIntake);
 
-  // Don't re-suggest anything the student already has open (avoids duplicate drops).
-  const [openItems, inProgress] = await Promise.all([
-    store.getActionItems(profileId, "suggested"),
-    store.getActionItems(profileId, "in_progress"),
-  ]);
-  const alreadySuggested = new Set([...openItems, ...inProgress].map((a) => a.title));
+  // Don't re-suggest anything we've ever suggested (open, done, skipped, or expired).
+  const existing = await store.getActionItems(profileId);
+  const alreadySuggested = new Set(existing.map((a) => a.title));
 
   const scored = OPPORTUNITIES.map((opp) => ({ opp, fit: scoreOpportunity(opp, profile, gaps, monthsLeft) }))
     .filter((s) => s.fit > 0 && !alreadySuggested.has(s.opp.title))
