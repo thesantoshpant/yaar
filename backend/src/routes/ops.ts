@@ -4,6 +4,7 @@
 import { Router } from "express";
 import { EMPLOYEES } from "../lib/org";
 import { runEmployee, companyStandup, orchestrate } from "../services/companyAgents";
+import { runBoardroom, getLastBoardroom } from "../services/agentBoardroom";
 import { executeApproved } from "../lib/actionGateway";
 import { store } from "../lib/store";
 import { config } from "../config";
@@ -40,6 +41,16 @@ opsRouter.post("/standup", async (_req, res) => {
 opsRouter.post("/orchestrate", async (_req, res) => {
   const result = await orchestrate();
   res.json(result);
+});
+
+// Run a live boardroom: the employees discuss a topic, the CEO decides, eval reviews.
+opsRouter.post("/boardroom", async (req, res) => {
+  const topic = typeof req.body?.topic === "string" ? req.body.topic : undefined;
+  res.json(await runBoardroom(topic));
+});
+
+opsRouter.get("/boardroom/latest", (_req, res) => {
+  res.json(getLastBoardroom() ?? { transcript: [], tasks: [], actions: [] });
 });
 
 opsRouter.get("/tasks", async (req, res) => {

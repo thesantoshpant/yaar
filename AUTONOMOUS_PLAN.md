@@ -22,4 +22,5 @@ acting as the founder. Free hand. Safe checkpoint: `main` @ `d696aec`. Work bran
 8. [ ] Smoke-test/eval harness committed for failproofing + a judges' demo script.
 
 ## Log (newest first)
+- 2026-05-26: Item 1 backend DONE. Built agentBoardroom.ts: CEO opens -> 5 dept heads contribute in sequence (each reads the discussion, references colleagues by name) -> CEO synthesizes decision + tasks -> eval/QA reviews. Routes actions through the gateway. Exposed at POST/GET /api/ops/boardroom. Verified live: real grounded multi-agent convo, source=gemini, eval approved. Next: frontend Company dashboard to visualize it.
 - 2026-05-26: Branched yaar-autobuild from main d696aec. Wrote this plan. Starting item 1.
