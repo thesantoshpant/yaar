@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "../api/client";
 import type { SpeakingScore } from "../lib/types";
 import { markCompleted } from "../lib/progress";
@@ -11,6 +11,66 @@ export default function SpeakingPractice() {
   const [score, setScore] = useState<SpeakingScore | null>(null);
   const [source, setSource] = useState<string>();
   const [loading, setLoading] = useState(false);
+
+  const [isListening, setIsListening] = useState(false);
+  const [recognition, setRecognition] = useState<any>(null);
+  const [recognitionError, setRecognitionError] = useState("");
+  const [supportSpeech, setSupportSpeech] = useState(true);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition();
+      rec.continuous = true;
+      rec.interimResults = false;
+      rec.lang = "en-US";
+      
+      rec.onresult = (event: any) => {
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript + " ";
+        }
+        setAnswer((prev) => {
+          const base = prev.trim();
+          return base ? base + " " + transcript.trim() : transcript.trim();
+        });
+      };
+
+      rec.onerror = (event: any) => {
+        console.error("Speech recognition error", event);
+        if (event.error === "not-allowed") {
+          setRecognitionError("Microphone access was denied. Check permissions.");
+        } else {
+          setRecognitionError("An error occurred during voice transcription.");
+        }
+        setIsListening(false);
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+      };
+
+      setRecognition(rec);
+    } else {
+      setSupportSpeech(false);
+    }
+  }, []);
+
+  function toggleListening() {
+    if (!recognition) return;
+    setRecognitionError("");
+    if (isListening) {
+      recognition.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognition.start();
+        setIsListening(true);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  }
 
   async function getPrompt() {
     const res = await api.speakingPrompt(exam);
@@ -61,16 +121,71 @@ export default function SpeakingPractice() {
               <span className="badge bg-brand-500/15 text-brand-500">Prompt</span>
               <p className="mt-2">{prompt}</p>
             </div>
-            <label className="label mt-4">Your answer</label>
-            <textarea
-              className="input min-h-[140px]"
-              placeholder="Speak your answer out loud, then type or paste it here..."
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-            />
-            <button className="btn-primary mt-3" onClick={submit} disabled={loading || !answer.trim()}>
-              {loading ? <Spinner label="Scoring..." /> : "Score my answer"}
-            </button>
+             <div className="mt-4 flex flex-col gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="label mb-0">Your answer</label>
+                {supportSpeech ? (
+                  <div className="flex items-center gap-3">
+                    {isListening && (
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-ping" />
+                        <span className="text-xs font-semibold text-rose-500 uppercase tracking-wider">Listening</span>
+                        <div className="flex items-end gap-0.5 h-6">
+                          <span className="voice-wave-bar" style={{ animationDelay: "0.1s" }} />
+                          <span className="voice-wave-bar" style={{ animationDelay: "0.3s" }} />
+                          <span className="voice-wave-bar" style={{ animationDelay: "0.5s" }} />
+                          <span className="voice-wave-bar" style={{ animationDelay: "0.2s" }} />
+                          <span className="voice-wave-bar" style={{ animationDelay: "0.4s" }} />
+                        </div>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={toggleListening}
+                      className={`btn text-xs px-3.5 py-2 ${
+                        isListening
+                          ? "bg-rose-500/10 text-rose-600 border border-rose-500/20 hover:bg-rose-500/20"
+                          : "bg-brand-500/10 text-brand-600 border border-brand-500/20 hover:bg-brand-500/20"
+                      }`}
+                    >
+                      {isListening ? "🛑 Stop recording" : "🎙️ Speak my answer"}
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted">🎙️ Speech-to-text not supported in browser</span>
+                )}
+              </div>
+
+              {recognitionError && (
+                <div className="rounded-xl bg-rose-500/10 border border-rose-500/25 px-4 py-2.5 text-xs text-rose-600 dark:text-rose-400">
+                  ⚠️ {recognitionError}
+                </div>
+              )}
+
+              <textarea
+                className="input min-h-[140px]"
+                placeholder="Click 'Speak my answer' to record or paste your response here..."
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+              />
+
+              <div className="flex gap-2.5">
+                <button className="btn-primary" onClick={submit} disabled={loading || !answer.trim()}>
+                  {loading ? <Spinner label="Scoring..." /> : "Score my answer"}
+                </button>
+                {answer.trim() && (
+                  <button
+                    className="btn-ghost"
+                    onClick={() => {
+                      setAnswer("");
+                      setRecognitionError("");
+                    }}
+                  >
+                    Clear text
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
