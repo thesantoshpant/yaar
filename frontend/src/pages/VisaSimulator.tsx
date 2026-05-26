@@ -4,6 +4,7 @@ import type { RiskReport, VisaScore, VisaTurn } from "../lib/types";
 import { markCompleted, getProfileId } from "../lib/progress";
 import { useProfile } from "../lib/profile";
 import { useAuthGate } from "../lib/authGate";
+import { useSpeech } from "../lib/useSpeech";
 import { Spinner, SourceBadge, ScoreBar, PageHeading, ErrorNote } from "../components/ui";
 import DocumentUpload from "../components/DocumentUpload";
 import Markdown from "../components/Markdown";
@@ -30,6 +31,28 @@ export default function VisaSimulator() {
   const [needsPayment, setNeedsPayment] = useState(false);
   const [needsAccount, setNeedsAccount] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
+
+  // Voice: speak your answer (dictation) and have the officer read aloud. Degrades to
+  // the plain text box if the browser lacks the Web Speech API.
+  const speech = useSpeech();
+  const [readAloud, setReadAloud] = useState(false);
+  const lastSpoke = useRef(-1);
+  useEffect(() => {
+    if (!readAloud) return;
+    const i = history.length - 1;
+    if (i >= 0 && history[i].role === "officer" && i !== lastSpoke.current) {
+      lastSpoke.current = i;
+      speech.speak(history[i].text);
+    }
+  }, [history, readAloud, speech]);
+
+  function toggleDictation() {
+    if (speech.listening) {
+      speech.stopDictation();
+    } else {
+      speech.startDictation((t) => setInput((prev) => (prev.trim() ? `${prev.trim()} ${t}` : t)));
+    }
+  }
 
   // Return from Stripe checkout: confirm the session, then unlock.
   useEffect(() => {
@@ -271,9 +294,21 @@ export default function VisaSimulator() {
                 <div className="text-xs text-muted">F-1 visa interview · mock</div>
               </div>
             </div>
-            <span className="badge bg-surface-2 text-muted">
-              {officerQuestions} questions
-            </span>
+            <div className="flex items-center gap-2">
+              {speech.ttsSupported && (
+                <button
+                  type="button"
+                  onClick={() => { const next = !readAloud; setReadAloud(next); if (!next) speech.cancelSpeech(); }}
+                  className={`badge gap-1 ${readAloud ? "bg-brand-500/15 text-brand-500" : "bg-surface-2 text-muted hover:text-ink"}`}
+                  aria-pressed={readAloud}
+                  title="Read the officer's questions aloud"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z" />{readAloud && <><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a10 10 0 0 1 0 14" /></>}</svg>
+                  {readAloud ? "Voice on" : "Voice off"}
+                </button>
+              )}
+              <span className="badge bg-surface-2 text-muted">{officerQuestions} questions</span>
+            </div>
           </div>
 
           {/* Conversation */}
@@ -321,12 +356,27 @@ export default function VisaSimulator() {
                     }
                   }}
                 />
+                {speech.supported && (
+                  <button
+                    type="button"
+                    onClick={toggleDictation}
+                    disabled={loading}
+                    aria-label={speech.listening ? "Stop dictation" : "Speak your answer"}
+                    title={speech.listening ? "Listening... tap to stop" : "Speak your answer"}
+                    className={`btn-ghost shrink-0 self-end ${speech.listening ? "border-rose-500/50 text-rose-500" : ""}`}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={speech.listening ? "animate-pulse" : ""}>
+                      <rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+                    </svg>
+                  </button>
+                )}
                 <button className="btn-primary shrink-0 self-end" onClick={answer} disabled={loading || !input.trim()} aria-label="Send answer">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
                   </svg>
                 </button>
               </div>
+              {speech.supported && <p className="mt-1.5 text-xs text-faint">{speech.listening ? "Listening... speak your answer, then tap the mic to stop." : "Tip: tap the mic to speak your answer out loud, just like the real interview."}</p>}
               <button
                 className={`mt-3 w-full sm:w-auto ${canFinish ? "btn-gold" : "btn-ghost"}`}
                 onClick={finish}
