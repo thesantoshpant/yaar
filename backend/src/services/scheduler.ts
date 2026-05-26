@@ -4,6 +4,7 @@ import cron from "node-cron";
 import { weeklyDropForAll, followUpSweep } from "./engagement";
 import { companyStandup } from "./companyAgents";
 import { runMemoryAgent } from "./memoryAgent";
+import { weeklyDigestForAll } from "./digest";
 
 const TZ = "Asia/Kathmandu";
 
@@ -13,6 +14,16 @@ export function startScheduler(): void {
     "0 9 * * 1",
     () => {
       void weeklyDropForAll().then((r) => console.log(`[scheduler] weekly drop ran for ${r.students} students`));
+    },
+    { timezone: TZ }
+  );
+
+  // Weekly digest email: Mondays 09:10, just after the opportunity drop so it includes
+  // this week's fresh moves. Uses lib/email (simulated until a provider key is set).
+  cron.schedule(
+    "10 9 * * 1",
+    () => {
+      void weeklyDigestForAll().then((r) => console.log(`[scheduler] weekly digest: ${r.students} students, ${r.sent} emailed`));
     },
     { timezone: TZ }
   );
@@ -46,5 +57,5 @@ export function startScheduler(): void {
     { timezone: TZ }
   );
 
-  console.log("[scheduler] cron jobs registered (weekly drop, follow-up sweep, company standup, memory agent)");
+  console.log("[scheduler] cron jobs registered (weekly drop, weekly digest, follow-up sweep, company standup, memory agent)");
 }
