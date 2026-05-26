@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { AgentPlan, ModuleKey } from "../lib/types";
 import { clearStudent, getCompleted, getProfileId, setProfileId, setProfileSummary } from "../lib/progress";
-import { Spinner, SourceBadge, ScoreBar } from "../components/ui";
+import { Spinner, SourceBadge, ScoreBar, PageHeading } from "../components/ui";
 
 const MODULE_ROUTE: Record<ModuleKey, string> = {
   roadmap: "/app/roadmap",
@@ -98,14 +98,13 @@ export default function Dashboard() {
     const existing = getProfileId();
     const payload = profilePayload();
     if (existing) {
-      // keep the backend profile (and therefore the journey + memory) in sync on re-plan
       await api.updateProfile(existing, payload).catch(() => {});
       return existing;
     }
     try {
       const res = await api.createProfile(payload);
       setProfileId(res.profile.id);
-      void api.runDrop(res.profile.id); // warm up the Updates inbox in the background
+      void api.runDrop(res.profile.id);
       return res.profile.id;
     } catch {
       return undefined;
@@ -129,29 +128,27 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Your autonomous counselor</h1>
-          <p className="mt-1 text-slate-600">
-            Tell the AI about you, and it decides your single best next step and starts sending you personalized updates. It works for you, with no bias.
-          </p>
-        </div>
-        {getProfileId() && (
-          <button
-            className="btn-ghost shrink-0"
-            onClick={() => {
-              clearStudent();
-              setPlan(null);
-              setCompleted([]);
-            }}
-          >
-            New student
-          </button>
-        )}
-      </div>
+      <PageHeading
+        title="Hey 👋 let's plan your move"
+        subtitle="Tell Yaar a bit about you. It figures out your single best next step and starts sending personalized nudges — working for you, with zero bias."
+        action={
+          getProfileId() && (
+            <button
+              className="btn-ghost"
+              onClick={() => {
+                clearStudent();
+                setPlan(null);
+                setCompleted([]);
+              }}
+            >
+              New student
+            </button>
+          )
+        }
+      />
 
       <div className="card">
-        <h2 className="mb-4 text-lg font-semibold text-slate-800">About you</h2>
+        <h2 className="mb-4 text-lg font-semibold text-ink">About you</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label">Name</label>
@@ -197,8 +194,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <h3 className="mb-3 mt-6 text-sm font-semibold uppercase tracking-wide text-slate-500">Your situation</h3>
-        <p className="mb-3 text-sm text-slate-500">
+        <h3 className="mb-3 mt-6 text-sm font-semibold uppercase tracking-wide text-faint">Your situation</h3>
+        <p className="mb-3 text-sm text-muted">
           This is how Yaar tailors your journey. A rural, first-generation student gets a very different plan from a well-resourced one.
         </p>
         <div className="grid gap-4 sm:grid-cols-3">
@@ -215,37 +212,40 @@ export default function Dashboard() {
       </div>
 
       {plan && (
-        <div className="card border-brand-100 bg-gradient-to-br from-white to-brand-50">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-800">Recommended next step</h2>
-            <SourceBadge source={source} />
-          </div>
-          <div className="mb-4">
-            <div className="mb-1 flex items-center justify-between text-sm text-slate-500">
-              <span>Journey progress</span>
-              <span>{plan.progressPct}%</span>
+        <div className="card relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_80%_at_100%_0%,rgba(99,102,241,0.10)_0,transparent_60%)]" />
+          <div className="relative">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-ink">Recommended next step</h2>
+              <SourceBadge source={source} />
             </div>
-            <ScoreBar value={plan.progressPct} />
-          </div>
-          <div className="rounded-xl border border-brand-100 bg-white p-5">
-            <span className="badge bg-brand-100 text-brand-700">{MODULE_LABEL[plan.nextAction.module]}</span>
-            <h3 className="mt-2 text-xl font-bold text-slate-900">{plan.nextAction.title}</h3>
-            <p className="mt-1 text-slate-600">{plan.nextAction.why}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button className="btn-primary" onClick={() => navigate(MODULE_ROUTE[plan.nextAction.module])}>
-                Let us do it
-              </button>
-              <button className="btn-ghost" onClick={() => navigate("/app/updates")}>
-                See my updates
-              </button>
+            <div className="mb-4">
+              <div className="mb-1 flex items-center justify-between text-sm text-muted">
+                <span>Journey progress</span>
+                <span className="font-semibold text-ink">{plan.progressPct}%</span>
+              </div>
+              <ScoreBar value={plan.progressPct} />
             </div>
+            <div className="rounded-xl border border-brand-500/20 bg-brand-500/5 p-5">
+              <span className="badge bg-brand-500/15 text-brand-500">{MODULE_LABEL[plan.nextAction.module]}</span>
+              <h3 className="mt-2 font-display text-xl font-bold text-ink">{plan.nextAction.title}</h3>
+              <p className="mt-1 text-muted">{plan.nextAction.why}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button className="btn-primary" onClick={() => navigate(MODULE_ROUTE[plan.nextAction.module])}>
+                  Let's do it 🚀
+                </button>
+                <button className="btn-ghost" onClick={() => navigate("/app/updates")}>
+                  See my updates
+                </button>
+              </div>
+            </div>
+            <p className="mt-4 text-sm italic text-muted">{plan.encouragement}</p>
           </div>
-          <p className="mt-4 text-sm italic text-slate-500">{plan.encouragement}</p>
         </div>
       )}
 
       <div className="card">
-        <h2 className="mb-4 text-lg font-semibold text-slate-800">Your journey</h2>
+        <h2 className="mb-4 text-lg font-semibold text-ink">Your journey</h2>
         <div className="grid gap-2 sm:grid-cols-2">
           {ALL_MODULES.map((m) => {
             const done = completed.includes(m);
@@ -253,10 +253,13 @@ export default function Dashboard() {
               <button
                 key={m}
                 onClick={() => navigate(MODULE_ROUTE[m])}
-                className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3 text-left hover:bg-slate-50"
+                className="flex items-center justify-between rounded-xl border border-line px-4 py-3 text-left transition-colors hover:bg-surface-2 cursor-pointer"
               >
-                <span className="font-medium text-slate-700">{MODULE_LABEL[m]}</span>
-                <span className={`text-sm ${done ? "text-emerald-600" : "text-slate-400"}`}>{done ? "done" : "open"}</span>
+                <span className="font-medium text-ink">{MODULE_LABEL[m]}</span>
+                <span className={`inline-flex items-center gap-1.5 text-sm ${done ? "text-emerald-500" : "text-faint"}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${done ? "bg-emerald-500" : "bg-faint"}`} />
+                  {done ? "done" : "open"}
+                </span>
               </button>
             );
           })}

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { api } from "../api/client";
 import type { RiskReport, VisaScore, VisaTurn } from "../lib/types";
 import { markCompleted, getProfileId } from "../lib/progress";
-import { Spinner, SourceBadge, ScoreBar } from "../components/ui";
+import { Spinner, SourceBadge, ScoreBar, PageHeading } from "../components/ui";
 
 export default function VisaSimulator() {
   const [country, setCountry] = useState("Nepal");
@@ -105,17 +105,14 @@ export default function VisaSimulator() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Visa interview simulator</h1>
-        <p className="mt-1 text-slate-600">
-          Practice your F-1 interview with an AI consular officer. It probes ties to home, finances, and your
-          study plan, then scores you honestly. This is coaching, not legal advice.
-        </p>
-      </div>
+      <PageHeading
+        title="Visa interview simulator 🎫"
+        subtitle="Practice your F-1 interview with an AI officer until you walk in fearless. It probes your ties to home, finances, and study plan, then scores you honestly. Coaching, not legal advice."
+      />
 
       <div className="card">
-        <h2 className="text-lg font-semibold text-slate-800">Document-grounded visa risk report</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <h2 className="text-lg font-semibold text-ink">Document-grounded visa risk report</h2>
+        <p className="mt-1 text-sm text-muted">
           Paste your I-20, admission, and funding details. Yaar reviews them the way a consular officer would and
           flags inconsistencies and weak points before your interview.
         </p>
@@ -125,7 +122,7 @@ export default function VisaSimulator() {
           value={documents}
           onChange={(e) => setDocuments(e.target.value)}
         />
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-faint">
           Sent securely to analyze your interview risk and not saved after your session. Do not paste passwords.
         </p>
         <button className="btn-primary mt-3" onClick={analyzeDocs} disabled={riskLoading || !documents.trim()}>
@@ -133,19 +130,19 @@ export default function VisaSimulator() {
         </button>
 
         {report && (
-          <div className="mt-5 rounded-xl border border-slate-200 p-5">
+          <div className="mt-5 rounded-xl border border-line p-5">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900">
-                Readiness: <span className="text-brand-700">{report.overall}</span>/100
+              <h3 className="text-base font-bold text-ink">
+                Readiness: <span className="text-brand-500">{report.overall}</span>/100
               </h3>
-              {report.locked && <span className="badge bg-amber-100 text-amber-700">preview</span>}
+              {report.locked && <span className="badge bg-amber-500/12 text-amber-600 dark:text-amber-400">preview</span>}
             </div>
-            {report.summary && <p className="mt-1 text-sm text-slate-600">{report.summary}</p>}
+            {report.summary && <p className="mt-1 text-sm text-muted">{report.summary}</p>}
 
             {report.inconsistencies.length > 0 && (
               <div className="mt-3">
-                <h4 className="text-sm font-semibold text-rose-700">Inconsistencies</h4>
-                <ul className="mt-1 list-inside list-disc text-sm text-rose-700">
+                <h4 className="text-sm font-semibold text-rose-600 dark:text-rose-400">Inconsistencies</h4>
+                <ul className="mt-1 list-inside list-disc text-sm text-rose-600 dark:text-rose-300">
                   {report.inconsistencies.map((x, i) => (
                     <li key={i}>{x}</li>
                   ))}
@@ -155,8 +152,8 @@ export default function VisaSimulator() {
 
             {report.weakPoints.length > 0 && (
               <div className="mt-3">
-                <h4 className="text-sm font-semibold text-slate-800">Weak points an officer will push on</h4>
-                <ul className="mt-1 list-inside list-disc text-sm text-slate-700">
+                <h4 className="text-sm font-semibold text-ink">Weak points an officer will push on</h4>
+                <ul className="mt-1 list-inside list-disc text-sm text-ink/90">
                   {report.weakPoints.map((x, i) => (
                     <li key={i}>{x}</li>
                   ))}
@@ -169,8 +166,8 @@ export default function VisaSimulator() {
                 {report.dimensions.map((d, i) => (
                   <div key={i}>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-slate-700">{d.name}</span>
-                      <span className="text-slate-500">{d.score}/100</span>
+                      <span className="font-medium text-ink">{d.name}</span>
+                      <span className="text-muted">{d.score}/100</span>
                     </div>
                     <ScoreBar value={d.score} />
                   </div>
@@ -179,12 +176,12 @@ export default function VisaSimulator() {
             )}
 
             {report.recommendation && (
-              <p className="mt-3 rounded-lg bg-brand-50 p-3 text-sm text-brand-900">{report.recommendation}</p>
+              <p className="mt-3 rounded-xl border border-brand-500/15 bg-brand-500/5 p-3 text-sm text-ink">{report.recommendation}</p>
             )}
 
             {needsPayment && !reportPaid && (
-              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
-                <p className="text-sm text-amber-900">
+              <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+                <p className="text-sm text-amber-700 dark:text-amber-200">
                   This is a free preview. Unlock the full report: every inconsistency, all weak points, and
                   per-dimension scoring.
                 </p>
@@ -208,7 +205,7 @@ export default function VisaSimulator() {
           </select>
 
           <label className="label mt-4">
-            Your documents <span className="font-normal text-slate-400">(optional, but this is the magic)</span>
+            Your documents <span className="font-normal text-faint">(optional, but this is the magic)</span>
           </label>
           <textarea
             className="input min-h-[110px]"
@@ -216,7 +213,7 @@ export default function VisaSimulator() {
             value={documents}
             onChange={(e) => setDocuments(e.target.value)}
           />
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-faint">
             These details are sent securely to power your mock interview and are not saved after your session.
             Do not paste passwords or anything you would not share with a counselor.
           </p>
@@ -228,32 +225,55 @@ export default function VisaSimulator() {
       )}
 
       {started && (
-        <div className="card">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-800">Interview</h2>
-            <span className="text-sm text-slate-500">{history.filter((t) => t.role === "officer").length} questions</span>
+        <div className="card flex flex-col overflow-hidden p-0">
+          {/* Officer header */}
+          <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-slate-600 to-slate-900 text-white">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z" />
+                </svg>
+              </span>
+              <div className="leading-tight">
+                <div className="text-sm font-semibold text-ink">Consular Officer</div>
+                <div className="text-xs text-muted">F-1 visa interview · mock</div>
+              </div>
+            </div>
+            <span className="badge bg-surface-2 text-muted">
+              {history.filter((t) => t.role === "officer").length} questions
+            </span>
           </div>
-          <div className="space-y-3">
+
+          {/* Conversation */}
+          <div className="flex-1 space-y-3 bg-surface-2/50 px-5 py-4">
             {history.map((t, i) => (
               <div key={i} className={`flex ${t.role === "student" ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
-                    t.role === "officer" ? "bg-slate-800 text-white" : "bg-brand-600 text-white"
+                  className={`max-w-[82%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                    t.role === "officer"
+                      ? "rounded-bl-md bg-gradient-to-br from-slate-700 to-slate-900 text-white shadow-sm"
+                      : "rounded-br-md bg-white text-slate-900 shadow-sm ring-1 ring-black/5"
                   }`}
                 >
-                  <div className="mb-0.5 text-[10px] uppercase tracking-wide opacity-60">
-                    {t.role === "officer" ? "Officer" : "You"}
-                  </div>
                   {t.text}
                 </div>
               </div>
             ))}
-            {loading && <Spinner label="..." />}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md bg-gradient-to-br from-slate-700 to-slate-900 px-4 py-3 shadow-sm">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90 [animation-delay:-0.3s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90 [animation-delay:-0.15s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90" />
+                </div>
+              </div>
+            )}
           </div>
 
+          {/* Composer */}
           {!score && (
-            <>
-              <div className="mt-4 flex gap-2">
+            <div className="border-t border-line bg-surface px-5 py-4">
+              <div className="flex gap-2">
                 <input
                   className="input"
                   placeholder="Answer the officer..."
@@ -261,15 +281,17 @@ export default function VisaSimulator() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && answer()}
                 />
-                <button className="btn-primary" onClick={answer} disabled={loading || !input.trim()}>
-                  Answer
+                <button className="btn-primary shrink-0" onClick={answer} disabled={loading || !input.trim()} aria-label="Send answer">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                  </svg>
                 </button>
               </div>
-              <button className="btn-gold mt-3" onClick={finish} disabled={loading || history.length < 2}>
+              <button className="btn-gold mt-3 w-full sm:w-auto" onClick={finish} disabled={loading || history.length < 2}>
                 Finish and score me
               </button>
-              {done && <p className="mt-2 text-sm text-slate-500">The officer is wrapping up. Finish and get your score.</p>}
-            </>
+              {done && <p className="mt-2 text-sm text-muted">The officer is wrapping up. Finish and get your score.</p>}
+            </div>
           )}
         </div>
       )}
@@ -277,30 +299,30 @@ export default function VisaSimulator() {
       {score && (
         <div className="card">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-800">
-              Readiness: <span className="text-brand-700">{score.overall}</span> / 100
+            <h2 className="text-lg font-semibold text-ink">
+              Readiness: <span className="text-brand-500">{score.overall}</span> / 100
             </h2>
             <SourceBadge source={source} />
           </div>
-          <p className="mb-4 rounded-lg bg-brand-50 p-3 text-sm text-brand-900">{score.recommendation}</p>
+          <p className="mb-4 rounded-xl border border-brand-500/15 bg-brand-500/5 p-3 text-sm text-ink">{score.recommendation}</p>
 
           <div className="space-y-3">
             {score.dimensions.map((d, i) => (
               <div key={i}>
                 <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="font-medium text-slate-700">{d.name}</span>
-                  <span className="text-slate-500">{d.score} / 100</span>
+                  <span className="font-medium text-ink">{d.name}</span>
+                  <span className="text-muted">{d.score} / 100</span>
                 </div>
                 <ScoreBar value={d.score} />
-                <p className="mt-1 text-sm text-slate-500">{d.note}</p>
+                <p className="mt-1 text-sm text-muted">{d.note}</p>
               </div>
             ))}
           </div>
 
           {score.redFlags.length > 0 && (
-            <div className="mt-5 rounded-lg border border-rose-100 bg-rose-50 p-4">
-              <h3 className="font-semibold text-rose-800">Red flags</h3>
-              <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-rose-700">
+            <div className="mt-5 rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
+              <h3 className="font-semibold text-rose-600 dark:text-rose-400">Red flags</h3>
+              <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-rose-600 dark:text-rose-300">
                 {score.redFlags.map((r, i) => (
                   <li key={i}>{r}</li>
                 ))}
@@ -309,8 +331,8 @@ export default function VisaSimulator() {
           )}
 
           <div className="mt-4">
-            <h3 className="font-semibold text-slate-800">Drills</h3>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-slate-700">
+            <h3 className="font-semibold text-ink">Drills</h3>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-ink/90">
               {score.drills.map((d, i) => (
                 <li key={i}>{d}</li>
               ))}
