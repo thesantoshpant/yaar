@@ -5,6 +5,7 @@ import { markCompleted, getProfileId } from "../lib/progress";
 import { useProfile } from "../lib/profile";
 import { useAuthGate } from "../lib/authGate";
 import { useSpeech } from "../lib/useSpeech";
+import { useRecorder } from "../lib/useRecorder";
 import { Spinner, SourceBadge, ScoreBar, PageHeading, ErrorNote } from "../components/ui";
 import DocumentUpload from "../components/DocumentUpload";
 import Markdown from "../components/Markdown";
@@ -32,9 +33,10 @@ export default function VisaSimulator() {
   const [needsAccount, setNeedsAccount] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
-  // Voice: speak your answer (dictation) and have the officer read aloud. Degrades to
-  // the plain text box if the browser lacks the Web Speech API.
-  const speech = useSpeech();
+  // Voice: speak your answer (recorded + transcribed by Gemini, reliable across browsers)
+  // and have the officer read aloud (TTS). Both degrade to the plain text box.
+  const speech = useSpeech(); // used only for the read-aloud (TTS) toggle
+  const rec = useRecorder(); // used for dictating the student's answer
   const [readAloud, setReadAloud] = useState(false);
   const lastSpoke = useRef(-1);
   useEffect(() => {
@@ -46,11 +48,12 @@ export default function VisaSimulator() {
     }
   }, [history, readAloud, speech]);
 
-  function toggleDictation() {
-    if (speech.listening) {
-      speech.stopDictation();
+  async function toggleDictation() {
+    if (rec.recording) {
+      const t = await rec.stop();
+      if (t) setInput((prev) => (prev.trim() ? `${prev.trim()} ${t}` : t));
     } else {
-      speech.startDictation((t) => setInput((prev) => (prev.trim() ? `${prev.trim()} ${t}` : t)));
+      await rec.start();
     }
   }
 
@@ -357,16 +360,16 @@ export default function VisaSimulator() {
                     }
                   }}
                 />
-                {speech.supported && (
+                {rec.supported && (
                   <button
                     type="button"
                     onClick={toggleDictation}
-                    disabled={loading}
-                    aria-label={speech.listening ? "Stop dictation" : "Speak your answer"}
-                    title={speech.listening ? "Listening... tap to stop" : "Speak your answer"}
-                    className={`btn-ghost shrink-0 self-end ${speech.listening ? "border-rose-500/50 text-rose-500" : ""}`}
+                    disabled={loading || rec.transcribing}
+                    aria-label={rec.recording ? "Stop and transcribe" : "Speak your answer"}
+                    title={rec.recording ? "Recording... tap to stop" : "Speak your answer"}
+                    className={`btn-ghost shrink-0 self-end disabled:opacity-60 ${rec.recording ? "border-rose-500/50 text-rose-500" : ""}`}
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={speech.listening ? "animate-pulse" : ""}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={rec.recording ? "animate-pulse" : ""}>
                       <rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
                     </svg>
                   </button>
@@ -377,7 +380,17 @@ export default function VisaSimulator() {
                   </svg>
                 </button>
               </div>
-              {speech.supported && <p className="mt-1.5 text-xs text-faint">{speech.listening ? "Listening... speak your answer, then tap the mic to stop." : "Tip: tap the mic to speak your answer out loud, just like the real interview."}</p>}
+              {rec.supported && (
+                <p className="mt-1.5 text-xs text-faint">
+                  {rec.transcribing
+                    ? "Transcribing your answer..."
+                    : rec.recording
+                      ? "Recording... speak your answer, then tap the mic to stop."
+                      : rec.error
+                        ? rec.error
+                        : "Tip: tap the mic to speak your answer out loud, just like the real interview."}
+                </p>
+              )}
               <button
                 className={`mt-3 w-full sm:w-auto ${canFinish ? "btn-gold" : "btn-ghost"}`}
                 onClick={finish}

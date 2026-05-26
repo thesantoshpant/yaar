@@ -177,6 +177,11 @@ export const api = {
   consolidateMemory: (profileId: string) =>
     post<{ brief: string; insights: number; source: string }>(`/api/memory/${profileId}/consolidate`, {}),
 
+  // Transcribe a recorded audio clip with Gemini (reliable replacement for the browser's
+  // flaky Web Speech API). data is base64 (no data: prefix).
+  transcribe: (mimeType: string, data: string) =>
+    post<{ text: string; source: string }>("/api/transcribe", { mimeType, data }),
+
   // Parent mode — a warm, plain-language update for a parent, in any language, plus a
   // no-login shareable link.
   generateParentReport: (profileId: string, language?: string) =>

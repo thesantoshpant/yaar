@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { api } from "../api/client";
 import type { SpeakingScore } from "../lib/types";
 import { markCompleted, getProfileId } from "../lib/progress";
 import { useAuthGate } from "../lib/authGate";
+import { useRecorder } from "../lib/useRecorder";
 import { Spinner, SourceBadge, ScoreBar, PageHeading, ErrorNote } from "../components/ui";
 import Markdown from "../components/Markdown";
 
@@ -18,70 +19,16 @@ export default function SpeakingPractice() {
   const [promptError, setPromptError] = useState(false);
   const [scoreError, setScoreError] = useState(false);
 
-  const [isListening, setIsListening] = useState(false);
-  const [recognition, setRecognition] = useState<any>(null);
-  const [recognitionError, setRecognitionError] = useState("");
-  const [supportSpeech, setSupportSpeech] = useState(true);
+  // Voice answers: record with the mic and transcribe with Gemini (reliable across
+  // browsers, unlike the old Web Speech API). The typed box always works as a fallback.
+  const rec = useRecorder();
 
-  useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const rec = new SpeechRecognition();
-      rec.continuous = true;
-      rec.interimResults = false;
-      rec.lang = "en-US";
-      
-      rec.onresult = (event: any) => {
-        let transcript = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript + " ";
-        }
-        setAnswer((prev) => {
-          const base = prev.trim();
-          return base ? base + " " + transcript.trim() : transcript.trim();
-        });
-      };
-
-      rec.onerror = (event: any) => {
-        console.error("Speech recognition error", event);
-        const code = event?.error || "unknown";
-        const msg =
-          code === "not-allowed" || code === "service-not-allowed"
-            ? "Microphone or voice permission is blocked. Allow mic access in your browser, or just type your answer below."
-            : code === "network"
-              ? "Voice needs your browser's online speech service (works best in Chrome or Edge, on a stable connection). You can type your answer instead."
-              : code === "no-speech"
-                ? "I didn't catch any speech. Tap the mic and speak again, or type your answer."
-                : code === "audio-capture"
-                  ? "No microphone was found. Plug one in, or type your answer below."
-                  : `Voice isn't available right now (${code}). No worries, just type your answer below.`;
-        setRecognitionError(msg);
-        setIsListening(false);
-      };
-
-      rec.onend = () => {
-        setIsListening(false);
-      };
-
-      setRecognition(rec);
+  async function dictate() {
+    if (rec.recording) {
+      const text = await rec.stop();
+      if (text) setAnswer((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
     } else {
-      setSupportSpeech(false);
-    }
-  }, []);
-
-  function toggleListening() {
-    if (!recognition) return;
-    setRecognitionError("");
-    if (isListening) {
-      recognition.stop();
-      setIsListening(false);
-    } else {
-      try {
-        recognition.start();
-        setIsListening(true);
-      } catch (err) {
-        console.error(err);
-      }
+      await rec.start();
     }
   }
 
@@ -149,12 +96,12 @@ export default function SpeakingPractice() {
              <div className="mt-4 flex flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <label className="label mb-0">Your answer</label>
-                {supportSpeech ? (
+                {rec.supported ? (
                   <div className="flex items-center gap-3">
-                    {isListening && (
+                    {rec.recording && (
                       <div className="flex items-center gap-2.5">
                         <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-ping" />
-                        <span className="text-xs font-semibold text-rose-500 uppercase tracking-wider">Listening</span>
+                        <span className="text-xs font-semibold text-rose-500 uppercase tracking-wider">Recording</span>
                         <div className="flex items-end gap-0.5 h-6">
                           <span className="voice-wave-bar" style={{ animationDelay: "0.1s" }} />
                           <span className="voice-wave-bar" style={{ animationDelay: "0.3s" }} />
@@ -164,32 +111,34 @@ export default function SpeakingPractice() {
                         </div>
                       </div>
                     )}
+                    {rec.transcribing && <Spinner label="Transcribing..." />}
                     <button
                       type="button"
-                      onClick={toggleListening}
-                      className={`btn text-xs px-3.5 py-2 ${
-                        isListening
+                      onClick={dictate}
+                      disabled={rec.transcribing}
+                      className={`btn text-xs px-3.5 py-2 disabled:opacity-60 ${
+                        rec.recording
                           ? "bg-rose-500/10 text-rose-600 border border-rose-500/20 hover:bg-rose-500/20"
                           : "bg-brand-500/10 text-brand-600 border border-brand-500/20 hover:bg-brand-500/20"
                       }`}
                     >
-                      {isListening ? "🛑 Stop recording" : "🎙️ Speak my answer"}
+                      {rec.recording ? "🛑 Stop & transcribe" : "🎙️ Speak my answer"}
                     </button>
                   </div>
                 ) : (
-                  <span className="text-xs text-muted">🎙️ Speech-to-text not supported in browser</span>
+                  <span className="text-xs text-muted">🎙️ Recording not supported here, just type your answer</span>
                 )}
               </div>
 
-              {recognitionError && (
+              {rec.error && (
                 <div className="rounded-xl bg-rose-500/10 border border-rose-500/25 px-4 py-2.5 text-xs text-rose-600 dark:text-rose-400">
-                  ⚠️ {recognitionError}
+                  ⚠️ {rec.error}
                 </div>
               )}
 
               <textarea
                 className="input min-h-[140px]"
-                placeholder="Click 'Speak my answer' to record or paste your response here..."
+                placeholder="Tap 'Speak my answer' to record, or type your response here..."
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
               />
@@ -199,13 +148,7 @@ export default function SpeakingPractice() {
                   {loading ? <Spinner label="Scoring..." /> : "Score my answer"}
                 </button>
                 {answer.trim() && (
-                  <button
-                    className="btn-ghost"
-                    onClick={() => {
-                      setAnswer("");
-                      setRecognitionError("");
-                    }}
-                  >
+                  <button className="btn-ghost" onClick={() => setAnswer("")}>
                     Clear text
                   </button>
                 )}

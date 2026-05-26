@@ -24,6 +24,7 @@ import { memoryRouter } from "./routes/memory";
 import { parentRouter } from "./routes/parent";
 import { whatifRouter } from "./routes/whatif";
 import { digestRouter } from "./routes/digest";
+import { transcribeRouter } from "./routes/transcribe";
 import { opsRouter } from "./routes/ops";
 import { requireAdmin } from "./lib/adminAuth";
 import { attachUser } from "./lib/userAuth";
@@ -75,6 +76,7 @@ app.use("/api/memory", memoryRouter);
 app.use("/api/parent", parentRouter);
 app.use("/api/whatif", whatifRouter);
 app.use("/api/digest", digestRouter);
+app.use("/api/transcribe", transcribeRouter);
 app.use("/api/ops", requireAdmin, opsRouter);
 
 // Unmatched API routes -> clean 404; everything else -> centralized error handler.
