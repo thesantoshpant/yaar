@@ -108,6 +108,12 @@ export const api = {
   agentPlan: (profileSummary: string, completed: string[], profileId?: string) =>
     post<{ plan: AgentPlan; source: string }>("/api/agent/plan", { profileSummary, completed, profileId }),
 
+  whatIf: (scenario: string, profileId?: string, profileSummary?: string) =>
+    post<{ scenario: string; impact: string; opensUp: string[]; watchOut: string[]; verdict: string; source: string }>(
+      "/api/whatif",
+      { scenario, profileId, profileSummary }
+    ),
+
   riskReport: (documents: { kind: string; text: string }[], profileId?: string) =>
     post<{ report: RiskReport; paid: boolean; needsPayment?: boolean; needsAccount?: boolean }>("/api/risk/report", {
       documents,

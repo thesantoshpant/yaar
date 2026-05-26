@@ -6,6 +6,7 @@ import { clearStudent, getCompleted } from "../lib/progress";
 import { useProfile } from "../lib/profile";
 import { Spinner, SourceBadge, ScoreBar, PageHeading, ErrorNote } from "../components/ui";
 import PersonaPicker from "../components/PersonaPicker";
+import WhatIf from "../components/WhatIf";
 
 const MODULE_ROUTE: Record<ModuleKey, string> = {
   roadmap: "/app/roadmap",
@@ -270,6 +271,8 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {plan && <WhatIf />}
 
       <div className="card overflow-hidden">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
