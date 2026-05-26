@@ -2,7 +2,7 @@ import { useState } from "react";
 import { api } from "../api/client";
 import type { Roadmap as RoadmapType } from "../lib/types";
 import { markCompleted } from "../lib/progress";
-import { Spinner, SourceBadge } from "../components/ui";
+import { Spinner, SourceBadge, PageHeading } from "../components/ui";
 
 export default function Roadmap() {
   const [form, setForm] = useState({
@@ -38,10 +38,7 @@ export default function Roadmap() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Your roadmap</h1>
-        <p className="mt-1 text-slate-600">An honest, realistic plan. No hype, no false promises.</p>
-      </div>
+      <PageHeading title="Your roadmap 🗺️" subtitle="An honest, realistic plan — no hype, no false promises, no sugar-coating." />
 
       <div className="card">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -74,43 +71,46 @@ export default function Roadmap() {
         <div className="space-y-4">
           <div className="card">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-800">Summary</h2>
+              <h2 className="text-lg font-semibold text-ink">Summary</h2>
               <SourceBadge source={source} />
             </div>
-            <p className="text-slate-700">{roadmap.summary}</p>
-            <p className="mt-3 rounded-lg bg-brand-50 p-3 text-sm text-brand-900">
-              <strong>Realistic outcome:</strong> {roadmap.realisticOutcome}
+            <p className="text-ink/90">{roadmap.summary}</p>
+            <p className="mt-3 rounded-xl border border-brand-500/15 bg-brand-500/5 p-3 text-sm text-ink">
+              <strong className="text-brand-500">Realistic outcome:</strong> {roadmap.realisticOutcome}
             </p>
             {roadmap.estimatedTotalCostUsd && (
-              <p className="mt-2 text-sm text-slate-600">
-                <strong>Estimated cost:</strong> {roadmap.estimatedTotalCostUsd}
+              <p className="mt-2 text-sm text-muted">
+                <strong className="text-ink">Estimated cost:</strong> {roadmap.estimatedTotalCostUsd}
               </p>
             )}
           </div>
 
-          <div className="space-y-3">
+          <ol className="relative space-y-3 before:absolute before:left-[1.15rem] before:top-2 before:bottom-2 before:w-px before:bg-line sm:before:left-[1.4rem]">
             {roadmap.steps.map((s, i) => (
-              <div key={i} className="card">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-bold text-slate-900">
-                    {i + 1}. {s.phase}
+              <li key={i} className="card relative">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="flex items-center gap-3 text-base font-bold text-ink">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
+                      {i + 1}
+                    </span>
+                    {s.phase}
                   </h3>
-                  <span className="badge bg-slate-100 text-slate-600">{s.timeframe}</span>
+                  <span className="badge bg-surface-2 text-muted">{s.timeframe}</span>
                 </div>
-                <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-slate-700">
+                <ul className="mt-3 list-inside list-disc space-y-1 pl-10 text-sm text-ink/90">
                   {s.actions.map((a, j) => (
                     <li key={j}>{a}</li>
                   ))}
                 </ul>
-                <p className="mt-2 text-sm italic text-slate-500">Why: {s.why}</p>
-              </div>
+                <p className="mt-2 pl-10 text-sm italic text-muted">Why: {s.why}</p>
+              </li>
             ))}
-          </div>
+          </ol>
 
           {roadmap.redFlags.length > 0 && (
-            <div className="card border-rose-100 bg-rose-50">
-              <h3 className="font-semibold text-rose-800">Watch out for</h3>
-              <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-rose-700">
+            <div className="card border-rose-500/20 bg-rose-500/5">
+              <h3 className="font-semibold text-rose-600 dark:text-rose-400">Watch out for</h3>
+              <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-rose-600 dark:text-rose-300">
                 {roadmap.redFlags.map((r, i) => (
                   <li key={i}>{r}</li>
                 ))}

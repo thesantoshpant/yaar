@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../api/client";
 import { getProfileSummary, markCompleted } from "../lib/progress";
-import { Spinner, SourceBadge } from "../components/ui";
+import { Spinner, SourceBadge, PageHeading } from "../components/ui";
 
 export default function Applications() {
   const [type, setType] = useState<"sop" | "common_app">("sop");
@@ -34,13 +34,10 @@ export default function Applications() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Applications</h1>
-        <p className="mt-1 text-slate-600">
-          Draft your Statement of Purpose or Common App essay. The AI writes a first draft in your voice. You make
-          it true and specific.
-        </p>
-      </div>
+      <PageHeading
+        title="Applications ✍️"
+        subtitle="Draft your SOP or Common App essay in minutes. Yaar writes a first draft in your voice — you make it true and unmistakably yours."
+      />
 
       <div className="card">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -79,11 +76,11 @@ export default function Applications() {
       {draft && (
         <div className="card">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-800">Your draft</h2>
+            <h2 className="text-lg font-semibold text-ink">Your draft</h2>
             <SourceBadge source={source} />
           </div>
-          <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-700">{draft}</pre>
-          <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+          <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-ink/90">{draft}</pre>
+          <p className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
             This is a first draft. Replace every placeholder with a true, specific detail, and cut anything that
             could appear in anyone's essay. Never submit anything that is not genuinely yours.
           </p>
