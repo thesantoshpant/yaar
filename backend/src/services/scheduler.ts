@@ -3,6 +3,7 @@
 import cron from "node-cron";
 import { weeklyDropForAll, followUpSweep } from "./engagement";
 import { companyStandup } from "./companyAgents";
+import { runMemoryAgent } from "./memoryAgent";
 
 const TZ = "Asia/Kathmandu";
 
@@ -35,5 +36,15 @@ export function startScheduler(): void {
     { timezone: TZ }
   );
 
-  console.log("[scheduler] cron jobs registered (weekly drop, follow-up sweep, company standup)");
+  // Memory Agent: rebuild every student's synthesized mind nightly (03:30 local),
+  // off-peak so it never competes with daytime traffic.
+  cron.schedule(
+    "30 3 * * *",
+    () => {
+      void runMemoryAgent().then((r) => console.log(`[scheduler] memory agent ${r.summary}`));
+    },
+    { timezone: TZ }
+  );
+
+  console.log("[scheduler] cron jobs registered (weekly drop, follow-up sweep, company standup, memory agent)");
 }

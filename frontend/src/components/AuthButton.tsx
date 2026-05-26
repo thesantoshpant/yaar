@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 import { api } from "../api/client";
-import { getUser, setAuth, clearAuth } from "../lib/progress";
+import { getUser, setAuth, clearAuth, getProfileId } from "../lib/progress";
 
 // Renders nothing unless VITE_GOOGLE_CLIENT_ID is set (so the app still works in
 // guest mode). When signed in, shows the name and a sign-out link.
@@ -34,9 +34,13 @@ export default function AuthButton() {
         if (!cr.credential) return;
         api
           .authGoogle(cr.credential)
-          .then((r) => {
+          .then(async (r) => {
             setAuth(r.token, r.user);
             setUser(r.user);
+            // Claim the profile built as a guest on this device so memory + progress
+            // carry over to the account (the token is now in storage for auth headers).
+            const pid = getProfileId();
+            if (pid) await api.getProfile(pid).catch(() => {});
           })
           .catch(() => {});
       }}

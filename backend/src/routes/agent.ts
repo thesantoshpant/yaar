@@ -55,10 +55,10 @@ function mockPlan(completed: string[]): AgentPlan {
     progressPct,
     encouragement:
       progressPct >= 80
-        ? "You are almost there. Finish strong."
+        ? "You're almost there. Finish strong."
         : progressPct >= 40
         ? "Good momentum. Keep going, one step at a time."
-        : "Great start. Let us take this one step at a time, together.",
+        : "Great start. Let's take this one step at a time, together.",
   };
 }
 

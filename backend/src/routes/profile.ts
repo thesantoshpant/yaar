@@ -3,7 +3,8 @@ import { z } from "zod";
 import { store } from "../lib/store";
 import { classify } from "../lib/classify";
 import { recomputeJourney } from "../services/journey";
-import { requireUser, assertOwnership } from "../lib/userAuth";
+import { seedProfileFacts } from "../services/memoryUpdate";
+import { assertOwnership } from "../lib/userAuth";
 
 export const profileRouter = Router();
 
@@ -29,7 +30,10 @@ const profileSchema = z.object({
 
 const updateSchema = profileSchema.partial();
 
-profileRouter.post("/", requireUser, async (req, res) => {
+// Guests can create a profile too (we want top-of-funnel to be frictionless). If the
+// request carries a token, the profile is owned by that user; otherwise it stays
+// unowned until the student signs in, at which point assertOwnership claims it.
+profileRouter.post("/", async (req, res) => {
   const parsed = profileSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
@@ -38,11 +42,8 @@ profileRouter.post("/", requireUser, async (req, res) => {
   // Seed the personalized journey + memory immediately so the student gets value at once.
   await store.upsertJourney(classify(profile));
   await store.addEvent({ profileId: profile.id, kind: "signup", summary: `Joined Yaar from ${profile.country}` });
-  if (profile.intendedMajor) {
-    await store.addFacts([
-      { profileId: profile.id, key: "goal.major", type: "goal", value: `Intended major: ${profile.intendedMajor}`, confidence: 0.9, source: "student_stated" },
-    ]);
-  }
+  // Seed the student's mind from everything the form told us.
+  await seedProfileFacts(profile);
   res.json({ profile });
 });
 
@@ -60,5 +61,6 @@ profileRouter.patch("/:id", async (req, res) => {
   const profile = await store.updateProfile(req.params.id, parsed.data);
   if (!profile) return res.status(404).json({ error: "Not found" });
   await recomputeJourney(profile.id); // re-personalize, preserving completed-module progress
+  await seedProfileFacts(profile); // keep memory in sync with the latest profile
   res.json({ profile });
 });

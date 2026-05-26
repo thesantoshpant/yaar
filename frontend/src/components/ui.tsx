@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 export function Spinner({ label }: { label?: string }) {
   return (
@@ -54,6 +54,50 @@ export function Section({ title, children, action }: { title: string; children: 
       </div>
       {children}
     </div>
+  );
+}
+
+// Friendly, retryable error card. Used wherever an API call can fail so a student
+// never hits a silent dead end on a flaky connection.
+export function ErrorNote({ onRetry, children }: { onRetry?: () => void; children?: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-700 dark:text-rose-200">
+      <p>{children ?? "That didn't go through. Check your internet and try again. Nothing you typed is lost."}</p>
+      {onRetry && (
+        <button className="btn-ghost mt-2 text-rose-700 dark:text-rose-200" onClick={onRetry}>
+          Try again
+        </button>
+      )}
+    </div>
+  );
+}
+
+// One-click copy for AI output the student wants to send, paste, or keep.
+export function CopyButton({ text, label = "Copy", className = "" }: { text: string; label?: string; className?: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
+  }
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className={`inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-ink ${className}`}
+      aria-label={label}
+    >
+      {copied ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+      )}
+      {copied ? "Copied" : label}
+    </button>
   );
 }
 

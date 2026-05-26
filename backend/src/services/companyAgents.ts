@@ -7,6 +7,7 @@ import { YAAR_PRINCIPLES } from "../lib/prompts";
 import { dispatch } from "../lib/actionGateway";
 import { store } from "../lib/store";
 import { config } from "../config";
+import { runMemoryAgent } from "./memoryAgent";
 import type { AgentAction, CompanyTask } from "../lib/types";
 
 // Daily cap on agent runs to control LLM spend.
@@ -88,6 +89,13 @@ export async function runEmployee(employeeId: string, context?: string): Promise
   if (!emp) return null;
   if (!consumeRunQuota()) {
     return { employee: emp.id, title: emp.title, summary: "Daily agent-run cap reached; skipping to control cost.", actions: [], source: "mock" };
+  }
+
+  // The Memory Agent does real per-student work (it consolidates minds) rather than
+  // proposing outbound actions, so it has its own runner.
+  if (emp.id === "memory") {
+    const r = await runMemoryAgent();
+    return { employee: emp.id, title: emp.title, summary: r.summary, actions: [], source: r.source };
   }
 
   const kpis = await gatherKpis();

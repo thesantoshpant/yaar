@@ -6,6 +6,7 @@ import { z } from "zod";
 import { store } from "../lib/store";
 import { generateJson } from "../services/gemini";
 import { YAAR_PRINCIPLES } from "../lib/prompts";
+import { rememberEvidence } from "../services/memoryUpdate";
 import { assertOwnership } from "../lib/userAuth";
 
 export const evidenceRouter = Router();
@@ -37,6 +38,8 @@ evidenceRouter.post("/", async (req, res) => {
   if (item.linkedActionItemId) {
     await store.updateActionItem(item.linkedActionItemId, { status: "done", resolvedAt: new Date().toISOString() });
   }
+  // Remember the skills and achievement this activity proves.
+  await rememberEvidence(item);
   res.json({ evidence: item });
 });
 

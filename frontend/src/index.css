@@ -145,6 +145,15 @@
   }
 }
 
+/* Neutral markdown for AI text on normal cards (roadmap, coaches, reports). */
+.md p { @apply mb-2 text-sm leading-relaxed text-muted last:mb-0; }
+.md strong { @apply font-semibold text-ink; }
+.md em { @apply italic; }
+.md ul { @apply mb-2 list-disc space-y-1 pl-5 text-sm text-muted; }
+.md ol { @apply mb-2 list-decimal space-y-1 pl-5 text-sm text-muted; }
+.md li { @apply leading-relaxed; }
+.md h3, .md h4 { @apply mb-1.5 mt-3 font-semibold text-ink first:mt-0; }
+
 /* Counselor Markdown Render helper */
 .counselor-md p {
   @apply mb-2 last:mb-0;

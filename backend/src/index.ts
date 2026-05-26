@@ -20,6 +20,7 @@ import { billingRouter } from "./routes/billing";
 import { authRouter } from "./routes/auth";
 import { coachRouter } from "./routes/coach";
 import { evidenceRouter } from "./routes/evidence";
+import { memoryRouter } from "./routes/memory";
 import { opsRouter } from "./routes/ops";
 import { requireAdmin } from "./lib/adminAuth";
 import { attachUser } from "./lib/userAuth";
@@ -67,6 +68,7 @@ app.use("/api/billing", billingRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/coach", coachRouter);
 app.use("/api/evidence", evidenceRouter);
+app.use("/api/memory", memoryRouter);
 app.use("/api/ops", requireAdmin, opsRouter);
 
 // Unmatched API routes -> clean 404; everything else -> centralized error handler.

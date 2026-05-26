@@ -5,6 +5,7 @@ import { hasGemini } from "../config";
 import { visaQuestionsFor } from "../data/questionBanks";
 import { VISA_DIMENSIONS } from "../data/rubrics";
 import { VISA_OFFICER_SYSTEM, visaScoreSystem } from "../lib/prompts";
+import { buildContextPack } from "../services/contextPack";
 import type { VisaScore, VisaTurn } from "../lib/types";
 
 export const visaRouter = Router();
@@ -20,6 +21,7 @@ const nextSchema = z.object({
   country: z.string().default("Nepal"),
   history: z.array(turnSchema).default([]),
   documents: z.string().optional(),
+  profileId: z.string().optional(),
 });
 
 function docBlock(documents?: string): string {
@@ -29,7 +31,7 @@ function docBlock(documents?: string): string {
 visaRouter.post("/next", async (req, res) => {
   const parsed = nextSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const { country, history, documents } = parsed.data;
+  const { country, history, documents, profileId } = parsed.data;
 
   if (!hasGemini) {
     const bank = visaQuestionsFor(country);
@@ -38,9 +40,11 @@ visaRouter.post("/next", async (req, res) => {
     return res.json({ question, done: asked >= 8, source: "mock" });
   }
 
+  const ctx = profileId ? await buildContextPack(profileId) : "";
+  const system = ctx ? `${ctx}\n\n${VISA_OFFICER_SYSTEM}` : VISA_OFFICER_SYSTEM;
   const convo = history.map((t) => `${t.role === "officer" ? "Officer" : "Applicant"}: ${t.text}`).join("\n");
   const { text, source } = await generateText({
-    system: VISA_OFFICER_SYSTEM,
+    system,
     prompt: `Country: ${country}.${docBlock(documents)}\nInterview so far:\n${convo || "(not started)"}\n\nAsk your next question now. If you have asked 8 or more questions, you may say "That is all, please wait." Output only the officer's line.`,
     temperature: 0.7,
   });
@@ -52,6 +56,7 @@ const scoreSchema = z.object({
   country: z.string().default("Nepal"),
   history: z.array(turnSchema).min(1),
   documents: z.string().optional(),
+  profileId: z.string().optional(),
 });
 
 function mockScore(history: VisaTurn[]): VisaScore {
@@ -84,10 +89,12 @@ function mockScore(history: VisaTurn[]): VisaScore {
 visaRouter.post("/score", async (req, res) => {
   const parsed = scoreSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const { country, history, documents } = parsed.data;
+  const { country, history, documents, profileId } = parsed.data;
+  const ctx = profileId ? await buildContextPack(profileId) : "";
 
-  const system = `${visaScoreSystem(VISA_DIMENSIONS.map((d) => d.name).join(", "))}
+  const baseSystem = `${visaScoreSystem(VISA_DIMENSIONS.map((d) => d.name).join(", "))}
 Return ONLY JSON: { "overall": number 0-100, "recommendation": string, "dimensions": { "name": string, "score": number, "note": string }[], "redFlags": string[], "drills": string[] }`;
+  const system = ctx ? `${ctx}\n\n${baseSystem}` : baseSystem;
   const convo = history.map((t) => `${t.role === "officer" ? "Officer" : "Applicant"}: ${t.text}`).join("\n");
 
   const { data, source } = await generateJson<VisaScore>({

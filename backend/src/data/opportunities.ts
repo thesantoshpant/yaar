@@ -7,7 +7,7 @@ import type { Opportunity } from "../lib/types";
 export const OPPORTUNITIES: Opportunity[] = [
   {
     id: "cs50x",
-    title: "CS50x — Harvard's Intro to Computer Science",
+    title: "CS50x: Harvard's Intro to Computer Science",
     category: "course_certificate",
     provider: "HarvardX / edX",
     url: "https://cs50.harvard.edu/x/",
@@ -41,7 +41,7 @@ export const OPPORTUNITIES: Opportunity[] = [
   },
   {
     id: "usaco",
-    title: "USACO — USA Computing Olympiad (open to international students)",
+    title: "USACO: USA Computing Olympiad (open to international students)",
     category: "competition",
     provider: "USACO",
     url: "http://www.usaco.org/",

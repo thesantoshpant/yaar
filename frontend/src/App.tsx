@@ -1,4 +1,6 @@
 import { Routes, Route } from "react-router-dom";
+import { ProfileProvider } from "./lib/profile";
+import { AuthGateProvider } from "./lib/authGate";
 import Layout from "./components/Layout";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
@@ -9,6 +11,7 @@ import SchoolSearch from "./pages/SchoolSearch";
 import Applications from "./pages/Applications";
 import Coaches from "./pages/Coaches";
 import Evidence from "./pages/Evidence";
+import Memory from "./pages/Memory";
 import SpeakingPractice from "./pages/SpeakingPractice";
 import VisaSimulator from "./pages/VisaSimulator";
 
@@ -16,9 +19,10 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/app" element={<Layout />}>
+      <Route path="/app" element={<ProfileProvider><AuthGateProvider><Layout /></AuthGateProvider></ProfileProvider>}>
         <Route index element={<Dashboard />} />
         <Route path="updates" element={<Updates />} />
+        <Route path="memory" element={<Memory />} />
         <Route path="counselor" element={<Counselor />} />
         <Route path="roadmap" element={<Roadmap />} />
         <Route path="schools" element={<SchoolSearch />} />

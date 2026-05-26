@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { AgentPlan, ModuleKey, JourneyState } from "../lib/types";
-import { clearStudent, getCompleted, getProfileId, setProfileId, setProfileSummary } from "../lib/progress";
-import { Spinner, SourceBadge, ScoreBar, PageHeading } from "../components/ui";
+import { clearStudent, getCompleted } from "../lib/progress";
+import { useProfile } from "../lib/profile";
+import { Spinner, SourceBadge, ScoreBar, PageHeading, ErrorNote } from "../components/ui";
 
 const MODULE_ROUTE: Record<ModuleKey, string> = {
   roadmap: "/app/roadmap",
@@ -32,6 +33,15 @@ const STEPPER_MODULES: { key: ModuleKey; label: string; route: string; desc: str
   { key: "visa", label: "Visa interview", route: "/app/visa", desc: "Mock consular drill" },
 ];
 
+const BUDGET_OPTIONS = [
+  { value: "", label: "I'm not sure yet" },
+  { value: "12000", label: "Under $15k a year" },
+  { value: "22000", label: "$15k to $30k a year" },
+  { value: "40000", label: "Over $30k a year" },
+];
+
+const TEST_OPTIONS = ["Haven't started", "Studying now", "Already took it"];
+
 function formatTag(tag: string): string {
   const mapping: Record<string, string> = {
     ug_rural_bootstrap: "🌾 Rural UG First-Gen",
@@ -45,8 +55,6 @@ function formatTag(tag: string): string {
   };
   return mapping[tag.toLowerCase()] ?? tag.replace(/_/g, " ").toUpperCase();
 }
-
-const yn = (v: string): boolean | undefined => (v === "yes" ? true : v === "no" ? false : undefined);
 
 function YesNo({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
@@ -63,153 +71,92 @@ function YesNo({ label, value, onChange }: { label: string; value: string; onCha
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    name: "",
-    country: "Nepal",
-    intendedLevel: "undergraduate",
-    intendedMajor: "",
-    budget: "",
-    targetIntake: "Fall 2027",
-    testStatus: "",
-    gradeLevel: "11",
-    isRural: "",
-    firstGen: "",
-    schoolHasCounselor: "",
-    schoolHasClubs: "",
-    familiarWithProcess: "",
-  });
+  const { profile, setField, saveNow, summary, reset, hasProfile } = useProfile();
   const [plan, setPlan] = useState<AgentPlan | null>(null);
   const [source, setSource] = useState<string>();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const [completed, setCompleted] = useState<ModuleKey[]>([]);
   const [journey, setJourney] = useState<JourneyState | null>(null);
+  const [showMore, setShowMore] = useState(false);
 
   useEffect(() => {
     setCompleted(getCompleted());
-    const pid = getProfileId();
-    if (pid) {
-      api.getJourney(pid)
-        .then((res) => setJourney(res.journey))
-        .catch(() => {});
-      // Also get an initial agent plan if possible
-      api.agentPlan(summary(), getCompleted(), pid)
-        .then((res) => {
-          setPlan(res.plan);
-          setSource(res.source);
-        })
-        .catch(() => {});
+    // Returning student: rehydrate their journey and last plan automatically.
+    if (hasProfile) {
+      void (async () => {
+        const pid = await saveNow();
+        if (!pid) return;
+        api.getJourney(pid).then((res) => setJourney(res.journey)).catch(() => {});
+        api.agentPlan(summary(), getCompleted(), pid)
+          .then((res) => { setPlan(res.plan); setSource(res.source); })
+          .catch(() => {});
+      })();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  function summary(): string {
-    return `name=${form.name || "student"}, country=${form.country}, level=${form.intendedLevel}, major=${
-      form.intendedMajor || "undecided"
-    }, budget/yr=${form.budget || "unknown"}, intake=${form.targetIntake}, tests=${form.testStatus || "not started"}, grade=${
-      form.gradeLevel
-    }, rural=${form.isRural || "?"}, firstGen=${form.firstGen || "?"}, counselor=${form.schoolHasCounselor || "?"}, clubs=${
-      form.schoolHasClubs || "?"
-    }`;
-  }
-
-  function profilePayload(): Record<string, unknown> {
-    return {
-      name: form.name || "Student",
-      country: form.country,
-      intendedLevel: form.intendedLevel,
-      intendedMajor: form.intendedMajor || undefined,
-      budgetUsdPerYear: form.budget ? Number(form.budget) : undefined,
-      targetIntake: form.targetIntake || undefined,
-      testStatus: form.testStatus || undefined,
-      gradeLevel: form.gradeLevel || undefined,
-      isRural: yn(form.isRural),
-      firstGen: yn(form.firstGen),
-      schoolHasCounselor: yn(form.schoolHasCounselor),
-      schoolHasClubs: yn(form.schoolHasClubs),
-      familiarWithProcess: yn(form.familiarWithProcess),
-    };
-  }
-
-  async function ensureProfileId(): Promise<string | undefined> {
-    const existing = getProfileId();
-    const payload = profilePayload();
-    if (existing) {
-      await api.updateProfile(existing, payload).catch(() => {});
-      return existing;
-    }
-    try {
-      const res = await api.createProfile(payload);
-      setProfileId(res.profile.id);
-      void api.runDrop(res.profile.id);
-      return res.profile.id;
-    } catch {
-      return undefined;
-    }
-  }
 
   async function planNext() {
     setLoading(true);
-    setProfileSummary(summary());
+    setError(false);
     try {
-      const profileId = await ensureProfileId();
+      const profileId = await saveNow();
       const res = await api.agentPlan(summary(), getCompleted(), profileId);
       setPlan(res.plan);
       setSource(res.source);
-
-      // Fetch the updated journey state (which includes classified persona tags)
       if (profileId) {
         const jRes = await api.getJourney(profileId).catch(() => null);
         if (jRes) setJourney(jRes.journey);
       }
     } catch {
-      setSource("mock");
+      setError(true);
     } finally {
       setLoading(false);
     }
   }
 
+  function startOver() {
+    if (!window.confirm("This clears your saved answers and progress on this device. Are you sure?")) return;
+    clearStudent();
+    reset();
+    setPlan(null);
+    setCompleted([]);
+    setJourney(null);
+    setSource(undefined);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeading
-        title="Hey 👋 let's plan your move"
-        subtitle="Tell Yaar a bit about you. It figures out your single best next step and starts sending personalized nudges — working for you, with zero bias."
+        title={hasProfile ? "Welcome back 👋" : "Hey 👋 let's plan your move"}
+        subtitle="Tell Yaar a little about you. Even one or two answers is enough. Yaar figures out your best next step and keeps checking in, like a friend who's done this before."
         action={
-          getProfileId() && (
-            <button
-              className="btn-ghost"
-              onClick={() => {
-                clearStudent();
-                setPlan(null);
-                setCompleted([]);
-                setJourney(null);
-              }}
-            >
-              New student
+          hasProfile && (
+            <button className="btn-ghost" onClick={startOver}>
+              Start over
             </button>
           )
         }
       />
 
       <div className="card">
-        <h2 className="mb-4 text-lg font-semibold text-ink">About you</h2>
+        <h2 className="text-lg font-semibold text-ink">About you</h2>
+        <p className="mb-4 mt-1 text-sm text-muted">Answer what you can. Yaar fills in the rest and gets sharper as it learns about you. Anything you set here is remembered across every page.</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="label">Name</label>
-            <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <label className="label" htmlFor="f-name">Name</label>
+            <input id="f-name" className="input" value={profile.name} onChange={(e) => setField({ name: e.target.value })} />
           </div>
           <div>
-            <label className="label">Country</label>
-            <input className="input" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
-          </div>
-          <div>
-            <label className="label">Level</label>
-            <select className="input" value={form.intendedLevel} onChange={(e) => setForm({ ...form, intendedLevel: e.target.value })}>
-              <option value="undergraduate">Undergraduate</option>
-              <option value="graduate">Graduate</option>
+            <label className="label" htmlFor="f-level">I'm applying for</label>
+            <select id="f-level" className="input" value={profile.intendedLevel} onChange={(e) => setField({ intendedLevel: e.target.value as "undergraduate" | "graduate" })}>
+              <option value="undergraduate">Undergraduate (Bachelor's)</option>
+              <option value="graduate">Graduate (Master's / PhD)</option>
             </select>
           </div>
           <div>
-            <label className="label">Grade level</label>
-            <select className="input" value={form.gradeLevel} onChange={(e) => setForm({ ...form, gradeLevel: e.target.value })}>
+            <label className="label" htmlFor="f-grade">Where you are now</label>
+            <select id="f-grade" className="input" value={profile.gradeLevel} onChange={(e) => setField({ gradeLevel: e.target.value })}>
               <option value="9">Grade 9</option>
               <option value="10">Grade 10</option>
               <option value="11">Grade 11</option>
@@ -219,39 +166,73 @@ export default function Dashboard() {
             </select>
           </div>
           <div>
-            <label className="label">Intended major</label>
-            <input className="input" placeholder="e.g. Computer Science" value={form.intendedMajor} onChange={(e) => setForm({ ...form, intendedMajor: e.target.value })} />
-          </div>
-          <div>
-            <label className="label">Budget per year (USD)</label>
-            <input className="input" placeholder="e.g. 30000" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} />
-          </div>
-          <div>
-            <label className="label">Target intake</label>
-            <input className="input" value={form.targetIntake} onChange={(e) => setForm({ ...form, targetIntake: e.target.value })} />
-          </div>
-          <div>
-            <label className="label">Test status</label>
-            <input className="input" placeholder="e.g. IELTS not taken" value={form.testStatus} onChange={(e) => setForm({ ...form, testStatus: e.target.value })} />
+            <label className="label" htmlFor="f-major">Intended major <span className="font-normal text-faint">· optional</span></label>
+            <input id="f-major" className="input" placeholder="Not sure yet is fine" value={profile.intendedMajor} onChange={(e) => setField({ intendedMajor: e.target.value })} />
           </div>
         </div>
 
-        <h3 className="mb-3 mt-6 text-sm font-semibold uppercase tracking-wide text-faint">Your situation</h3>
-        <p className="mb-3 text-sm text-muted">
-          This is how Yaar tailors your journey. A rural, first-generation student gets a very different plan from a well-resourced one.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <YesNo label="Live in a rural area?" value={form.isRural} onChange={(v) => setForm({ ...form, isRural: v })} />
-          <YesNo label="First in family to study abroad?" value={form.firstGen} onChange={(v) => setForm({ ...form, firstGen: v })} />
-          <YesNo label="School has a counselor?" value={form.schoolHasCounselor} onChange={(v) => setForm({ ...form, schoolHasCounselor: v })} />
-          <YesNo label="School has clubs?" value={form.schoolHasClubs} onChange={(v) => setForm({ ...form, schoolHasClubs: v })} />
-          <YesNo label="Family knows the US process?" value={form.familiarWithProcess} onChange={(v) => setForm({ ...form, familiarWithProcess: v })} />
-        </div>
+        {showMore && (
+          <>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="f-country">Country</label>
+                <input id="f-country" className="input" value={profile.country} onChange={(e) => setField({ country: e.target.value })} />
+              </div>
+              <div>
+                <label className="label" htmlFor="f-budget">Budget per year</label>
+                <select id="f-budget" className="input" value={profile.budget} onChange={(e) => setField({ budget: e.target.value })}>
+                  {BUDGET_OPTIONS.map((b) => <option key={b.label} value={b.value}>{b.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label" htmlFor="f-intake">Target intake</label>
+                <input id="f-intake" className="input" value={profile.targetIntake} onChange={(e) => setField({ targetIntake: e.target.value })} />
+              </div>
+              <div>
+                <label className="label" htmlFor="f-test">Test status</label>
+                <select id="f-test" className="input" value={profile.testStatus} onChange={(e) => setField({ testStatus: e.target.value })}>
+                  <option value="">Prefer not to say</option>
+                  {TEST_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
 
-        <button className="btn-primary mt-5" onClick={planNext} disabled={loading}>
-          {loading ? <Spinner label="Thinking..." /> : "Plan my next step"}
-        </button>
+            <h3 className="mb-3 mt-6 text-sm font-semibold uppercase tracking-wide text-faint">Your situation</h3>
+            <p className="mb-3 text-sm text-muted">
+              This is how Yaar tailors your journey. A rural, first-generation student gets a very different plan from a well-resourced one.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <YesNo label="Live in a rural area?" value={profile.isRural} onChange={(v) => setField({ isRural: v })} />
+              <YesNo label="First in family to study abroad?" value={profile.firstGen} onChange={(v) => setField({ firstGen: v })} />
+              <YesNo label="School has a counselor?" value={profile.schoolHasCounselor} onChange={(v) => setField({ schoolHasCounselor: v })} />
+              <YesNo label="School has clubs?" value={profile.schoolHasClubs} onChange={(v) => setField({ schoolHasClubs: v })} />
+              <YesNo label="Family knows the US process?" value={profile.familiarWithProcess} onChange={(v) => setField({ familiarWithProcess: v })} />
+            </div>
+          </>
+        )}
+
+        {!showMore && (
+          <button type="button" className="mt-4 text-sm font-medium text-brand-500 hover:underline" onClick={() => setShowMore(true)}>
+            Tell Yaar more so your plan fits you better (optional)
+          </button>
+        )}
+
+        {error && <div className="mt-4"><ErrorNote onRetry={planNext}>Yaar couldn't reach the internet just now. Your answers are saved. Tap to try again.</ErrorNote></div>}
+
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <button className="btn-primary" onClick={planNext} disabled={loading}>
+            {loading ? <Spinner label="Thinking about your best step..." /> : "Plan my next step"}
+          </button>
+          <span className="text-xs text-faint">Saved on this device. Sign in to keep your journey on any phone or computer.</span>
+        </div>
       </div>
+
+      {loading && !plan && (
+        <div className="card animate-pulse">
+          <div className="h-4 w-40 rounded bg-surface-2" />
+          <div className="mt-4 h-24 rounded-xl bg-surface-2" />
+        </div>
+      )}
 
       {plan && (
         <div className="card relative overflow-hidden">
@@ -272,14 +253,15 @@ export default function Dashboard() {
               <span className="badge bg-brand-500/15 text-brand-500">{MODULE_LABEL[plan.nextAction.module]}</span>
               <h3 className="mt-2 font-display text-xl font-bold text-ink">{plan.nextAction.title}</h3>
               <p className="mt-1 text-muted">{plan.nextAction.why}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 flex flex-wrap items-center gap-3">
                 <button className="btn-primary" onClick={() => navigate(MODULE_ROUTE[plan.nextAction.module])}>
                   Let's do it 🚀
                 </button>
-                <button className="btn-ghost" onClick={() => navigate("/app/updates")}>
+                <button className="text-sm font-medium text-muted hover:text-ink" onClick={() => navigate("/app/updates")}>
                   See my updates
                 </button>
               </div>
+              <p className="mt-3 text-sm text-muted">Do this step, then Yaar checks in and lines up your next move automatically.</p>
             </div>
             <p className="mt-4 text-sm italic text-muted">{plan.encouragement}</p>
           </div>
@@ -311,7 +293,7 @@ export default function Dashboard() {
             {STEPPER_MODULES.map((m, idx) => {
               const isDone = completed.includes(m.key);
               const isActive = plan?.nextAction.module === m.key;
-              
+
               return (
                 <button
                   key={m.key}

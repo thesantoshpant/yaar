@@ -1,11 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { api } from "../api/client";
 import type { RiskReport, VisaScore, VisaTurn } from "../lib/types";
 import { markCompleted, getProfileId } from "../lib/progress";
-import { Spinner, SourceBadge, ScoreBar, PageHeading } from "../components/ui";
+import { useProfile } from "../lib/profile";
+import { useAuthGate } from "../lib/authGate";
+import { Spinner, SourceBadge, ScoreBar, PageHeading, ErrorNote } from "../components/ui";
+import DocumentUpload from "../components/DocumentUpload";
+import Markdown from "../components/Markdown";
+
+const COUNTRY_OPTIONS = ["Nepal", "India", "Bangladesh", "Other"];
 
 export default function VisaSimulator() {
-  const [country, setCountry] = useState("Nepal");
+  const { profile, setField } = useProfile();
+  const { gate } = useAuthGate();
+  const country = profile.country;
   const [documents, setDocuments] = useState("");
   const [history, setHistory] = useState<VisaTurn[]>([]);
   const [input, setInput] = useState("");
@@ -16,9 +24,12 @@ export default function VisaSimulator() {
   const [source, setSource] = useState<string>();
   const [report, setReport] = useState<RiskReport | null>(null);
   const [riskLoading, setRiskLoading] = useState(false);
+  const [riskError, setRiskError] = useState(false);
+  const [interviewError, setInterviewError] = useState(false);
   const [reportPaid, setReportPaid] = useState(true);
   const [needsPayment, setNeedsPayment] = useState(false);
   const [needsAccount, setNeedsAccount] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   // Return from Stripe checkout: confirm the session, then unlock.
   useEffect(() => {
@@ -45,6 +56,7 @@ export default function VisaSimulator() {
   async function analyzeDocs() {
     if (!documents.trim()) return;
     setRiskLoading(true);
+    setRiskError(false);
     try {
       const res = await api.riskReport([{ kind: "i20", text: documents }], getProfileId() || undefined);
       setReport(res.report);
@@ -52,6 +64,9 @@ export default function VisaSimulator() {
       setNeedsPayment(!!res.needsPayment);
       setNeedsAccount(!!res.needsAccount);
       markCompleted("visa");
+      setTimeout(() => reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    } catch {
+      setRiskError(true);
     } finally {
       setRiskLoading(false);
     }
@@ -72,10 +87,13 @@ export default function VisaSimulator() {
     setLoading(true);
     setScore(null);
     setDone(false);
+    setInterviewError(false);
     try {
-      const res = await api.visaNext(country, [], documents || undefined);
+      const res = await api.visaNext(country, [], documents || undefined, getProfileId() || undefined);
       setHistory([{ role: "officer", text: res.question }]);
       setStarted(true);
+    } catch {
+      setInterviewError(true);
     } finally {
       setLoading(false);
     }
@@ -88,10 +106,13 @@ export default function VisaSimulator() {
     setHistory(withAnswer);
     setInput("");
     setLoading(true);
+    setInterviewError(false);
     try {
-      const res = await api.visaNext(country, withAnswer, documents || undefined);
+      const res = await api.visaNext(country, withAnswer, documents || undefined, getProfileId() || undefined);
       setHistory([...withAnswer, { role: "officer", text: res.question }]);
       if (res.done) setDone(true);
+    } catch {
+      setInterviewError(true);
     } finally {
       setLoading(false);
     }
@@ -99,59 +120,63 @@ export default function VisaSimulator() {
 
   async function finish() {
     setLoading(true);
+    setInterviewError(false);
     try {
-      const res = await api.visaScore(country, history, documents || undefined);
+      const res = await api.visaScore(country, history, documents || undefined, getProfileId() || undefined);
       setScore(res.score);
       setSource(res.source);
       markCompleted("visa");
+    } catch {
+      setInterviewError(true);
     } finally {
       setLoading(false);
     }
   }
 
+  const officerQuestions = history.filter((t) => t.role === "officer").length;
+  const canFinish = !loading && (done || officerQuestions >= 4);
+
   return (
     <div className="space-y-6">
       <PageHeading
         title="Visa interview simulator 🎫"
-        subtitle="Practice your F-1 interview with an AI officer until you walk in fearless. It probes your ties to home, finances, and study plan, then scores you honestly. Coaching, not legal advice."
+        subtitle="Practice your F-1 interview with an AI officer until you walk in calm. It probes your ties to home, your finances, and your study plan, then scores you honestly. Coaching, not legal advice."
       />
 
       <div className="card">
         <h2 className="text-lg font-semibold text-ink">Document-grounded visa risk report</h2>
         <p className="mt-1 text-sm text-muted">
-          Paste your I-20, admission, and funding details. Yaar reviews them the way a consular officer would and
-          flags inconsistencies and weak points before your interview.
+          Upload your I-20, admission letter, and funding proof. Yaar reads them the way a consular officer would and
+          flags the gaps before you walk in, so nothing catches you off guard.
         </p>
-        <textarea
-          className="input mt-3 min-h-[120px]"
-          placeholder="Paste: I-20 total cost, who is sponsoring you and their job, the bank balance shown, your program and school..."
-          value={documents}
-          onChange={(e) => setDocuments(e.target.value)}
-        />
-        <p className="mt-1 text-xs text-faint">
-          We do not store your raw documents. Your report is saved to your account so you can track progress. Do
-          not paste passwords.
-        </p>
-        <button className="btn-primary mt-3" onClick={analyzeDocs} disabled={riskLoading || !documents.trim()}>
-          {riskLoading ? <Spinner label="Analyzing..." /> : "Analyze my documents"}
+
+        <div className="mt-3">
+          <DocumentUpload value={documents} onChange={setDocuments} />
+        </div>
+
+        {riskError && <div className="mt-3"><ErrorNote onRetry={analyzeDocs}>Yaar couldn't build your report just now. Give it a moment and try again.</ErrorNote></div>}
+
+        <button className="btn-primary mt-4" onClick={analyzeDocs} disabled={riskLoading || !documents.trim()}>
+          {riskLoading ? <Spinner label="Checking your documents..." /> : "Build my risk report"}
         </button>
 
         {report && (
-          <div className="mt-5 rounded-xl border border-line p-5">
+          <div ref={reportRef} className="mt-5 rounded-xl border border-line p-5">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-ink">
                 Readiness: <span className="text-brand-500">{report.overall}</span>/100
               </h3>
               {report.locked && <span className="badge bg-amber-500/12 text-amber-600 dark:text-amber-400">preview</span>}
             </div>
-            {report.summary && <p className="mt-1 text-sm text-muted">{report.summary}</p>}
+            <p className="mt-1 text-sm text-muted">Here's an honest look. Every point below is fixable before your interview.</p>
+            {report.summary && <Markdown className="mt-1 text-sm text-muted">{report.summary}</Markdown>}
 
             {report.inconsistencies.length > 0 && (
               <div className="mt-3">
                 <h4 className="text-sm font-semibold text-rose-600 dark:text-rose-400">Inconsistencies</h4>
                 <ul className="mt-1 list-inside list-disc text-sm text-rose-600 dark:text-rose-300">
                   {report.inconsistencies.map((x, i) => (
-                    <li key={i}>{x}</li>
+                    <li key={i}><Markdown inline>{x}</Markdown></li>
                   ))}
                 </ul>
               </div>
@@ -162,7 +187,7 @@ export default function VisaSimulator() {
                 <h4 className="text-sm font-semibold text-ink">Weak points an officer will push on</h4>
                 <ul className="mt-1 list-inside list-disc text-sm text-ink/90">
                   {report.weakPoints.map((x, i) => (
-                    <li key={i}>{x}</li>
+                    <li key={i}><Markdown inline>{x}</Markdown></li>
                   ))}
                 </ul>
               </div>
@@ -183,20 +208,20 @@ export default function VisaSimulator() {
             )}
 
             {report.recommendation && (
-              <p className="mt-3 rounded-xl border border-brand-500/15 bg-brand-500/5 p-3 text-sm text-ink">{report.recommendation}</p>
+              <p className="mt-3 rounded-xl border border-brand-500/15 bg-brand-500/5 p-3 text-sm text-ink"><Markdown inline>{report.recommendation}</Markdown></p>
             )}
 
             {needsAccount && (
               <div className="mt-4 rounded-xl border border-brand-500/30 bg-brand-500/10 p-4 text-sm text-ink">
-                This is a free preview. Set up your profile on the Dashboard to generate and save your full report.
+                You're seeing a free preview. Make a quick profile on the Dashboard and Yaar saves your full report so you can come back to it anytime.
               </div>
             )}
 
             {needsPayment && !reportPaid && (
               <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
                 <p className="text-sm text-amber-700 dark:text-amber-200">
-                  This is a free preview. Unlock the full report: every inconsistency, all weak points, and
-                  per-dimension scoring.
+                  You've seen the highlights. The full report shows every gap an officer might catch and exactly how to
+                  fix each one before you walk in.
                 </p>
                 <button className="btn-gold mt-2" onClick={unlock}>
                   Unlock full report
@@ -209,30 +234,24 @@ export default function VisaSimulator() {
 
       {!started && (
         <div className="card">
-          <label className="label">Your country</label>
-          <select className="input max-w-xs" value={country} onChange={(e) => setCountry(e.target.value)}>
-            <option>Nepal</option>
-            <option>India</option>
-            <option>Bangladesh</option>
-            <option>Other</option>
+          <label className="label" htmlFor="visa-country">Your country</label>
+          <select id="visa-country" className="input max-w-xs" value={country} onChange={(e) => setField({ country: e.target.value })}>
+            {!COUNTRY_OPTIONS.includes(country) && <option value={country}>{country}</option>}
+            {COUNTRY_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
-
-          <label className="label mt-4">
-            Your documents <span className="font-normal text-faint">(optional, but this is the magic)</span>
-          </label>
-          <textarea
-            className="input min-h-[110px]"
-            placeholder="Paste your I-20 and funding details: school, program, total cost on the I-20, who is sponsoring you, their job, and the bank balance shown. The AI officer will probe any inconsistency, exactly like a real interview."
-            value={documents}
-            onChange={(e) => setDocuments(e.target.value)}
-          />
-          <p className="mt-1 text-xs text-faint">
-            These details are sent securely to power your mock interview and are not saved after your session.
-            Do not paste passwords or anything you would not share with a counselor.
+          <p className="mt-3 text-sm text-muted">
+            Ready to practice? The officer uses the documents you shared above, so it probes the same gaps a real
+            interview would. {!documents.trim() && "You can also start without documents."}
           </p>
 
-          <button className="btn-primary mt-5" onClick={start} disabled={loading}>
-            {loading ? <Spinner label="Starting..." /> : "Start the interview"}
+          {interviewError && <div className="mt-3"><ErrorNote onRetry={start}>Couldn't start the interview. Check your internet and try again.</ErrorNote></div>}
+
+          <button className="btn-primary mt-4" onClick={() => gate("visaInterview", () => start())} disabled={loading}>
+            {loading ? <Spinner label="Getting the officer ready..." /> : "Start the interview"}
           </button>
         </div>
       )}
@@ -253,7 +272,7 @@ export default function VisaSimulator() {
               </div>
             </div>
             <span className="badge bg-surface-2 text-muted">
-              {history.filter((t) => t.role === "officer").length} questions
+              {officerQuestions} questions
             </span>
           </div>
 
@@ -286,24 +305,36 @@ export default function VisaSimulator() {
           {/* Composer */}
           {!score && (
             <div className="border-t border-line bg-surface px-5 py-4">
+              {interviewError && <div className="mb-3"><ErrorNote onRetry={() => (history[history.length - 1]?.role === "student" ? answer() : start())}>That answer didn't go through. Try sending it again.</ErrorNote></div>}
               <div className="flex gap-2">
-                <input
-                  className="input"
-                  placeholder="Answer the officer..."
+                <textarea
+                  className="input min-h-[44px] resize-none"
+                  rows={1}
+                  placeholder="Answer the officer. Enter to send, Shift+Enter for a new line."
+                  aria-label="Your answer to the officer"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && answer()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      answer();
+                    }
+                  }}
                 />
-                <button className="btn-primary shrink-0" onClick={answer} disabled={loading || !input.trim()} aria-label="Send answer">
+                <button className="btn-primary shrink-0 self-end" onClick={answer} disabled={loading || !input.trim()} aria-label="Send answer">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
                   </svg>
                 </button>
               </div>
-              <button className="btn-gold mt-3 w-full sm:w-auto" onClick={finish} disabled={loading || history.length < 2}>
-                Finish and score me
+              <button
+                className={`mt-3 w-full sm:w-auto ${canFinish ? "btn-gold" : "btn-ghost"}`}
+                onClick={finish}
+                disabled={loading || history.length < 2}
+              >
+                {canFinish ? "You've done enough. Score me" : "Finish and score me"}
               </button>
-              {done && <p className="mt-2 text-sm text-muted">The officer is wrapping up. Finish and get your score.</p>}
+              {done && <p className="mt-2 text-sm text-muted">You've answered enough. Take a breath, then see how you did.</p>}
             </div>
           )}
         </div>
@@ -317,7 +348,7 @@ export default function VisaSimulator() {
             </h2>
             <SourceBadge source={source} />
           </div>
-          <p className="mb-4 rounded-xl border border-brand-500/15 bg-brand-500/5 p-3 text-sm text-ink">{score.recommendation}</p>
+          <p className="mb-4 rounded-xl border border-brand-500/15 bg-brand-500/5 p-3 text-sm text-ink"><Markdown inline>{score.recommendation}</Markdown></p>
 
           <div className="space-y-3">
             {score.dimensions.map((d, i) => (
@@ -327,7 +358,7 @@ export default function VisaSimulator() {
                   <span className="text-muted">{d.score} / 100</span>
                 </div>
                 <ScoreBar value={d.score} />
-                <p className="mt-1 text-sm text-muted">{d.note}</p>
+                <p className="mt-1 text-sm text-muted"><Markdown inline>{d.note}</Markdown></p>
               </div>
             ))}
           </div>
@@ -337,7 +368,7 @@ export default function VisaSimulator() {
               <h3 className="font-semibold text-rose-600 dark:text-rose-400">Red flags</h3>
               <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-rose-600 dark:text-rose-300">
                 {score.redFlags.map((r, i) => (
-                  <li key={i}>{r}</li>
+                  <li key={i}><Markdown inline>{r}</Markdown></li>
                 ))}
               </ul>
             </div>
@@ -347,7 +378,7 @@ export default function VisaSimulator() {
             <h3 className="font-semibold text-ink">Drills</h3>
             <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-ink/90">
               {score.drills.map((d, i) => (
-                <li key={i}>{d}</li>
+                <li key={i}><Markdown inline>{d}</Markdown></li>
               ))}
             </ul>
           </div>

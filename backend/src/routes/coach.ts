@@ -110,7 +110,7 @@ Return ONLY JSON: { "costExplanation": string, "sponsorStory": string, "gapAnaly
         "Never fabricate bank documents. It causes refusals and bans.",
       ],
       parentExplainer:
-        "Simple version for parents: the US school needs to see that our family can pay for one year up front, on paper. Let us make sure our real documents clearly show that, or choose a school that fits our budget.",
+        "Simple version for parents: the US school needs to see that our family can pay for one year up front, on paper. Let's make sure our real documents clearly show that, or choose a school that fits our budget.",
     }),
   });
   res.json({ ...data, gapUsd: gap, source });
@@ -177,6 +177,7 @@ coachRouter.post("/f1-status", async (req, res) => {
   const parsed = f1Schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const b = parsed.data;
+  const ctx = await context(b.profileId);
 
   const { data, source } = await generateJson<{
     answer: string;
@@ -186,7 +187,7 @@ coachRouter.post("/f1-status", async (req, res) => {
   }>({
     system: `${F1_GUARD_SYSTEM}
 Return ONLY JSON: { "answer": string, "mustDo": string[], "checkWithDSO": true, "disclaimer": string }`,
-    prompt: `Student question about maintaining F-1 status: ${b.question}\nAnswer informationally now.`,
+    prompt: `${ctx ? `Student context:\n${ctx}\n\n` : ""}Student question about maintaining F-1 status: ${b.question}\nAnswer informationally now.`,
     mock: () => ({
       answer:
         "In general, F-1 students must keep a full course load, only do authorized work (on-campus is limited, off-campus needs CPT or OPT), and keep their I-20 and address current. Unauthorized work, including most self-employment, can end your status.",

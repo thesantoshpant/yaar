@@ -63,6 +63,15 @@ export const EMPLOYEES: Employee[] = [
     cadence: "weekly",
     allowedActions: ["email_campaign", "whatsapp_message", "internal_task"],
   },
+  {
+    id: "memory",
+    title: "Memory Agent",
+    department: "intelligence",
+    mission: "Build and maintain a real, persistent mind for every student: read everything we know (profile, chats, evidence, documents, visa results), synthesize a tight brief and durable insights, and store them so the whole company speaks to a person it truly remembers.",
+    systemPrompt: "You are precise and never invent facts. You turn scattered signals into a clear, honest picture of each student and what they need next.",
+    cadence: "daily",
+    allowedActions: ["internal_task", "report"],
+  },
 ];
 
 export function getEmployee(id: string): Employee | undefined {

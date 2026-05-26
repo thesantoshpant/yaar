@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { api } from "../api/client";
 import { getProfileSummary, getProfileId } from "../lib/progress";
+import { useAuthGate } from "../lib/authGate";
 import { SourceBadge, PageHeading } from "../components/ui";
 
 interface Msg {
@@ -49,25 +50,65 @@ function renderMessageContent(content: string) {
   return processedLines.filter(Boolean).join('');
 }
 
+const GREETING: Msg = {
+  role: "assistant",
+  content:
+    "Hey, I'm Yaar. I work for you, never for the schools. Ask me anything about studying in the US, or just tell me where you're stuck.",
+};
+
+const STORE_KEY = "yaar.counselor";
+
+function loadMessages(): Msg[] {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Msg[];
+      if (Array.isArray(parsed) && parsed.length) return parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return [GREETING];
+}
+
 export default function Counselor() {
-  const [messages, setMessages] = useState<Msg[]>([
-    {
-      role: "assistant",
-      content:
-        "Hi, I am your Yaar counselor. I work only for you, never for the schools. Ask me anything about studying in the USA, or tell me where you are stuck.",
-    },
-  ]);
+  const [messages, setMessages] = useState<Msg[]>(loadMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [source, setSource] = useState<string>();
   const [playingIdx, setPlayingIdx] = useState<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const { gate } = useAuthGate();
 
   useEffect(() => {
     return () => {
       window.speechSynthesis.cancel();
     };
   }, []);
+
+  // Always follow the conversation to the bottom as messages arrive or the
+  // typing indicator shows, so a new message is never left below the fold.
+  useEffect(() => {
+    const el = listRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [messages, loading]);
+
+  // Keep the chat across refresh and navigation. A scared student who typed a long,
+  // vulnerable message should never lose it.
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(messages.slice(-40)));
+    } catch {
+      // ignore
+    }
+  }, [messages]);
+
+  function clearChat() {
+    window.speechSynthesis.cancel();
+    setMessages([GREETING]);
+    setSource(undefined);
+  }
 
   function speak(text: string, idx: number) {
     if (playingIdx === idx) {
@@ -103,7 +144,7 @@ export default function Counselor() {
       setMessages([...next, { role: "assistant", content: res.reply }]);
       setSource(res.source);
     } catch {
-      setMessages([...next, { role: "assistant", content: "Sorry, I could not reach the server. Is the backend running?" }]);
+      setMessages([...next, { role: "assistant", content: "Sorry yaar, I couldn't reach you just now. Check your internet and try again in a sec." }]);
     } finally {
       setLoading(false);
       setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
@@ -114,7 +155,7 @@ export default function Counselor() {
     const text = input.trim();
     if (!text || loading) return;
     setInput("");
-    await sendDirect(text);
+    gate("counselor", () => sendDirect(text));
   }
 
   return (
@@ -122,7 +163,14 @@ export default function Counselor() {
       <PageHeading
         title="Your counselor 💬"
         subtitle="Always on, fully on your side. No question is too small."
-        action={<SourceBadge source={source} />}
+        action={
+          <div className="flex items-center gap-2">
+            <SourceBadge source={source} />
+            {messages.length > 1 && (
+              <button className="btn-ghost" onClick={clearChat}>New chat</button>
+            )}
+          </div>
+        }
       />
 
       <div className="card flex h-[62vh] flex-col overflow-hidden p-0">
@@ -140,7 +188,7 @@ export default function Counselor() {
         </div>
 
         {/* Conversation */}
-        <div className="flex-1 space-y-4 overflow-y-auto bg-surface-2/50 px-5 py-4">
+        <div ref={listRef} className="flex-1 space-y-4 overflow-y-auto bg-surface-2/50 px-5 py-4">
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
               {m.role === "user" ? (
@@ -189,7 +237,7 @@ export default function Counselor() {
                 {STARTER_CHIPS.map((chip, idx) => (
                   <button
                     key={idx}
-                    onClick={() => sendDirect(chip)}
+                    onClick={() => gate("counselor", () => sendDirect(chip))}
                     className="chip text-xs hover:border-brand-500 hover:text-brand-500 hover:shadow-soft transition-all cursor-pointer bg-surface"
                   >
                     {chip}
@@ -216,14 +264,21 @@ export default function Counselor() {
 
         {/* Composer */}
         <div className="flex gap-2 border-t border-line bg-surface px-5 py-4">
-          <input
-            className="input"
-            placeholder="Message Yaar..."
+          <textarea
+            className="input min-h-[44px] resize-none"
+            rows={1}
+            placeholder="Message Yaar. Enter to send, Shift+Enter for a new line."
+            aria-label="Message Yaar"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
           />
-          <button className="btn-primary shrink-0" onClick={send} disabled={loading} aria-label="Send">
+          <button className="btn-primary shrink-0 self-end" onClick={send} disabled={loading || !input.trim()} aria-label="Send">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
             </svg>

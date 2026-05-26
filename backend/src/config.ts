@@ -1,9 +1,22 @@
 import "dotenv/config";
 
+// Vertex AI vs AI Studio: when GEMINI_USE_VERTEX is on (and a GCP project is set),
+// we route Gemini through Vertex AI so it draws on Google Cloud credit and unlocks
+// the higher model tiers. Auth then uses Application Default Credentials
+// (gcloud auth application-default login, or GOOGLE_APPLICATION_CREDENTIALS).
+const useVertex =
+  /^(1|true|yes)$/i.test(process.env.GEMINI_USE_VERTEX ?? process.env.GOOGLE_GENAI_USE_VERTEXAI ?? "") &&
+  (process.env.GOOGLE_CLOUD_PROJECT ?? "").length > 0;
+
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+  useVertex,
+  googleCloudProject: process.env.GOOGLE_CLOUD_PROJECT ?? "",
+  googleCloudLocation: process.env.GOOGLE_CLOUD_LOCATION ?? "us-central1",
+  // Default to the strong, fast multimodal model. The flagship report uses the pro tier.
   geminiTextModel: process.env.GEMINI_TEXT_MODEL ?? "gemini-2.5-flash",
+  geminiProModel: process.env.GEMINI_PRO_MODEL ?? "gemini-2.5-pro",
   geminiLiveModel: process.env.GEMINI_LIVE_MODEL ?? "gemini-2.0-flash-live-001",
   collegeScorecardApiKey: process.env.COLLEGE_SCORECARD_API_KEY ?? "",
   mongodbUri: process.env.MONGODB_URI ?? "",
@@ -30,7 +43,8 @@ export const config = {
   notifyEmail: process.env.NOTIFY_EMAIL ?? "",
 };
 
-export const hasGemini = config.geminiApiKey.length > 0;
+// Gemini is "live" if we have an AI Studio key, or Vertex is enabled with a project.
+export const hasGemini = config.geminiApiKey.length > 0 || config.useVertex;
 export const hasScorecard = config.collegeScorecardApiKey.length > 0;
 export const hasMongo = config.mongodbUri.length > 0;
 export const hasStripe = config.stripeSecretKey.length > 0;

@@ -54,26 +54,66 @@ function mapResult(r: ScorecardResult): School {
   };
 }
 
+// One Scorecard page of real, operating, bachelor's-predominant schools, ranked by
+// strong 10-year earnings (on-brand: we rank on outcomes, never on who pays us).
+async function fetchScorecard(extra: Record<string, string>, perPage: number): Promise<School[]> {
+  const params = new URLSearchParams();
+  params.set("api_key", config.collegeScorecardApiKey);
+  params.set("fields", FIELDS);
+  params.set("per_page", String(perPage));
+  params.set("school.operating", "1");
+  params.set("latest.student.size__range", "1..");
+  params.set("school.degrees_awarded.predominant", "3"); // real 4-year colleges, not community/trade
+  params.set("sort", "latest.earnings.10_yrs_after_entry.median:desc");
+  for (const [k, v] of Object.entries(extra)) params.set(k, v);
+  const res = await fetch(`${BASE}?${params.toString()}`);
+  if (!res.ok) throw new Error(`Scorecard ${res.status}: ${(await res.text()).slice(0, 150)}`);
+  const json = (await res.json()) as { results: ScorecardResult[] };
+  return (json.results ?? []).map(mapResult);
+}
+
+const withinBudget = (list: School[], max?: number): School[] =>
+  max == null ? list : list.filter((s) => s.netPriceUsd != null && s.netPriceUsd <= max);
+
 export async function searchSchools(query: SchoolQuery): Promise<{ schools: School[]; source: "scorecard" | "mock" }> {
   if (!hasScorecard) {
     return { schools: filterMock(query), source: "mock" };
   }
   try {
-    const params = new URLSearchParams();
-    params.set("api_key", config.collegeScorecardApiKey);
-    params.set("fields", FIELDS);
-    params.set("per_page", String(query.perPage ?? 20));
-    params.set("school.operating", "1");
-    params.set("latest.student.size__range", "1..");
-    if (query.search) params.set("school.name", query.search);
-    if (query.state) params.set("school.state", query.state);
-    if (query.maxNetPriceUsd) params.set("latest.cost.attendance.academic_year__range", `..${query.maxNetPriceUsd}`);
+    const extra: Record<string, string> = {};
+    if (query.search) extra["school.name"] = query.search;
+    if (query.state) extra["school.state"] = query.state;
 
-    const res = await fetch(`${BASE}?${params.toString()}`);
-    if (!res.ok) throw new Error(`Scorecard ${res.status}`);
-    const json = (await res.json()) as { results: ScorecardResult[] };
-    const schools = (json.results ?? []).map(mapResult);
-    return { schools, source: "scorecard" };
+    // Caller pinned a selectivity floor: honor it as a single ranked query.
+    if (query.minAdmitRate != null) {
+      const list = await fetchScorecard({ ...extra, "latest.admissions.admission_rate.overall__range": `${query.minAdmitRate}..1` }, 60);
+      return { schools: withinBudget(list, query.maxNetPriceUsd).slice(0, 24), source: "scorecard" };
+    }
+
+    // Otherwise build a genuinely balanced list: the best-outcome schools the student
+    // can actually afford in EACH selectivity tier (reach / match / safety).
+    const tiers: { range: string; take: number }[] = [
+      { range: "0..0.4", take: 6 },
+      { range: "0.4..0.7", take: 9 },
+      { range: "0.7..1", take: 9 },
+    ];
+    const buckets = await Promise.all(
+      tiers.map((t) =>
+        fetchScorecard({ ...extra, "latest.admissions.admission_rate.overall__range": t.range }, 40)
+          .then((list) => withinBudget(list, query.maxNetPriceUsd).slice(0, t.take))
+          .catch(() => [] as School[])
+      )
+    );
+    const schools = buckets.flat();
+    if (schools.length > 0) return { schools, source: "scorecard" };
+
+    // Budget too tight for any tier: show the most affordable real options honestly,
+    // cheapest first, so the student still sees a path instead of an empty page.
+    const all = (await fetchScorecard(extra, 100))
+      .filter((s) => s.netPriceUsd != null)
+      .sort((a, b) => (a.netPriceUsd ?? 0) - (b.netPriceUsd ?? 0))
+      .slice(0, 12);
+    return { schools: all, source: "scorecard" };
   } catch (err) {
     console.error("[scorecard] failed, using mock:", err);
     return { schools: filterMock(query), source: "mock" };

@@ -1,7 +1,8 @@
 // Document-grounded F-1 visa Risk Report. Parses the student's documents, detects
 // inconsistencies a consular officer would catch, scores readiness, and surfaces
 // the exact weak points to drill in the mock interview. This is the paid flagship.
-import { generateJson } from "./gemini";
+import { generateJson, generateJsonFromMedia, type MediaPart } from "./gemini";
+import { config } from "../config";
 import { store } from "../lib/store";
 import { VISA_DIMENSIONS } from "../data/rubrics";
 import { riskReportSystem } from "../lib/prompts";
@@ -11,6 +12,20 @@ export interface DocInput {
   kind: StudentDocument["kind"];
   text: string;
   filename?: string;
+}
+
+// One uploaded file plus a hint about what it is.
+export interface DocFileInput {
+  kind: StudentDocument["kind"];
+  mimeType: string;
+  data: string; // base64
+  filename?: string;
+}
+
+export interface ExtractedField {
+  field: string;
+  value: string;
+  confidence?: "high" | "medium" | "low";
 }
 
 type ReportCore = Omit<RiskReport, "id" | "createdAt" | "profileId">;
@@ -57,11 +72,38 @@ function mockReport(combined: string): ReportCore {
   };
 }
 
+// Reads uploaded files (photo or PDF of an I-20, bank letter, admission letter)
+// and pulls out the key fields so the student confirms instead of typing it all.
+// Nothing is persisted: the file bytes live only for this call.
+export async function extractFieldsFromFiles(files: DocFileInput[]): Promise<{ extracted: ExtractedField[]; warnings: string[] }> {
+  const parts: MediaPart[] = files.map((f) => ({ mimeType: f.mimeType, data: f.data }));
+  const hints = files.map((f) => `${f.filename ?? "file"} (${f.kind})`).join(", ");
+  const { data } = await generateJsonFromMedia<{ extracted: ExtractedField[]; warnings: string[] }>({
+    system: `${riskReportSystem(VISA_DIMENSIONS.map((d) => d.name).join(", "))}
+You are reading the student's uploaded documents (${hints}). Pull out only what is actually written. Do not guess numbers.
+Return ONLY JSON:
+{ "extracted": [ { "field": string, "value": string, "confidence": "high"|"medium"|"low" } ],
+  "warnings": string[] }
+Fields to look for when present: School, Program, Degree level, I-20 total cost (one year), Program length, Sponsor name, Sponsor occupation, Funds shown, Bank or sponsor, Start date. If a field is not found, set value to "Not found" and confidence "low", and add a short warning telling the student to add it.`,
+    prompt: "Read these documents and extract the fields now.",
+    files: parts,
+    mock: () => ({
+      extracted: [{ field: "Documents uploaded", value: `${files.length} file(s)`, confidence: "low" as const }],
+      warnings: ["Add a Gemini key or Vertex AI to read documents automatically. For now, type the details in yourself."],
+    }),
+  });
+  return {
+    extracted: Array.isArray(data.extracted) ? data.extracted : [],
+    warnings: Array.isArray(data.warnings) ? data.warnings : [],
+  };
+}
+
 // Pure analysis (no persistence). Used for anonymous/transient reports too.
 export async function analyzeDocuments(docs: DocInput[]): Promise<ReportCore> {
   const combined = docs.map((d) => `[${d.kind}] ${d.text}`).join("\n\n");
   const { data } = await generateJson<ReportCore>({
     system: SYSTEM,
+    model: config.geminiProModel, // flagship: use the stronger model for the paid report
     prompt: `Student documents:\n${combined || "(none provided)"}\n\nProduce the risk report now.`,
     mock: () => mockReport(combined),
   });
@@ -83,5 +125,14 @@ export async function generateRiskReport(profileId: string, docs: DocInput[]): P
   // "we don't store your raw documents" promise honest.
   const core = await analyzeDocuments(docs);
   await store.addEvent({ profileId, kind: "module_run", module: "visa", summary: `Generated visa risk report (score ${core.overall})`, status: "done" });
+  // Feed the durable, derived facts into the student's mind (not the raw documents).
+  const facts = [
+    { profileId, key: "visa.readiness", type: "profile" as const, value: `Visa readiness ${core.overall}/100`, confidence: 0.9, source: "module_outcome" as const },
+    ...core.extracted
+      .filter((e) => e.value && e.value.trim().toLowerCase() !== "not found")
+      .map((e) => ({ profileId, key: `doc.${e.field.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40)}`, type: "profile" as const, value: `${e.field}: ${e.value}`, confidence: 0.9, source: "module_outcome" as const })),
+    ...core.weakPoints.slice(0, 3).map((w, i) => ({ profileId, key: `visa.weak_${i + 1}`, type: "constraint" as const, value: w, confidence: 0.8, source: "module_outcome" as const })),
+  ];
+  await store.addFacts(facts).catch(() => {});
   return store.saveRiskReport({ profileId, ...core });
 }

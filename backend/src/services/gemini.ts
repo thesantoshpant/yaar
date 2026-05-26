@@ -6,10 +6,28 @@ import { config, hasGemini } from "../config";
 
 let ai: GoogleGenAI | null = null;
 if (hasGemini) {
-  ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
+  if (config.useVertex) {
+    // Vertex AI path: auth via Application Default Credentials, billed to the GCP project.
+    ai = new GoogleGenAI({
+      vertexai: true,
+      project: config.googleCloudProject,
+      location: config.googleCloudLocation,
+    });
+    console.log(`[gemini] using Vertex AI (project=${config.googleCloudProject}, location=${config.googleCloudLocation})`);
+  } else {
+    // AI Studio path: simple API key.
+    ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
+    console.log("[gemini] using AI Studio API key");
+  }
 }
 
 export type Source = "gemini" | "mock";
+
+// A file the model can read directly (PDF or image), as base64 inline data.
+export interface MediaPart {
+  mimeType: string;
+  data: string; // base64, no data: prefix
+}
 
 function stripFences(text: string): string {
   const trimmed = text.trim();
@@ -65,6 +83,7 @@ export async function generateJson<T>(opts: {
   prompt: string;
   system?: string;
   temperature?: number;
+  model?: string;
   mock: () => T;
 }): Promise<{ data: T; source: Source }> {
   if (!ai) {
@@ -72,7 +91,7 @@ export async function generateJson<T>(opts: {
   }
   try {
     const res = await ai.models.generateContent({
-      model: config.geminiTextModel,
+      model: opts.model ?? config.geminiTextModel,
       contents: opts.prompt,
       config: {
         systemInstruction: opts.system,
@@ -85,6 +104,42 @@ export async function generateJson<T>(opts: {
     return { data, source: "gemini" };
   } catch (err) {
     console.error("[gemini] generateJson failed, using fallback:", err);
+    return { data: opts.mock(), source: "mock" };
+  }
+}
+
+// Reads uploaded files (PDF/images of an I-20, bank letter, etc.) and returns structured JSON.
+// Gemini handles PDFs and photos natively, so a student can just snap their documents.
+export async function generateJsonFromMedia<T>(opts: {
+  prompt: string;
+  files: MediaPart[];
+  system?: string;
+  temperature?: number;
+  model?: string;
+  mock: () => T;
+}): Promise<{ data: T; source: Source }> {
+  if (!ai || opts.files.length === 0) {
+    return { data: opts.mock(), source: "mock" };
+  }
+  try {
+    const parts = [
+      ...opts.files.map((f) => ({ inlineData: { mimeType: f.mimeType, data: f.data } })),
+      { text: opts.prompt },
+    ];
+    const res = await ai.models.generateContent({
+      model: opts.model ?? config.geminiProModel,
+      contents: [{ role: "user", parts }],
+      config: {
+        systemInstruction: opts.system,
+        temperature: opts.temperature ?? 0.2,
+        responseMimeType: "application/json",
+      },
+    });
+    const raw = res.text ?? "";
+    const data = JSON.parse(extractJson(raw)) as T;
+    return { data, source: "gemini" };
+  } catch (err) {
+    console.error("[gemini] generateJsonFromMedia failed, using fallback:", err);
     return { data: opts.mock(), source: "mock" };
   }
 }

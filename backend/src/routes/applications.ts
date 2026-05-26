@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { generateText } from "../services/gemini";
 import { hasGemini } from "../config";
+import { buildContextPack } from "../services/contextPack";
 
 export const applicationsRouter = Router();
 
@@ -12,6 +13,7 @@ const bodySchema = z.object({
   major: z.string().optional(),
   promptText: z.string().optional(),
   notes: z.string().optional(),
+  profileId: z.string().optional(),
 });
 
 type Body = z.infer<typeof bodySchema>;
@@ -46,6 +48,9 @@ applicationsRouter.post("/draft", async (req, res) => {
     return res.json({ draft: mockDraft(b), source: "mock" });
   }
 
+  const ctx = b.profileId ? await buildContextPack(b.profileId) : "";
+  const system = ctx ? `${ctx}\n\n${SYSTEM}` : SYSTEM;
+
   const prompt = [
     `Essay type: ${b.type === "common_app" ? "Common App personal essay (650 words)" : "Statement of Purpose"}.`,
     b.school ? `Target school: ${b.school}.` : "",
@@ -58,6 +63,6 @@ applicationsRouter.post("/draft", async (req, res) => {
     .filter(Boolean)
     .join("\n");
 
-  const { text, source } = await generateText({ system: SYSTEM, prompt, temperature: 0.7 });
+  const { text, source } = await generateText({ system, prompt, temperature: 0.7 });
   res.json({ draft: text, source });
 });

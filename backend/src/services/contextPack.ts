@@ -10,7 +10,7 @@ export async function buildContextPack(profileId: string): Promise<string> {
 
   const [journey, facts, openActions, recentEvents] = await Promise.all([
     getOrCreateJourney(profileId),
-    store.getFacts(profileId, 15),
+    store.getFacts(profileId, 24),
     store.getActionItems(profileId, "suggested"),
     store.getEvents(profileId, { limit: 5 }),
   ]);
@@ -29,10 +29,15 @@ export async function buildContextPack(profileId: string): Promise<string> {
   const sections: string[] = [];
   sections.push(`## WHO\n${who}`);
 
+  // The Memory Agent's synthesized brief leads, so the model gets the whole picture first.
+  const brief = facts.find((f) => f.key === "mind.brief");
+  if (brief) sections.push(`## MIND (what we remember about this student)\n${brief.value}`);
+
   const preamble = personaPreamble(journey);
   if (preamble) sections.push(`## CONTEXT\n${preamble}`);
 
-  if (facts.length) sections.push(`## KEY FACTS\n${facts.map((f) => `- ${f.value}`).join("\n")}`);
+  const keyFacts = facts.filter((f) => f.key !== "mind.brief");
+  if (keyFacts.length) sections.push(`## KEY FACTS\n${keyFacts.map((f) => `- ${f.value}`).join("\n")}`);
 
   if (openActions.length)
     sections.push(

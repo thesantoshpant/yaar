@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
 import { api } from "../api/client";
 import type { SpeakingScore } from "../lib/types";
-import { markCompleted } from "../lib/progress";
+import { markCompleted, getProfileId } from "../lib/progress";
+import { useAuthGate } from "../lib/authGate";
 import { Spinner, SourceBadge, ScoreBar, PageHeading } from "../components/ui";
+import Markdown from "../components/Markdown";
 
 export default function SpeakingPractice() {
+  const { gate } = useAuthGate();
   const [exam, setExam] = useState("IELTS");
   const [prompt, setPrompt] = useState("");
   const [answer, setAnswer] = useState("");
@@ -83,7 +86,7 @@ export default function SpeakingPractice() {
     if (!prompt || !answer.trim()) return;
     setLoading(true);
     try {
-      const res = await api.speakingScore(exam, prompt, answer);
+      const res = await api.speakingScore(exam, prompt, answer, getProfileId() || undefined);
       setScore(res.score);
       setSource(res.source);
       markCompleted("test_prep");
@@ -170,7 +173,7 @@ export default function SpeakingPractice() {
               />
 
               <div className="flex gap-2.5">
-                <button className="btn-primary" onClick={submit} disabled={loading || !answer.trim()}>
+                <button className="btn-primary" onClick={() => gate("speaking", () => submit())} disabled={loading || !answer.trim()}>
                   {loading ? <Spinner label="Scoring..." /> : "Score my answer"}
                 </button>
                 {answer.trim() && (
@@ -209,21 +212,21 @@ export default function SpeakingPractice() {
                   </span>
                 </div>
                 <ScoreBar value={c.score} max={max} />
-                <p className="mt-1 text-sm text-muted">{c.feedback}</p>
+                <p className="mt-1 text-sm text-muted"><Markdown inline>{c.feedback}</Markdown></p>
               </div>
             ))}
           </div>
 
           <div className="mt-5 rounded-xl border border-brand-500/15 bg-brand-500/5 p-4">
             <h3 className="font-semibold text-ink">Model answer</h3>
-            <p className="mt-1 text-sm text-ink/90">{score.improvedAnswer}</p>
+            <Markdown className="mt-1 text-sm text-ink/90">{score.improvedAnswer}</Markdown>
           </div>
 
           <div className="mt-4">
             <h3 className="font-semibold text-ink">Drills</h3>
             <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-ink/90">
               {score.drills.map((d, i) => (
-                <li key={i}>{d}</li>
+                <li key={i}><Markdown inline>{d}</Markdown></li>
               ))}
             </ul>
           </div>

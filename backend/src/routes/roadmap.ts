@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { generateJson } from "../services/gemini";
+import { buildContextPack } from "../services/contextPack";
 import type { Roadmap } from "../lib/types";
 
 export const roadmapRouter = Router();
@@ -13,6 +14,7 @@ const bodySchema = z.object({
   testStatus: z.string().optional(),
   careerGoal: z.string().optional(),
   targetIntake: z.string().optional(),
+  profileId: z.string().optional(),
 });
 
 type Body = z.infer<typeof bodySchema>;
@@ -71,11 +73,13 @@ roadmapRouter.post("/", async (req, res) => {
   const parsed = bodySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const b = parsed.data;
+  const ctx = b.profileId ? await buildContextPack(b.profileId) : "";
 
-  const system = `You are Yaar, an honest AI counselor. Produce a realistic, specific study-abroad roadmap.
+  const baseSystem = `You are Yaar, an honest AI counselor. Produce a realistic, specific study-abroad roadmap.
 Be honest about what outcomes are realistic. Never guarantee outcomes. Warn about predatory consultancy practices.
 Return ONLY JSON matching this TypeScript type:
 { "summary": string, "realisticOutcome": string, "steps": { "phase": string, "timeframe": string, "actions": string[], "why": string }[], "estimatedTotalCostUsd": string, "redFlags": string[] }`;
+  const system = ctx ? `${ctx}\n\n${baseSystem}` : baseSystem;
 
   const prompt = `Student: country=${b.country}, level=${b.intendedLevel}, major=${b.intendedMajor ?? "undecided"}, budgetUsdPerYear=${
     b.budgetUsdPerYear ?? "unknown"

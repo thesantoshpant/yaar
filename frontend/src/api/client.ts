@@ -63,6 +63,9 @@ export const api = {
   updateProfile: (id: string, input: Record<string, unknown>) =>
     patch<{ profile: { id: string } }>(`/api/profile/${id}`, input),
 
+  getProfile: (id: string) =>
+    get<{ profile: Record<string, unknown> }>(`/api/profile/${id}`),
+
   getJourney: (profileId: string) => get<{ journey: JourneyState }>(`/api/journey/${profileId}`),
 
   completeModule: (profileId: string, module: string) =>
@@ -83,11 +86,11 @@ export const api = {
   searchSchools: (input: Record<string, unknown>) =>
     post<{ schools: School[]; advisorNote: string; source: string }>("/api/schools/search", input),
 
-  visaNext: (country: string, history: VisaTurn[], documents?: string) =>
-    post<{ question: string; done: boolean; source: string }>("/api/visa/next", { country, history, documents }),
+  visaNext: (country: string, history: VisaTurn[], documents?: string, profileId?: string) =>
+    post<{ question: string; done: boolean; source: string }>("/api/visa/next", { country, history, documents, profileId }),
 
-  visaScore: (country: string, history: VisaTurn[], documents?: string) =>
-    post<{ score: VisaScore; source: string }>("/api/visa/score", { country, history, documents }),
+  visaScore: (country: string, history: VisaTurn[], documents?: string, profileId?: string) =>
+    post<{ score: VisaScore; source: string }>("/api/visa/score", { country, history, documents, profileId }),
 
   draftEssay: (input: Record<string, unknown>) =>
     post<{ draft: string; source: string }>("/api/applications/draft", input),
@@ -95,8 +98,8 @@ export const api = {
   speakingPrompt: (exam: string) =>
     get<{ exam: string; prompt: string }>(`/api/speaking/prompt?exam=${encodeURIComponent(exam)}`),
 
-  speakingScore: (exam: string, prompt: string, answer: string) =>
-    post<{ score: SpeakingScore; source: string }>("/api/speaking/score", { exam, prompt, answer }),
+  speakingScore: (exam: string, prompt: string, answer: string, profileId?: string) =>
+    post<{ score: SpeakingScore; source: string }>("/api/speaking/score", { exam, prompt, answer, profileId }),
 
   agentPlan: (profileSummary: string, completed: string[], profileId?: string) =>
     post<{ plan: AgentPlan; source: string }>("/api/agent/plan", { profileSummary, completed, profileId }),
@@ -106,6 +109,13 @@ export const api = {
       documents,
       profileId,
     }),
+
+  // Upload photos/PDFs of documents; Gemini reads them and returns fields to confirm.
+  riskExtract: (files: { kind: string; mimeType: string; data: string; filename?: string }[]) =>
+    post<{ extracted: { field: string; value: string; confidence?: "high" | "medium" | "low" }[]; warnings: string[] }>(
+      "/api/risk/extract",
+      { files }
+    ),
 
   riskLatest: (profileId: string) =>
     get<{ report: RiskReport | null; entitled: boolean }>(`/api/risk/latest/${profileId}`),
@@ -148,4 +158,12 @@ export const api = {
   listEvidence: (profileId: string) => get<{ evidence: EvidenceArtifact[] }>(`/api/evidence/${profileId}`),
   summarizeEvidence: (profileId: string) =>
     post<{ activityLines: string[]; essayParagraph: string; source: string }>(`/api/evidence/${profileId}/summarize`, {}),
+
+  // Memory ("mind") — the per-user brief + structured facts Yaar builds over time.
+  getMemory: (profileId: string) =>
+    get<{ brief: string | null; facts: { key: string; type: string; value: string; confidence: number; source: string }[] }>(
+      `/api/memory/${profileId}`
+    ),
+  consolidateMemory: (profileId: string) =>
+    post<{ brief: string; insights: number; source: string }>(`/api/memory/${profileId}/consolidate`, {}),
 };

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { generateJson } from "../services/gemini";
+import { buildContextPack } from "../services/contextPack";
 import { SPEAKING_PROMPTS } from "../data/questionBanks";
 import { examCriteria } from "../data/rubrics";
 import type { SpeakingScore } from "../lib/types";
@@ -18,6 +19,7 @@ const scoreSchema = z.object({
   exam: z.string().default("IELTS"),
   prompt: z.string().min(1),
   answer: z.string().min(1),
+  profileId: z.string().optional(),
 });
 
 function mockSpeakingScore(exam: string, answer: string): SpeakingScore {
@@ -46,13 +48,15 @@ function mockSpeakingScore(exam: string, answer: string): SpeakingScore {
 speakingRouter.post("/score", async (req, res) => {
   const parsed = scoreSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const { exam, prompt, answer } = parsed.data;
+  const { exam, prompt, answer, profileId } = parsed.data;
   const { exam: examName, scale, criteria } = examCriteria(exam);
+  const ctx = profileId ? await buildContextPack(profileId) : "";
 
-  const system = `You are Yaar's speaking-test coach for ${examName}. Score the answer on a ${scale}-point scale using these criteria: ${criteria
+  const baseSystem = `You are Yaar's speaking-test coach for ${examName}. Score the answer on a ${scale}-point scale using these criteria: ${criteria
     .map((c) => c.name)
     .join(", ")}. Be honest and specific, and provide a rewritten model answer.
 Return ONLY JSON: { "band": number, "exam": "${examName}", "criteria": { "name": string, "score": number, "feedback": string }[], "improvedAnswer": string, "drills": string[] }`;
+  const system = ctx ? `${ctx}\n\n${baseSystem}` : baseSystem;
 
   const { data, source } = await generateJson<SpeakingScore>({
     system,

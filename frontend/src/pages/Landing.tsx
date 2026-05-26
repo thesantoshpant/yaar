@@ -5,7 +5,7 @@ import { Reveal, stagger, staggerItem } from "../components/Reveal";
 import ThemeToggle from "../components/ThemeToggle";
 
 const JOURNEY = [
-  { step: "01", title: "Roadmap", text: "An honest plan for your tests, timeline, and budget — no fluff." },
+  { step: "01", title: "Roadmap", text: "An honest plan for your tests, timeline, and budget. No fluff." },
   { step: "02", title: "Test prep", text: "Unlimited TOEFL & IELTS speaking practice, scored on the spot." },
   { step: "03", title: "School search", text: "A balanced list from real data, never from who pays us." },
   { step: "04", title: "Applications", text: "Common App setup and essays drafted in your voice." },
@@ -16,7 +16,7 @@ const JOURNEY = [
 const USP = [
   {
     t: "Does the work for you",
-    d: "It plans, drills you, finds schools, drafts essays, and runs mock interviews — and keeps going while you sleep.",
+    d: "It plans, drills you, finds schools, drafts essays, and runs mock interviews. It even keeps going while you sleep.",
     icon: "M13 2L3 14h7l-1 8 10-12h-7l1-8z",
   },
   {
@@ -26,7 +26,7 @@ const USP = [
   },
   {
     t: "Same shot for everyone",
-    d: "No connections? No problem. The same elite guidance, 24/7, in your language — whoever you are.",
+    d: "No connections? No problem. The same great help, any time, in your language, whoever you are.",
     icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0",
   },
 ];
@@ -57,7 +57,7 @@ function Cross() {
 // in sequence so it feels alive.
 const CHAT: { from: "you" | "yaar"; text: string }[] = [
   { from: "you", text: "ngl i'm scared i'll bomb my visa interview 😭" },
-  { from: "yaar", text: "totally normal. let's practice — i'll play the officer, you answer. by the end you'll walk in ready 💪" },
+  { from: "yaar", text: "totally normal. let's practice: i'll play the officer, you answer. by the end you'll walk in ready 💪" },
   { from: "you", text: "wait you'd actually do that with me?" },
   { from: "yaar", text: "anytime. that's literally why i'm here, yaar. free, 24/7, no judgement." },
 ];
@@ -360,12 +360,12 @@ function InteractiveSandbox() {
 export default function Landing() {
   return (
     <div className="bg-bg">
-      {/* Hero — deep premium navy with vibrant gradient energy */}
-      <header className="relative overflow-hidden bg-brand-950 text-white">
+      {/* Hero — deep premium navy with vibrant gradient energy; fills the viewport */}
+      <header className="relative flex min-h-screen flex-col overflow-hidden bg-brand-950 text-white">
         <div className="pointer-events-none absolute inset-0 opacity-80 [background:radial-gradient(60%_50%_at_12%_8%,rgba(99,102,241,0.5)_0,transparent_60%),radial-gradient(50%_45%_at_88%_5%,rgba(217,70,239,0.32)_0,transparent_55%),radial-gradient(45%_45%_at_75%_95%,rgba(251,191,36,0.2)_0,transparent_60%)]" />
         <div className="pointer-events-none absolute inset-0 opacity-[0.04] [background-image:linear-gradient(white_1px,transparent_1px),linear-gradient(90deg,white_1px,transparent_1px)] [background-size:64px_64px]" />
 
-        <nav className="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+        <nav className="relative mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
           <div className="flex items-center gap-2">
             <img src="/star.svg" alt="" className="h-7 w-7 [filter:brightness(0)_invert(1)]" />
             <span className="font-display text-xl font-extrabold tracking-tight">Yaar</span>
@@ -376,7 +376,7 @@ export default function Landing() {
           </div>
         </nav>
 
-        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-6 pb-24 pt-10 lg:grid-cols-2 lg:pt-16">
+        <div className="relative mx-auto grid w-full max-w-6xl flex-1 content-center items-center gap-12 px-6 pb-16 pt-8 lg:grid-cols-2">
           {/* Left: copy */}
           <div className="text-center lg:text-left">
             <motion.span
@@ -395,9 +395,9 @@ export default function Landing() {
               transition={{ duration: 0.6, delay: 0.05 }}
               className="mx-auto mt-6 max-w-xl font-display text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:mx-0"
             >
-              Your hometown to a{" "}
+              From your hometown to a{" "}
               <span className="bg-gradient-to-r from-gold-300 via-gold-400 to-fuchsia-300 bg-clip-text text-transparent">US degree</span>
-              — with a buddy who never takes a cut.
+              , with a buddy who never takes a cut.
             </motion.h1>
 
             <motion.p
@@ -407,7 +407,7 @@ export default function Landing() {
               className="mx-auto mt-6 max-w-lg text-lg leading-relaxed text-brand-100 lg:mx-0"
             >
               No agents. No commissions. No bias. An AI that runs your whole study-abroad journey,
-              gives every student the same world-class shot, and costs a fraction of a consultancy.
+              gives every student the same real shot, and costs a fraction of what a consultancy charges.
             </motion.p>
 
             <motion.div
@@ -416,7 +416,7 @@ export default function Landing() {
               transition={{ duration: 0.6, delay: 0.18 }}
               className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start"
             >
-              <Link to="/app" className="btn-gold px-6 py-3 text-base">Start free — no card</Link>
+              <Link to="/app" className="btn-gold px-6 py-3 text-base">Start free, no card</Link>
               <Link to="/app/visa" className="btn px-6 py-3 text-base text-white ring-1 ring-white/25 backdrop-blur-sm hover:bg-white/10">
                 Try a mock visa interview
               </Link>
@@ -499,7 +499,7 @@ export default function Landing() {
       <section className="border-y border-line bg-surface-2/40 py-20">
         <div className="mx-auto max-w-6xl px-6">
           <Reveal>
-            <h2 className="mb-2 text-center font-display text-2xl font-bold text-ink sm:text-3xl">Zero to hero, one buddy</h2>
+            <h2 className="mb-2 text-center font-display text-2xl font-bold text-ink sm:text-3xl">From day one to wheels up, one buddy</h2>
             <p className="mb-12 text-center text-muted">Every step of the journey, handled for you.</p>
           </Reveal>
           <motion.div
@@ -527,9 +527,9 @@ export default function Landing() {
             Your dream school is closer than an agent's fee.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-muted">
-            Start free today. Yaar figures out your next best step and walks you through it — like a friend who actually knows the system.
+            Start free today. Yaar figures out your next best step and walks you through it, like a friend who's already been through it.
           </p>
-          <Link to="/app" className="btn-primary mt-8 px-8 py-3.5 text-base">Start free — it takes 2 minutes</Link>
+          <Link to="/app" className="btn-primary mt-8 px-8 py-3.5 text-base">Start free. It takes 2 minutes</Link>
           <p className="mx-auto mt-8 max-w-xl text-xs leading-relaxed text-faint">
             Yaar is a coaching and information tool. It is not legal or immigration advice, and outcomes are never guaranteed.
           </p>

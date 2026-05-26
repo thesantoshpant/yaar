@@ -11,6 +11,18 @@ build/
 .env.*
 !.env.example
 
+# cloud / service-account credentials (NEVER commit these)
+credentials/
+**/credentials/
+*sa.json
+*.pem
+
+# personal/sensitive documents used for testing (NEVER commit these)
+i20-form.pdf
+*i20*.pdf
+*i-20*.pdf
+sample-docs/
+
 # editor backups / swap files
 *~
 *.un~
