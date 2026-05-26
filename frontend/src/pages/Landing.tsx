@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Reveal, stagger, staggerItem } from "../components/Reveal";
 import ThemeToggle from "../components/ThemeToggle";
 
@@ -101,6 +102,261 @@ function ChatPreview() {
   );
 }
 
+interface SandboxPersona {
+  name: string;
+  avatar: string;
+  tag: string;
+  stats: string;
+  nextStep: {
+    module: string;
+    title: string;
+    why: string;
+    progress: number;
+  };
+  opportunity: {
+    kind: string;
+    title: string;
+    body: string;
+    cta: string;
+  };
+  chatSnippet: {
+    user: string;
+    yaar: string;
+  };
+}
+
+const SANDBOX_PERSONAS: SandboxPersona[] = [
+  {
+    name: "Ramesh",
+    avatar: "🌾",
+    tag: "RURAL & FIRST-GEN",
+    stats: "Nepal · Grade 11 · $5k budget",
+    nextStep: {
+      module: "Roadmap",
+      title: "Launch a 'Manufactured Extracurricular' Project",
+      why: "US colleges demand leadership. Since your rural school lacks formal clubs, Yaar suggests creating a localized project, like building a community resource website. We'll track your first step this week.",
+      progress: 15,
+    },
+    opportunity: {
+      kind: "opportunity",
+      title: "Weekly Drop: Community Technology Project",
+      body: "Because you indicated your school has no clubs, here is a self-start initiative. Build a simple website mapping local agriculture or services. First action: Create a free GitHub account and learn HTML basics.",
+      cta: "GitHub Quickstart Guide",
+    },
+    chatSnippet: {
+      user: "Nobody in my family has ever been to college, let alone the US. Is it even possible with a $5k budget? 🥺",
+      yaar: "It is absolutely possible, Ramesh! Private liberal arts colleges in the US have massive financial aid funds. Because your budget is $5k, we will bypass standard commercial schools and target need-blind/need-aware institutions. I will help you build a standout portfolio to secure that scholarship.",
+    },
+  },
+  {
+    name: "Aditya",
+    avatar: "🏙️",
+    tag: "CITY CS ASPIRANT",
+    stats: "India · Gap Year · $30k budget",
+    nextStep: {
+      module: "Test prep",
+      title: "TOEFL Speaking Drill: Academic Expression",
+      why: "Your technical projects are outstanding, but top-tier universities and graduate assistantships require a strong speaking band. Let's aim for a 26+ speaking score to secure your funding.",
+      progress: 40,
+    },
+    opportunity: {
+      kind: "followup",
+      title: "Action Item: 45-Second TOEFL Speaking Drill",
+      body: "Your speaking test is coming up. Record yourself explaining why you chose Computer Science. Focus on transition words ('furthermore', 'on the other hand') to maximize fluency scores.",
+      cta: "Start Speaking Drill",
+    },
+    chatSnippet: {
+      user: "My grades are good, but I'm nervous about the speaking part. What if I stutter or blank out?",
+      yaar: "Totally normal, Aditya. Consulates and exams don't check for accent perfection; they check for structured thoughts and fluency. Let's practice. I'll give you a prompt, you record your response, and I'll score it using the official rubric.",
+    },
+  },
+  {
+    name: "Sabrina",
+    avatar: "🎨",
+    tag: "BUDGET SCHOLAR",
+    stats: "Bangladesh · Grade 12 · $12k budget",
+    nextStep: {
+      module: "School search",
+      title: "Build your 100% Aid School List",
+      why: "You need a list of US colleges that meet full demonstrated financial need for international students. We'll start with private liberal arts colleges that match your cultural arts interests.",
+      progress: 65,
+    },
+    opportunity: {
+      kind: "opportunity",
+      title: "Weekly Drop: Curated Liberal Arts Colleges List",
+      body: "We selected 5 schools (e.g. Williams, Amherst, Bowdoin) that offer full aid to international students. They have excellent arts departments and match your profile.",
+      cta: "Explore Selected Schools",
+    },
+    chatSnippet: {
+      user: "Do liberal arts colleges offer real value compared to big universities?",
+      yaar: "Yes, Sabrina! For international students on a budget, liberal arts colleges are actually a goldmine. They focus exclusively on undergraduates, meaning all their research opportunities, funding, and career guidance go directly to you, not graduate students.",
+    },
+  },
+];
+
+function InteractiveSandbox() {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [activeTab, setActiveTab] = useState<"next" | "opps" | "chat">("next");
+
+  const p = SANDBOX_PERSONAS[activeIdx];
+
+  return (
+    <div className="mx-auto mt-12 max-w-5xl">
+      {/* Selector Cards */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        {SANDBOX_PERSONAS.map((item, idx) => (
+          <button
+            key={item.name}
+            onClick={() => {
+              setActiveIdx(idx);
+              setActiveTab("next");
+            }}
+            className={`flex items-start gap-4 rounded-2xl border p-5 text-left transition-all duration-200 cursor-pointer ${
+              activeIdx === idx
+                ? "border-brand-500 bg-surface shadow-glow"
+                : "border-line bg-surface/50 hover:bg-surface hover:shadow-soft"
+            }`}
+          >
+            <div className="text-3xl">{item.avatar}</div>
+            <div className="flex-1 min-w-0">
+              <span className="text-[10px] font-bold tracking-widest text-brand-500 uppercase">{item.tag}</span>
+              <h3 className="text-base font-bold text-ink">{item.name}</h3>
+              <p className="text-xs text-muted mt-0.5 truncate">{item.stats}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Screen Device Mockup */}
+      <div className="mt-8 rounded-3xl border border-line bg-surface shadow-lift overflow-hidden">
+        {/* Device Top Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line bg-surface-2/40 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{p.avatar}</span>
+            <div>
+              <div className="text-sm font-semibold text-ink">{p.name}'s Yaar Workspace</div>
+              <div className="text-xs text-muted flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active Tailoring Layer
+              </div>
+            </div>
+          </div>
+          {/* Device Tabs */}
+          <div className="flex gap-1.5 rounded-xl bg-surface-2 p-1 text-xs font-semibold self-start sm:self-auto">
+            <button
+              onClick={() => setActiveTab("next")}
+              className={`rounded-lg px-3 py-1.5 transition-colors cursor-pointer ${
+                activeTab === "next" ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink"
+              }`}
+            >
+              Recommended Step
+            </button>
+            <button
+              onClick={() => setActiveTab("opps")}
+              className={`rounded-lg px-3 py-1.5 transition-colors cursor-pointer ${
+                activeTab === "opps" ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink"
+              }`}
+            >
+              Opportunity Drop
+            </button>
+            <button
+              onClick={() => setActiveTab("chat")}
+              className={`rounded-lg px-3 py-1.5 transition-colors cursor-pointer ${
+                activeTab === "chat" ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink"
+              }`}
+            >
+              Counselor Chat
+            </button>
+          </div>
+        </div>
+
+        {/* Device Content Screen */}
+        <div className="relative min-h-[280px] bg-bg/40 p-6 md:p-8">
+          <div className="absolute inset-0 bg-gradient-to-br from-brand-500/5 via-transparent to-violet-500/5 pointer-events-none" />
+          
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeIdx + "_" + activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="relative z-10"
+            >
+              {activeTab === "next" && (
+                <div className="max-w-2xl mx-auto space-y-4">
+                  <div className="flex items-center justify-between text-xs text-muted">
+                    <span className="font-semibold uppercase tracking-wider text-brand-500">Suggested Action Plan</span>
+                    <span>Progress: {p.nextStep.progress}%</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
+                    <div className="h-2 rounded-full bg-gradient-to-r from-brand-500 to-violet-500" style={{ width: `${p.nextStep.progress}%` }} />
+                  </div>
+                  
+                  <div className="rounded-2xl border border-brand-500/20 bg-surface p-6 shadow-soft">
+                    <span className="badge bg-brand-500/12 text-brand-600 dark:text-brand-400 capitalize">{p.nextStep.module}</span>
+                    <h4 className="mt-3 font-display text-lg font-bold text-ink">{p.nextStep.title}</h4>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">{p.nextStep.why}</p>
+                    <button className="btn-primary mt-5" disabled>
+                      Let's do it 🚀 (Interactive Mock)
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "opps" && (
+                <div className="max-w-2xl mx-auto space-y-4">
+                  <div className="flex items-center justify-between text-xs text-muted">
+                    <span className="font-semibold uppercase tracking-wider text-amber-500">Weekly Personal Nudges</span>
+                    <span className="badge bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">new update</span>
+                  </div>
+                  <div className="rounded-2xl border border-line bg-surface p-6 shadow-soft space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className={`badge capitalize ${p.opportunity.kind === "opportunity" ? "bg-brand-500/12 text-brand-500" : "bg-amber-500/12 text-amber-600"}`}>
+                        {p.opportunity.kind}
+                      </span>
+                      <span className="badge bg-emerald-500/10 text-emerald-600">live AI tailored</span>
+                    </div>
+                    <h4 className="font-semibold text-ink text-base">{p.opportunity.title}</h4>
+                    <p className="text-sm leading-relaxed text-muted">{p.opportunity.body}</p>
+                    <button className="btn-ghost mt-2" disabled>
+                      {p.opportunity.cta}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "chat" && (
+                <div className="max-w-2xl mx-auto space-y-4">
+                  <div className="flex items-center justify-between text-xs text-muted">
+                    <span className="font-semibold uppercase tracking-wider text-violet-500">Mock Advisor Chat</span>
+                    <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Always Online</span>
+                  </div>
+                  
+                  <div className="space-y-4 rounded-2xl border border-line bg-surface/50 p-5 shadow-inner">
+                    {/* Student bubble */}
+                    <div className="flex justify-end">
+                      <div className="max-w-[85%] rounded-2xl rounded-br-md bg-white text-slate-900 px-4 py-2.5 text-sm shadow-sm border border-line">
+                        {p.chatSnippet.user}
+                      </div>
+                    </div>
+                    {/* Yaar bubble */}
+                    <div className="flex justify-start gap-2.5">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold-300 to-gold-500 text-xs font-bold text-slate-900 mt-1">Y</span>
+                      <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-gradient-to-br from-brand-500 to-violet-500 text-white px-4 py-2.5 text-sm shadow-sm leading-relaxed">
+                        {p.chatSnippet.yaar}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Landing() {
   return (
     <div className="bg-bg">
@@ -194,28 +450,14 @@ export default function Landing() {
       </header>
 
       {/* Personas — relatable */}
-      <section className="mx-auto max-w-6xl px-6 py-20">
+      <section className="mx-auto max-w-6xl px-6 py-20 border-b border-line">
         <Reveal>
           <h2 className="text-center font-display text-2xl font-bold text-ink sm:text-3xl">Built for students like you</h2>
           <p className="mx-auto mt-2 max-w-xl text-center text-muted">
-            Yaar reads your situation and adapts the whole plan. No two journeys look the same.
+            Yaar reads your situation and adapts the whole plan. Select a profile below to preview how Yaar tailors the study-abroad journey.
           </p>
         </Reveal>
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-80px" }}
-          className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4"
-        >
-          {PERSONAS.map((p) => (
-            <motion.div key={p.t} variants={staggerItem} className="card transition-all duration-300 hover:-translate-y-1 hover:shadow-lift">
-              <div className="text-3xl">{p.emoji}</div>
-              <h3 className="mt-3 font-semibold text-ink">{p.t}</h3>
-              <p className="mt-1 text-sm leading-relaxed text-muted">{p.d}</p>
-            </motion.div>
-          ))}
-        </motion.div>
+        <InteractiveSandbox />
       </section>
 
       {/* USP */}

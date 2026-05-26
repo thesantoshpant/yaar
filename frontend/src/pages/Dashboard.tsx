@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import type { AgentPlan, ModuleKey } from "../lib/types";
+import type { AgentPlan, ModuleKey, JourneyState } from "../lib/types";
 import { clearStudent, getCompleted, getProfileId, setProfileId, setProfileSummary } from "../lib/progress";
 import { Spinner, SourceBadge, ScoreBar, PageHeading } from "../components/ui";
 
@@ -23,7 +23,28 @@ const MODULE_LABEL: Record<ModuleKey, string> = {
   visa: "Visa interview",
 };
 
-const ALL_MODULES: ModuleKey[] = ["roadmap", "test_prep", "school_search", "applications", "finances", "visa"];
+const STEPPER_MODULES: { key: ModuleKey; label: string; route: string; desc: string }[] = [
+  { key: "roadmap", label: "Roadmap", route: "/app/roadmap", desc: "Strategy & timeline" },
+  { key: "test_prep", label: "Test prep", route: "/app/speaking", desc: "TOEFL & IELTS prep" },
+  { key: "school_search", label: "School search", route: "/app/schools", desc: "Build school list" },
+  { key: "applications", label: "Applications", route: "/app/applications", desc: "Draft SOP & essays" },
+  { key: "finances", label: "Finances", route: "/app/counselor", desc: "I-20 & funds review" },
+  { key: "visa", label: "Visa interview", route: "/app/visa", desc: "Mock consular drill" },
+];
+
+function formatTag(tag: string): string {
+  const mapping: Record<string, string> = {
+    ug_rural_bootstrap: "🌾 Rural UG First-Gen",
+    gr_rural_bootstrap: "🌾 Rural Grad First-Gen",
+    ug_urban_resourced: "🏙️ Urban UG Scholar",
+    gr_urban_resourced: "🏙️ Urban Grad Scholar",
+    aid_dependent: "💸 Needs Financial Aid",
+    strong_stem_weak_english: "🎙️ STEM / English Prep",
+    strong_english_weak_stem: "📚 Arts & Humanities",
+    non_traditional: "⏱️ Non-Traditional Path",
+  };
+  return mapping[tag.toLowerCase()] ?? tag.replace(/_/g, " ").toUpperCase();
+}
 
 const yn = (v: string): boolean | undefined => (v === "yes" ? true : v === "no" ? false : undefined);
 
@@ -61,9 +82,23 @@ export default function Dashboard() {
   const [source, setSource] = useState<string>();
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState<ModuleKey[]>([]);
+  const [journey, setJourney] = useState<JourneyState | null>(null);
 
   useEffect(() => {
     setCompleted(getCompleted());
+    const pid = getProfileId();
+    if (pid) {
+      api.getJourney(pid)
+        .then((res) => setJourney(res.journey))
+        .catch(() => {});
+      // Also get an initial agent plan if possible
+      api.agentPlan(summary(), getCompleted(), pid)
+        .then((res) => {
+          setPlan(res.plan);
+          setSource(res.source);
+        })
+        .catch(() => {});
+    }
   }, []);
 
   function summary(): string {
@@ -119,6 +154,12 @@ export default function Dashboard() {
       const res = await api.agentPlan(summary(), getCompleted(), profileId);
       setPlan(res.plan);
       setSource(res.source);
+
+      // Fetch the updated journey state (which includes classified persona tags)
+      if (profileId) {
+        const jRes = await api.getJourney(profileId).catch(() => null);
+        if (jRes) setJourney(jRes.journey);
+      }
     } catch {
       setSource("mock");
     } finally {
@@ -139,6 +180,7 @@ export default function Dashboard() {
                 clearStudent();
                 setPlan(null);
                 setCompleted([]);
+                setJourney(null);
               }}
             >
               New student
@@ -244,25 +286,85 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="card">
-        <h2 className="mb-4 text-lg font-semibold text-ink">Your journey</h2>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {ALL_MODULES.map((m) => {
-            const done = completed.includes(m);
-            return (
-              <button
-                key={m}
-                onClick={() => navigate(MODULE_ROUTE[m])}
-                className="flex items-center justify-between rounded-xl border border-line px-4 py-3 text-left transition-colors hover:bg-surface-2 cursor-pointer"
-              >
-                <span className="font-medium text-ink">{MODULE_LABEL[m]}</span>
-                <span className={`inline-flex items-center gap-1.5 text-sm ${done ? "text-emerald-500" : "text-faint"}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${done ? "bg-emerald-500" : "bg-faint"}`} />
-                  {done ? "done" : "open"}
+      <div className="card overflow-hidden">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-ink">Your milestone stepper</h2>
+            <p className="text-xs text-muted">Core steps required to get your F-1 student visa.</p>
+          </div>
+          {journey && journey.personaTags && journey.personaTags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {journey.personaTags.map((t) => (
+                <span key={t.tag} className="badge bg-brand-500/10 text-brand-600 dark:text-brand-400 text-[10px] uppercase font-bold tracking-wider">
+                  {formatTag(t.tag)}
                 </span>
-              </button>
-            );
-          })}
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="relative">
+          {/* Timeline Connector Line */}
+          <div className="absolute left-6 top-3 bottom-3 w-0.5 bg-line lg:left-8 lg:right-8 lg:top-6 lg:bottom-auto lg:h-0.5 lg:w-auto" />
+
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:justify-between">
+            {STEPPER_MODULES.map((m, idx) => {
+              const isDone = completed.includes(m.key);
+              const isActive = plan?.nextAction.module === m.key;
+              
+              return (
+                <button
+                  key={m.key}
+                  onClick={() => navigate(m.route)}
+                  className="group relative flex items-start gap-4 text-left focus:outline-none lg:flex-col lg:items-center lg:text-center lg:gap-2 cursor-pointer"
+                >
+                  {/* Step Marker Indicator */}
+                  <div
+                    className={`relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border transition-all duration-300 ${
+                      isDone
+                        ? "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/20"
+                        : isActive
+                          ? "bg-brand-500 border-brand-500 text-white shadow-glow pulse-ring-active"
+                          : "bg-surface border-line text-muted group-hover:border-brand-400 group-hover:text-ink"
+                    }`}
+                  >
+                    {isDone ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    ) : (
+                      <span className="text-sm font-bold">{idx + 1}</span>
+                    )}
+                  </div>
+
+                  {/* Step Metadata */}
+                  <div className="lg:w-28">
+                    <div
+                      className={`text-sm font-semibold transition-colors duration-200 ${
+                        isActive ? "text-brand-500" : "text-ink group-hover:text-brand-500"
+                      }`}
+                    >
+                      {m.label}
+                    </div>
+                    <div className="text-[11px] text-muted leading-tight mt-0.5">{m.desc}</div>
+                    <div className="mt-1.5">
+                      <span
+                        className={`badge text-[10px] ${
+                          isDone
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            : isActive
+                              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400"
+                              : "bg-surface-2 text-muted"
+                        }`}
+                      >
+                        {isDone ? "done" : isActive ? "current" : "open"}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
