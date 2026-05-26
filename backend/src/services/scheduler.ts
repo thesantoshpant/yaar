@@ -2,6 +2,7 @@
 // it into a dedicated worker later (see STATUS.md). Every job is safe to re-run.
 import cron from "node-cron";
 import { weeklyDropForAll, followUpSweep } from "./engagement";
+import { companyStandup } from "./companyAgents";
 
 const TZ = "Asia/Kathmandu";
 
@@ -24,5 +25,15 @@ export function startScheduler(): void {
     { timezone: TZ }
   );
 
-  console.log("[scheduler] cron jobs registered (weekly drop, follow-up sweep)");
+  // Daily company "standup": the agentic team runs once (analytics, CEO, marketing).
+  // Honors the autonomy mode, so in dry_run it only logs proposed actions.
+  cron.schedule(
+    "0 8 * * *",
+    () => {
+      void companyStandup().then(() => console.log("[scheduler] company standup ran"));
+    },
+    { timezone: TZ }
+  );
+
+  console.log("[scheduler] cron jobs registered (weekly drop, follow-up sweep, company standup)");
 }

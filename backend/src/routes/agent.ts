@@ -8,6 +8,7 @@ import { generateJson } from "../services/gemini";
 import { getOrCreateJourney } from "../services/journey";
 import { buildContextPack } from "../services/contextPack";
 import { personaPreamble } from "../lib/personaPreamble";
+import { AGENT_BRAIN_SYSTEM } from "../lib/prompts";
 
 export const agentRouter = Router();
 
@@ -75,9 +76,7 @@ agentRouter.post("/plan", async (req, res) => {
     pack = await buildContextPack(profileId);
   }
 
-  const system = `You are Yaar's autonomous counselor brain. You guide an international student from zero to a US admission and an approved F-1 visa, with NO human counselor and NO school commissions, so your advice is always unbiased and in the student's best interest.
-Decide the single best NEXT ACTION for this student, drawn from these modules: roadmap, test_prep, school_search, applications, finances, visa.
-Adapt to the student's situation and pacing. Be proactive and decisive. Never guarantee outcomes. This is coaching and information, not legal advice.${preamble ? `\n${preamble}` : ""}
+  const system = `${AGENT_BRAIN_SYSTEM}${preamble ? `\n${preamble}` : ""}
 Return ONLY JSON: { "nextAction": { "module": one of the modules, "title": string, "why": string, "autoRunnable": boolean }, "alternatives": same-shape[], "progressPct": number 0-100, "encouragement": string }`;
 
   const prompt = `${pack ? `What you remember about this student:\n${pack}\n\n` : `Student profile: ${profileSummary ?? "unknown"}.\n`}Modules already completed: ${

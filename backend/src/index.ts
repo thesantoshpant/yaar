@@ -1,5 +1,6 @@
 import http from "node:http";
 import express from "express";
+import "express-async-errors"; // makes async route errors flow to the error handler
 import cors from "cors";
 import { WebSocketServer } from "ws";
 import { config, hasGemini, hasScorecard, hasStripe, hasGoogleAuth } from "./config";
@@ -17,8 +18,13 @@ import { engineRouter } from "./routes/engine";
 import { riskRouter } from "./routes/risk";
 import { billingRouter } from "./routes/billing";
 import { authRouter } from "./routes/auth";
+import { coachRouter } from "./routes/coach";
+import { evidenceRouter } from "./routes/evidence";
+import { opsRouter } from "./routes/ops";
+import { requireAdmin } from "./lib/adminAuth";
 import { startScheduler } from "./services/scheduler";
 import { rateLimit } from "./lib/rateLimit";
+import { notFoundHandler, errorHandler, installProcessGuards } from "./lib/errors";
 import { handleLiveConnection, type LiveParams } from "./services/geminiLive";
 
 const app = express();
@@ -38,6 +44,7 @@ app.get("/api/health", (_req, res) => {
       db: dbConnected() ? "mongodb" : "in-memory",
       billing: hasStripe ? "stripe" : "off",
       auth: hasGoogleAuth ? "google" : "off",
+      autonomy: config.autonomyMode,
     },
   });
 });
@@ -55,6 +62,13 @@ app.use("/api/engine", engineRouter);
 app.use("/api/risk", riskRouter);
 app.use("/api/billing", billingRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/coach", coachRouter);
+app.use("/api/evidence", evidenceRouter);
+app.use("/api/ops", requireAdmin, opsRouter);
+
+// Unmatched API routes -> clean 404; everything else -> centralized error handler.
+app.use("/api", notFoundHandler);
+app.use(errorHandler);
 
 const server = http.createServer(app);
 
@@ -72,6 +86,7 @@ wss.on("connection", (ws, req) => {
 });
 
 async function main() {
+  installProcessGuards();
   await connectDb();
   startScheduler();
   server.listen(config.port, () => {

@@ -11,6 +11,10 @@ import type {
   StudentDocument,
   RiskReport,
   AppUser,
+  EvidenceArtifact,
+  Entitlement,
+  AgentAction,
+  CompanyTask,
 } from "../lib/types";
 
 const journeySchema = new Schema(
@@ -129,6 +133,65 @@ const userSchema = new Schema(
   { collection: "users" }
 );
 
+const evidenceSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true, index: true },
+    profileId: { type: String, required: true, index: true },
+    title: { type: String, required: true },
+    whatYouDid: { type: String, default: "" },
+    whoBenefited: String,
+    proofUrl: String,
+    skills: { type: [String], default: [] },
+    reflection: String,
+    linkedActionItemId: String,
+    createdAt: { type: String, required: true },
+  },
+  { collection: "evidence" }
+);
+
+const entitlementSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true, index: true },
+    profileId: { type: String, required: true, index: true },
+    product: { type: String, required: true },
+    createdAt: { type: String, required: true },
+  },
+  { collection: "entitlements" }
+);
+
+const agentActionSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true, index: true },
+    agentId: { type: String, required: true, index: true },
+    department: { type: String, default: "" },
+    type: { type: String, required: true },
+    external: { type: Boolean, default: false },
+    channel: String,
+    title: { type: String, default: "" },
+    payload: { type: String, default: "" },
+    riskLevel: { type: String, default: "low" },
+    status: { type: String, default: "dry_run", index: true },
+    result: String,
+    createdAt: { type: String, required: true },
+    resolvedAt: String,
+  },
+  { collection: "agent_actions" }
+);
+
+const companyTaskSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true, index: true },
+    title: { type: String, required: true },
+    detail: { type: String, default: "" },
+    department: { type: String, default: "", index: true },
+    status: { type: String, default: "open", index: true },
+    createdBy: { type: String, default: "ceo" },
+    createdAt: { type: String, required: true },
+    resolvedAt: String,
+  },
+  { collection: "company_tasks" }
+);
+
 function model<T>(name: string, schema: Schema): mongoose.Model<T> {
   return (mongoose.models[name] as mongoose.Model<T>) ?? (mongoose.model(name, schema) as unknown as mongoose.Model<T>);
 }
@@ -141,3 +204,7 @@ export const InboxItemModel = model<InboxItem>("InboxItem", inboxItemSchema);
 export const DocumentModel = model<StudentDocument>("Document", documentSchema);
 export const RiskReportModel = model<RiskReport>("RiskReport", riskReportSchema);
 export const UserModel = model<AppUser>("User", userSchema);
+export const EvidenceModel = model<EvidenceArtifact>("Evidence", evidenceSchema);
+export const EntitlementModel = model<Entitlement>("Entitlement", entitlementSchema);
+export const AgentActionModel = model<AgentAction>("AgentAction", agentActionSchema);
+export const CompanyTaskModel = model<CompanyTask>("CompanyTask", companyTaskSchema);

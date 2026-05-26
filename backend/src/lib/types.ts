@@ -218,3 +218,54 @@ export interface RiskReport {
   recommendation: string;
   createdAt: string;
 }
+
+// Evidence Vault: every action a student takes becomes reusable application evidence.
+export interface EvidenceArtifact {
+  id: string;
+  profileId: string;
+  title: string;
+  whatYouDid: string;
+  whoBenefited?: string;
+  proofUrl?: string;
+  skills: string[];
+  reflection?: string;
+  linkedActionItemId?: string;
+  createdAt: string;
+}
+
+export interface Entitlement {
+  id: string;
+  profileId: string;
+  product: string; // e.g. "visa_risk_report"
+  createdAt: string;
+}
+
+// A task the CEO agent assigns to a department; worked by that department's agent.
+export interface CompanyTask {
+  id: string;
+  title: string;
+  detail: string;
+  department: string;
+  status: "open" | "in_progress" | "done";
+  createdBy: string;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
+// An action proposed or taken by a company agent ("employee"). Every real-world
+// action flows through the Action Gateway and is recorded here (audit + approvals).
+export interface AgentAction {
+  id: string;
+  agentId: string; // which employee
+  department: string;
+  type: string; // draft_content | social_post | email_campaign | whatsapp_message | support_reply | internal_task | report
+  external: boolean; // true if it reaches a real person/platform
+  channel?: string; // e.g. "x", "email", "whatsapp"
+  title: string;
+  payload: string; // the content / details
+  riskLevel: "low" | "medium" | "high";
+  status: "dry_run" | "pending_approval" | "approved" | "executed" | "rejected" | "failed";
+  result?: string;
+  createdAt: string;
+  resolvedAt?: string;
+}

@@ -63,6 +63,63 @@ The system now adapts to each student and proactively guides them, not just answ
 - /api/health now reports billing and auth mode. New env vars in .env.example (GOOGLE_CLIENT_ID, JWT_SECRET,
   STRIPE_SECRET_KEY, STRIPE_PRICE_USD, PUBLIC_URL; frontend VITE_GOOGLE_CLIENT_ID).
 
+## Backend hardening + new features (this session, verified live)
+
+- Robustness: centralized async error handling (`express-async-errors` + `lib/errors.ts`), a clean 404 for
+  unmatched API routes, consistent error JSON (no stack leaks), and process-level guards so a thrown error
+  never crashes the server. Verified: bad input returns a 400 validation error, unknown routes return 404.
+- Centralized, strengthened system prompts in `lib/prompts.ts` (shared principles + expert, safety-aware
+  prompts for counselor, agent brain, roadmap, visa officer, visa scoring, and the risk report). Core routes
+  rewired to use them.
+- New endpoints (all Gemini + mock fallback, smoke-tested live):
+  - `POST /api/coach/recommender` — recommender request message, brag sheet, project summary, logistics.
+  - `POST /api/coach/funding` — cost-of-attendance + sponsor story + computed funding gap + parent explainer.
+  - `POST /api/coach/milestones` — grade 9-12 term-by-term milestone plan (the parent-program product).
+  - `POST /api/coach/f1-status` — informational F-1 status guidance with a mandatory "check your DSO" note.
+  - Evidence Vault: `POST /api/evidence`, `GET /api/evidence/:profileId`, and
+    `POST /api/evidence/:profileId/summarize` (turns logged activities into Common App activity lines + an essay paragraph).
+- Seeded graduate-level opportunities (GRE prep, professor outreach, assistantship search, research contribution)
+  so grad applicants get real matches.
+- Stripe entitlements now persist to MongoDB (`entitlements` collection) instead of in-memory, so paid access
+  survives restarts.
+
+## Agentic company (Phase 0 foundation, verified live in dry-run)
+
+Yaar is being built to run itself with AI "employees", in addition to serving students.
+
+- Autonomy mode (`YAAR_AUTONOMY_MODE`): `dry_run` (default, logs only) | `assist` (outbound actions queue for human approval) | `live` (executes). Surfaced in `/api/health`.
+- Action Gateway (`lib/actionGateway.ts`): the single chokepoint for every real-world action. Internal actions
+  (drafts, tasks, reports) execute immediately; external actions (social, email, WhatsApp, support replies) are
+  logged-only in dry_run, queued for approval in assist, and executed (via integrations, when wired) in live.
+  Real integrations (Resend, Twilio/WhatsApp, X/Meta) are stubbed/simulated until keys are added.
+- Org registry (`lib/org.ts`): a company brain + employees — CEO/chief-of-staff, analytics, content marketer,
+  customer care, growth/outreach — each with a mission, role prompt, cadence, and a hard allow-list of action types.
+- Runtime (`services/companyAgents.ts`): builds an employee's prompt from the org + KPIs, asks Gemini what to do,
+  and routes each proposed action through the gateway (enforcing the allow-list). `companyStandup()` runs the
+  always-on employees; wired to a daily cron (honors autonomy mode, so safe in dry_run).
+- Ops console (`routes/ops.ts`): GET /api/ops/org, POST /api/ops/run/:employeeId, POST /api/ops/standup,
+  GET /api/ops/actions, GET /api/ops/approvals, POST /api/ops/actions/:id/{approve,reject}.
+- Verified live (dry_run): agents produced on-brand proposals; internal actions executed, external actions held.
+- Next for this layer: protect /api/ops with admin auth; wire real integrations behind the gateway; add spend caps
+  + per-channel rate limits; add the inter-agent task board and the eval/QA agent before any `live` use.
+
+## Agentic company Phase 1 (guardrails + email + orchestrator, verified live in assist mode)
+
+- Admin auth on the ops console (`lib/adminAuth.ts`): open in dry_run for dev; once autonomy != dry_run an
+  `ADMIN_TOKEN` is required (verified: 401 without it). Applied to all `/api/ops` routes.
+- Spend/rate caps in the gateway: a daily external-action cap and a daily agent-run cap (cost control), both env-tunable.
+- Eval/QA agent (`services/evalAgent.ts`): every outbound action is vetted for honesty, brand-safety, and
+  compliance before it can queue (assist) or execute (live). Failures are recorded as "rejected" with a reason.
+- Real email integration (`lib/email.ts`, Resend via REST, graceful): the gateway executor sends email for
+  email/support actions when keys are set, and simulates otherwise. Social/WhatsApp remain stubbed.
+- CEO orchestrator + inter-agent task board (`CompanyTask` model + `orchestrate()`): the CEO sets tasks per
+  department, then each department's agent works its task, routing any outbound through the gateway. Endpoints:
+  POST /api/ops/orchestrate, GET /api/ops/tasks, plus approve/reject on queued actions.
+- Verified end-to-end in assist mode: admin auth enforced; CEO created tasks -> departments worked them (tasks
+  done); external actions passed eval and queued; approving executed (email simulated), rejecting closed them out.
+- Before `live`: add real social/WhatsApp integrations (with approved templates), per-recipient consent/opt-in,
+  and wire `ADMIN_TOKEN` + `RESEND_*`. The plumbing and guardrails are all in place.
+
 ## Still open (priority order)
 1. Enforce auth + scope all data by userId (auth is wired but not enforced yet).
 2. Persist Stripe entitlements (currently in-memory) and add a webhook for reliability.

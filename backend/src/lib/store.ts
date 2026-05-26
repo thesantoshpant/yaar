@@ -11,6 +11,10 @@ import type {
   StudentDocument,
   RiskReport,
   AppUser,
+  EvidenceArtifact,
+  Entitlement,
+  AgentAction,
+  CompanyTask,
 } from "./types";
 import { dbConnected } from "../db";
 import { ProfileModel } from "../models/Profile";
@@ -23,6 +27,10 @@ import {
   DocumentModel,
   RiskReportModel,
   UserModel,
+  EvidenceModel,
+  EntitlementModel,
+  AgentActionModel,
+  CompanyTaskModel,
 } from "../models/intelligence";
 
 // ---- in-memory fallback collections ----
@@ -36,6 +44,10 @@ const mem = {
   documents: [] as StudentDocument[],
   riskReports: [] as RiskReport[],
   users: new Map<string, AppUser>(), // keyed by id
+  evidence: [] as EvidenceArtifact[],
+  entitlements: new Set<string>(), // `${profileId}:${product}`
+  agentActions: [] as AgentAction[],
+  companyTasks: [] as CompanyTask[],
 };
 
 const now = () => new Date().toISOString();
@@ -278,6 +290,118 @@ export const store = {
     }
     const list = mem.riskReports.filter((r) => r.profileId === profileId);
     return list.length ? list[list.length - 1] : null;
+  },
+
+  // ---------- evidence vault ----------
+  async addEvidence(input: Omit<EvidenceArtifact, "id" | "createdAt">): Promise<EvidenceArtifact> {
+    const item: EvidenceArtifact = { ...input, id: nanoid(10), createdAt: now() };
+    if (dbConnected()) await EvidenceModel.create(item);
+    else mem.evidence.push(item);
+    return item;
+  },
+
+  async getEvidence(profileId: string): Promise<EvidenceArtifact[]> {
+    if (dbConnected()) {
+      const docs = await EvidenceModel.find({ profileId }).sort({ createdAt: -1 }).lean<EvidenceArtifact[]>().exec();
+      return docs.map(clean);
+    }
+    return mem.evidence.filter((e) => e.profileId === profileId);
+  },
+
+  // ---------- agent actions (company autonomy audit + approvals) ----------
+  async addAction(input: Omit<AgentAction, "id" | "createdAt">): Promise<AgentAction> {
+    const action: AgentAction = { ...input, id: nanoid(12), createdAt: now() };
+    if (dbConnected()) await AgentActionModel.create(action);
+    else mem.agentActions.push(action);
+    return action;
+  },
+
+  async listActions(filter: { status?: string; agentId?: string; limit?: number } = {}): Promise<AgentAction[]> {
+    const limit = filter.limit ?? 100;
+    if (dbConnected()) {
+      const q: Record<string, unknown> = {};
+      if (filter.status) q.status = filter.status;
+      if (filter.agentId) q.agentId = filter.agentId;
+      const docs = await AgentActionModel.find(q).sort({ createdAt: -1 }).limit(limit).lean<AgentAction[]>().exec();
+      return docs.map(clean);
+    }
+    return mem.agentActions
+      .filter((a) => (!filter.status || a.status === filter.status) && (!filter.agentId || a.agentId === filter.agentId))
+      .slice(-limit)
+      .reverse();
+  },
+
+  async getAction(id: string): Promise<AgentAction | null> {
+    if (dbConnected()) {
+      const doc = await AgentActionModel.findOne({ id }).lean<AgentAction>().exec();
+      return doc ? clean(doc) : null;
+    }
+    return mem.agentActions.find((a) => a.id === id) ?? null;
+  },
+
+  async setActionStatus(id: string, status: AgentAction["status"], result?: string): Promise<AgentAction | null> {
+    const patch = { status, result, resolvedAt: now() };
+    if (dbConnected()) {
+      const doc = await AgentActionModel.findOneAndUpdate({ id }, { $set: patch }, { new: true })
+        .lean<AgentAction>()
+        .exec();
+      return doc ? clean(doc) : null;
+    }
+    const a = mem.agentActions.find((x) => x.id === id);
+    if (!a) return null;
+    Object.assign(a, patch);
+    return a;
+  },
+
+  // ---------- company tasks (inter-agent board) ----------
+  async addTask(input: Omit<CompanyTask, "id" | "createdAt" | "status"> & { status?: CompanyTask["status"] }): Promise<CompanyTask> {
+    const task: CompanyTask = { ...input, id: nanoid(10), status: input.status ?? "open", createdAt: now() };
+    if (dbConnected()) await CompanyTaskModel.create(task);
+    else mem.companyTasks.push(task);
+    return task;
+  },
+
+  async listTasks(filter: { status?: string; department?: string } = {}): Promise<CompanyTask[]> {
+    if (dbConnected()) {
+      const q: Record<string, unknown> = {};
+      if (filter.status) q.status = filter.status;
+      if (filter.department) q.department = filter.department;
+      const docs = await CompanyTaskModel.find(q).sort({ createdAt: -1 }).limit(100).lean<CompanyTask[]>().exec();
+      return docs.map(clean);
+    }
+    return mem.companyTasks
+      .filter((t) => (!filter.status || t.status === filter.status) && (!filter.department || t.department === filter.department))
+      .slice(-100)
+      .reverse();
+  },
+
+  async updateTask(id: string, patch: Partial<CompanyTask>): Promise<CompanyTask | null> {
+    if (dbConnected()) {
+      const doc = await CompanyTaskModel.findOneAndUpdate({ id }, { $set: patch }, { new: true }).lean<CompanyTask>().exec();
+      return doc ? clean(doc) : null;
+    }
+    const t = mem.companyTasks.find((x) => x.id === id);
+    if (!t) return null;
+    Object.assign(t, patch);
+    return t;
+  },
+
+  // ---------- entitlements (paid access) ----------
+  async grantEntitlement(profileId: string, product: string): Promise<void> {
+    if (dbConnected()) {
+      const exists = await EntitlementModel.findOne({ profileId, product }).lean().exec();
+      if (!exists) await EntitlementModel.create({ id: nanoid(12), profileId, product, createdAt: now() });
+    } else {
+      mem.entitlements.add(`${profileId}:${product}`);
+    }
+  },
+
+  async hasEntitlement(profileId: string, product: string): Promise<boolean> {
+    if (dbConnected()) {
+      const doc = await EntitlementModel.findOne({ profileId, product }).lean().exec();
+      return Boolean(doc);
+    }
+    return mem.entitlements.has(`${profileId}:${product}`);
   },
 
   // ---------- users (auth) ----------

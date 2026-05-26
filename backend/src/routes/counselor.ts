@@ -4,17 +4,10 @@ import { generateText } from "../services/gemini";
 import { hasGemini } from "../config";
 import { buildContextPack } from "../services/contextPack";
 import { extractMemory } from "../services/memoryUpdate";
+import { COUNSELOR_SYSTEM } from "../lib/prompts";
 import type { ChatMessage } from "../lib/types";
 
 export const counselorRouter = Router();
-
-const COUNSELOR_SYSTEM = `You are Yaar, an honest AI counselor for international students applying to US universities.
-You work for the STUDENT, not for the schools. You never take kickbacks and you never push a school because it pays you.
-You are warm, direct, and practical. You give specific, actionable guidance and you are honest about what is realistic.
-You have a memory of this student; use it so the conversation feels personal and continuous.
-Hard rules: you are a coaching and information tool, NOT a legal or immigration adviser. Never give legal advice and never
-guarantee admission or visa outcomes. If asked for legal advice, say you provide guidance and information and suggest a
-licensed professional for legal questions. Keep answers concise and concrete. Use plain language.`;
 
 const bodySchema = z.object({
   messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).min(1),

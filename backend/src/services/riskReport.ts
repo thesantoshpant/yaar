@@ -4,6 +4,7 @@
 import { generateJson } from "./gemini";
 import { store } from "../lib/store";
 import { VISA_DIMENSIONS } from "../data/rubrics";
+import { riskReportSystem } from "../lib/prompts";
 import type { RiskReport, StudentDocument } from "../lib/types";
 
 export interface DocInput {
@@ -14,12 +15,7 @@ export interface DocInput {
 
 type ReportCore = Omit<RiskReport, "id" | "createdAt" | "profileId">;
 
-const SYSTEM = `You are Yaar's F-1 visa risk analyst. You read a student's documents (I-20, admission letter, funding proof,
-DS-160 notes) and assess how a US consular officer would view them. Be honest and specific. This is coaching and
-information, not legal advice, and you never guarantee outcomes.
-Find: (1) the key facts in the documents, (2) inconsistencies or mismatches across them (e.g. funding below the I-20 cost,
-sponsor story that does not add up, dates that conflict), (3) the weak points an officer would push on, (4) a readiness
-score and per-dimension scores for: ${VISA_DIMENSIONS.map((d) => d.name).join(", ")}.
+const SYSTEM = `${riskReportSystem(VISA_DIMENSIONS.map((d) => d.name).join(", "))}
 Return ONLY JSON:
 { "overall": number 0-100, "summary": string, "extracted": [ { "field": string, "value": string } ],
   "inconsistencies": string[], "weakPoints": string[],

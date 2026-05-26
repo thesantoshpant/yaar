@@ -4,6 +4,7 @@ import { generateText, generateJson } from "../services/gemini";
 import { hasGemini } from "../config";
 import { visaQuestionsFor } from "../data/questionBanks";
 import { VISA_DIMENSIONS } from "../data/rubrics";
+import { VISA_OFFICER_SYSTEM, visaScoreSystem } from "../lib/prompts";
 import type { VisaScore, VisaTurn } from "../lib/types";
 
 export const visaRouter = Router();
@@ -20,11 +21,6 @@ const nextSchema = z.object({
   history: z.array(turnSchema).default([]),
   documents: z.string().optional(),
 });
-
-const VISA_SYSTEM = `You are roleplaying a US consular officer conducting an F-1 student visa interview. Stay strictly in character.
-Ask one short, realistic question at a time. Probe ties to home, finances, and study plans. If the applicant's documents
-are provided, cross-check their answers against the documents and probe any inconsistency (funding gaps, mismatched
-sponsor, story that does not match the I-20). React like a real officer. Keep each question to one or two sentences.`;
 
 function docBlock(documents?: string): string {
   return documents ? `\nApplicant documents (I-20 / funding):\n${documents}\n` : "";
@@ -44,7 +40,7 @@ visaRouter.post("/next", async (req, res) => {
 
   const convo = history.map((t) => `${t.role === "officer" ? "Officer" : "Applicant"}: ${t.text}`).join("\n");
   const { text, source } = await generateText({
-    system: VISA_SYSTEM,
+    system: VISA_OFFICER_SYSTEM,
     prompt: `Country: ${country}.${docBlock(documents)}\nInterview so far:\n${convo || "(not started)"}\n\nAsk your next question now. If you have asked 8 or more questions, you may say "That is all, please wait." Output only the officer's line.`,
     temperature: 0.7,
   });
@@ -90,10 +86,7 @@ visaRouter.post("/score", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { country, history, documents } = parsed.data;
 
-  const system = `You are Yaar's visa coach. Score this mock F-1 interview against these dimensions: ${VISA_DIMENSIONS.map(
-    (d) => d.name
-  ).join(", ")}. If documents are provided, check whether the answers are consistent with them. Be honest and specific.
-This is coaching, not legal advice, and you never guarantee outcomes.
+  const system = `${visaScoreSystem(VISA_DIMENSIONS.map((d) => d.name).join(", "))}
 Return ONLY JSON: { "overall": number 0-100, "recommendation": string, "dimensions": { "name": string, "score": number, "note": string }[], "redFlags": string[], "drills": string[] }`;
   const convo = history.map((t) => `${t.role === "officer" ? "Officer" : "Applicant"}: ${t.text}`).join("\n");
 

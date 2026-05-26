@@ -5,8 +5,8 @@ import { hasStripe } from "../config";
 
 export const billingRouter = Router();
 
-billingRouter.get("/status/:profileId", (req, res) => {
-  res.json({ billingEnabled: hasStripe, entitled: isEntitled(req.params.profileId) });
+billingRouter.get("/status/:profileId", async (req, res) => {
+  res.json({ billingEnabled: hasStripe, entitled: await isEntitled(req.params.profileId) });
 });
 
 const checkoutSchema = z.object({ profileId: z.string().min(1) });

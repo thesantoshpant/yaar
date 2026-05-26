@@ -3,13 +3,14 @@
 // Entitlements are in-memory for the MVP (persist to Mongo before production).
 import Stripe from "stripe";
 import { config, hasStripe } from "../config";
+import { store } from "../lib/store";
 
 const stripe = hasStripe ? new Stripe(config.stripeSecretKey) : null;
-const entitled = new Set<string>();
+export const VISA_REPORT_PRODUCT = "visa_risk_report";
 
-export function isEntitled(profileId: string): boolean {
+export async function isEntitled(profileId: string): Promise<boolean> {
   if (!hasStripe) return true; // no billing configured => unlocked for dev/demo
-  return entitled.has(profileId);
+  return store.hasEntitlement(profileId, VISA_REPORT_PRODUCT);
 }
 
 export async function createCheckoutUrl(profileId: string): Promise<string | null> {
@@ -38,6 +39,6 @@ export async function confirmSession(sessionId: string): Promise<{ paid: boolean
   const session = await stripe.checkout.sessions.retrieve(sessionId);
   const profileId = (session.metadata?.profileId as string) || undefined;
   const paid = session.payment_status === "paid";
-  if (paid && profileId) entitled.add(profileId);
+  if (paid && profileId) await store.grantEntitlement(profileId, VISA_REPORT_PRODUCT);
   return { paid, profileId };
 }

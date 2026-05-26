@@ -40,7 +40,7 @@ riskRouter.post("/report", async (req, res) => {
 
   if (profileId) {
     const report = await generateRiskReport(profileId, documents);
-    if (isEntitled(profileId)) return res.json({ report, paid: true });
+    if (await isEntitled(profileId)) return res.json({ report, paid: true });
     return res.json({ report: preview(report), paid: false, needsPayment: hasStripe });
   }
 
@@ -52,5 +52,5 @@ riskRouter.post("/report", async (req, res) => {
 
 riskRouter.get("/latest/:profileId", async (req, res) => {
   const report = await store.getLatestRiskReport(req.params.profileId);
-  res.json({ report, entitled: isEntitled(req.params.profileId) });
+  res.json({ report, entitled: await isEntitled(req.params.profileId) });
 });
