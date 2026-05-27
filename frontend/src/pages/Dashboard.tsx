@@ -144,131 +144,152 @@ export default function Dashboard() {
 
       {!hasProfile && <PersonaPicker />}
 
-      <div className="card">
-        <h2 className="text-lg font-semibold text-ink">About you</h2>
-        <p className="mb-4 mt-1 text-sm text-muted">Answer what you can. Yaar fills in the rest and gets sharper as it learns about you. Anything you set here is remembered across every page.</p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="label" htmlFor="f-name">Name</label>
-            <input id="f-name" className="input" value={profile.name} onChange={(e) => setField({ name: e.target.value })} />
-          </div>
-          <div>
-            <label className="label" htmlFor="f-level">I'm applying for</label>
-            <select id="f-level" className="input" value={profile.intendedLevel} onChange={(e) => setField({ intendedLevel: e.target.value as "undergraduate" | "graduate" })}>
-              <option value="undergraduate">Undergraduate (Bachelor's)</option>
-              <option value="graduate">Graduate (Master's / PhD)</option>
-            </select>
-          </div>
-          <div>
-            <label className="label" htmlFor="f-grade">Where you are now</label>
-            <select id="f-grade" className="input" value={profile.gradeLevel} onChange={(e) => setField({ gradeLevel: e.target.value })}>
-              <option value="9">Grade 9</option>
-              <option value="10">Grade 10</option>
-              <option value="11">Grade 11</option>
-              <option value="12">Grade 12</option>
-              <option value="gap">Gap year</option>
-              <option value="bachelors">In bachelor's</option>
-            </select>
-          </div>
-          <div>
-            <label className="label" htmlFor="f-major">Intended major <span className="font-normal text-faint">· optional</span></label>
-            <input id="f-major" className="input" placeholder="Not sure yet is fine" value={profile.intendedMajor} onChange={(e) => setField({ intendedMajor: e.target.value })} />
-          </div>
+      {/* Bento: your next step (left) sits beside the about-you form (right). */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+        <div className="lg:col-span-7">
+          {loading && !plan ? (
+            <SkeletonCard lines={4} className="h-full" />
+          ) : plan ? (
+            <div className="card relative h-full overflow-hidden">
+              <div className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_80%_at_100%_0%,rgba(244,163,0,0.12)_0,transparent_60%)]" />
+              <div className="relative">
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-ink">Recommended next step</h2>
+                  <SourceBadge source={source} />
+                </div>
+                <div className="mb-4">
+                  <div className="mb-1 flex items-center justify-between text-sm text-muted">
+                    <span>Journey progress</span>
+                    <span className="font-semibold text-ink">{plan.progressPct}%</span>
+                  </div>
+                  <ScoreBar value={plan.progressPct} />
+                </div>
+                <div className="rounded-xl border border-brand-500/20 bg-brand-500/5 p-5">
+                  <span className="badge bg-brand-500/15 text-brand-500">{MODULE_LABEL[plan.nextAction.module] ?? "Next step"}</span>
+                  <h3 className="mt-2 font-display text-xl font-bold text-ink">{plan.nextAction.title}</h3>
+                  <p className="mt-1 text-muted">{plan.nextAction.why}</p>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <button className="btn-primary" onClick={() => navigate(MODULE_ROUTE[plan.nextAction.module] ?? "/app")}>
+                      Let's do it 🚀
+                    </button>
+                    <button className="text-sm font-medium text-muted hover:text-ink" onClick={() => navigate("/app/updates")}>
+                      See my updates
+                    </button>
+                  </div>
+                  <p className="mt-3 text-sm text-muted">Do this step, then Yaar checks in and lines up your next move automatically.</p>
+                </div>
+                <p className="mt-4 text-sm italic text-muted">{plan.encouragement}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="card relative flex h-full min-h-[280px] flex-col justify-center overflow-hidden">
+              <div className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_80%_at_100%_0%,rgba(244,163,0,0.12)_0,transparent_60%)]" />
+              <div className="relative">
+                <span className="badge bg-brand-500/15 text-brand-500">Your next step</span>
+                <h2 className="mt-2 font-display text-xl font-bold text-ink">Your honest next move, in one card</h2>
+                <p className="mt-1 max-w-md text-muted">Fill in a few details on the right, then tap <span className="font-medium text-ink">Plan my next step</span>. Yaar reads your situation and gives you one clear thing to do next.</p>
+                <div className="mt-5">
+                  <div className="mb-1 flex items-center justify-between text-sm text-muted">
+                    <span>Journey progress</span>
+                    <span className="font-semibold text-ink">0%</span>
+                  </div>
+                  <ScoreBar value={0} />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {showMore && (
-          <>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="lg:col-span-5">
+          <div className="card h-full">
+            <h2 className="text-lg font-semibold text-ink">About you</h2>
+            <p className="mb-4 mt-1 text-sm text-muted">Answer what you can. Yaar fills in the rest and gets sharper as it learns about you. It's remembered across every page.</p>
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="label" htmlFor="f-country">Country</label>
-                <input id="f-country" className="input" value={profile.country} onChange={(e) => setField({ country: e.target.value })} />
+                <label className="label" htmlFor="f-name">Name</label>
+                <input id="f-name" className="input" value={profile.name} onChange={(e) => setField({ name: e.target.value })} />
               </div>
               <div>
-                <label className="label" htmlFor="f-budget">Budget per year</label>
-                <select id="f-budget" className="input" value={profile.budget} onChange={(e) => setField({ budget: e.target.value })}>
-                  {BUDGET_OPTIONS.map((b) => <option key={b.label} value={b.value}>{b.label}</option>)}
+                <label className="label" htmlFor="f-level">I'm applying for</label>
+                <select id="f-level" className="input" value={profile.intendedLevel} onChange={(e) => setField({ intendedLevel: e.target.value as "undergraduate" | "graduate" })}>
+                  <option value="undergraduate">Undergraduate (Bachelor's)</option>
+                  <option value="graduate">Graduate (Master's / PhD)</option>
                 </select>
               </div>
               <div>
-                <label className="label" htmlFor="f-intake">Target intake</label>
-                <input id="f-intake" className="input" value={profile.targetIntake} onChange={(e) => setField({ targetIntake: e.target.value })} />
-              </div>
-              <div>
-                <label className="label" htmlFor="f-test">Test status</label>
-                <select id="f-test" className="input" value={profile.testStatus} onChange={(e) => setField({ testStatus: e.target.value })}>
-                  <option value="">Prefer not to say</option>
-                  {TEST_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                <label className="label" htmlFor="f-grade">Where you are now</label>
+                <select id="f-grade" className="input" value={profile.gradeLevel} onChange={(e) => setField({ gradeLevel: e.target.value })}>
+                  <option value="9">Grade 9</option>
+                  <option value="10">Grade 10</option>
+                  <option value="11">Grade 11</option>
+                  <option value="12">Grade 12</option>
+                  <option value="gap">Gap year</option>
+                  <option value="bachelors">In bachelor's</option>
                 </select>
               </div>
+              <div>
+                <label className="label" htmlFor="f-major">Intended major <span className="font-normal text-faint">· optional</span></label>
+                <input id="f-major" className="input" placeholder="Not sure yet is fine" value={profile.intendedMajor} onChange={(e) => setField({ intendedMajor: e.target.value })} />
+              </div>
             </div>
 
-            <h3 className="mb-3 mt-6 text-sm font-semibold uppercase tracking-wide text-faint">Your situation</h3>
-            <p className="mb-3 text-sm text-muted">
-              This is how Yaar tailors your journey. A rural, first-generation student gets a very different plan from a well-resourced one.
-            </p>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <YesNo label="Live in a rural area?" value={profile.isRural} onChange={(v) => setField({ isRural: v })} />
-              <YesNo label="First in family to study abroad?" value={profile.firstGen} onChange={(v) => setField({ firstGen: v })} />
-              <YesNo label="School has a counselor?" value={profile.schoolHasCounselor} onChange={(v) => setField({ schoolHasCounselor: v })} />
-              <YesNo label="School has clubs?" value={profile.schoolHasClubs} onChange={(v) => setField({ schoolHasClubs: v })} />
-              <YesNo label="Family knows the US process?" value={profile.familiarWithProcess} onChange={(v) => setField({ familiarWithProcess: v })} />
+            {showMore && (
+              <>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="label" htmlFor="f-country">Country</label>
+                    <input id="f-country" className="input" value={profile.country} onChange={(e) => setField({ country: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="f-budget">Budget per year</label>
+                    <select id="f-budget" className="input" value={profile.budget} onChange={(e) => setField({ budget: e.target.value })}>
+                      {BUDGET_OPTIONS.map((b) => <option key={b.label} value={b.value}>{b.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="f-intake">Target intake</label>
+                    <input id="f-intake" className="input" value={profile.targetIntake} onChange={(e) => setField({ targetIntake: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="f-test">Test status</label>
+                    <select id="f-test" className="input" value={profile.testStatus} onChange={(e) => setField({ testStatus: e.target.value })}>
+                      <option value="">Prefer not to say</option>
+                      {TEST_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <h3 className="mb-3 mt-6 text-sm font-semibold uppercase tracking-wide text-faint">Your situation</h3>
+                <p className="mb-3 text-sm text-muted">
+                  This is how Yaar tailors your journey. A rural, first-generation student gets a very different plan from a well-resourced one.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <YesNo label="Live in a rural area?" value={profile.isRural} onChange={(v) => setField({ isRural: v })} />
+                  <YesNo label="First in family to study abroad?" value={profile.firstGen} onChange={(v) => setField({ firstGen: v })} />
+                  <YesNo label="School has a counselor?" value={profile.schoolHasCounselor} onChange={(v) => setField({ schoolHasCounselor: v })} />
+                  <YesNo label="School has clubs?" value={profile.schoolHasClubs} onChange={(v) => setField({ schoolHasClubs: v })} />
+                  <YesNo label="Family knows the US process?" value={profile.familiarWithProcess} onChange={(v) => setField({ familiarWithProcess: v })} />
+                </div>
+              </>
+            )}
+
+            {!showMore && (
+              <button type="button" className="mt-4 text-sm font-medium text-brand-500 hover:underline" onClick={() => setShowMore(true)}>
+                Tell Yaar more so your plan fits you better (optional)
+              </button>
+            )}
+
+            {error && <div className="mt-4"><ErrorNote onRetry={planNext}>Yaar couldn't reach the internet just now. Your answers are saved. Tap to try again.</ErrorNote></div>}
+
+            <div className="mt-5 flex flex-col gap-3">
+              <button className="btn-primary w-full sm:w-auto" onClick={planNext} disabled={loading}>
+                {loading ? <Spinner label="Thinking about your best step..." /> : plan ? "Update my plan" : "Plan my next step 🚀"}
+              </button>
+              <span className="text-xs text-faint">Saved on this device. Sign in to keep your journey on any phone or computer.</span>
             </div>
-          </>
-        )}
-
-        {!showMore && (
-          <button type="button" className="mt-4 text-sm font-medium text-brand-500 hover:underline" onClick={() => setShowMore(true)}>
-            Tell Yaar more so your plan fits you better (optional)
-          </button>
-        )}
-
-        {error && <div className="mt-4"><ErrorNote onRetry={planNext}>Yaar couldn't reach the internet just now. Your answers are saved. Tap to try again.</ErrorNote></div>}
-
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <button className="btn-primary" onClick={planNext} disabled={loading}>
-            {loading ? <Spinner label="Thinking about your best step..." /> : "Plan my next step"}
-          </button>
-          <span className="text-xs text-faint">Saved on this device. Sign in to keep your journey on any phone or computer.</span>
+          </div>
         </div>
       </div>
-
-      {loading && !plan && <SkeletonCard lines={3} />}
-
-      {plan && (
-        <div className="card relative overflow-hidden">
-          <div className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_80%_at_100%_0%,rgba(99,102,241,0.10)_0,transparent_60%)]" />
-          <div className="relative">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-ink">Recommended next step</h2>
-              <SourceBadge source={source} />
-            </div>
-            <div className="mb-4">
-              <div className="mb-1 flex items-center justify-between text-sm text-muted">
-                <span>Journey progress</span>
-                <span className="font-semibold text-ink">{plan.progressPct}%</span>
-              </div>
-              <ScoreBar value={plan.progressPct} />
-            </div>
-            <div className="rounded-xl border border-brand-500/20 bg-brand-500/5 p-5">
-              <span className="badge bg-brand-500/15 text-brand-500">{MODULE_LABEL[plan.nextAction.module] ?? "Next step"}</span>
-              <h3 className="mt-2 font-display text-xl font-bold text-ink">{plan.nextAction.title}</h3>
-              <p className="mt-1 text-muted">{plan.nextAction.why}</p>
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <button className="btn-primary" onClick={() => navigate(MODULE_ROUTE[plan.nextAction.module] ?? "/app")}>
-                  Let's do it 🚀
-                </button>
-                <button className="text-sm font-medium text-muted hover:text-ink" onClick={() => navigate("/app/updates")}>
-                  See my updates
-                </button>
-              </div>
-              <p className="mt-3 text-sm text-muted">Do this step, then Yaar checks in and lines up your next move automatically.</p>
-            </div>
-            <p className="mt-4 text-sm italic text-muted">{plan.encouragement}</p>
-          </div>
-        </div>
-      )}
-
-      {plan && <WhatIf />}
 
       <div className="card overflow-hidden">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -351,6 +372,8 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {plan && <WhatIf />}
     </div>
   );
 }

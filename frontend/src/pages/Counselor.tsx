@@ -202,7 +202,7 @@ export default function Counselor() {
                   </span>
                   <div className="relative group max-w-[80%]">
                     <div
-                      className="counselor-md rounded-2xl rounded-bl-md bg-gradient-to-br from-brand-500 to-violet-500 text-white px-4 py-2.5 text-sm leading-relaxed shadow-sm"
+                      className="counselor-md rounded-2xl rounded-bl-md bg-brand-600 text-white px-4 py-2.5 text-sm leading-relaxed shadow-sm"
                       dangerouslySetInnerHTML={{ __html: renderMessageContent(m.content) }}
                     />
                     {/* TTS Button */}
@@ -252,7 +252,7 @@ export default function Counselor() {
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold-300 to-gold-500 text-xs font-extrabold text-slate-900 mt-1 shadow-sm">
                 Y
               </span>
-              <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md bg-gradient-to-br from-brand-500 to-violet-500 px-4 py-3 shadow-sm">
+              <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md bg-brand-600 px-4 py-3 shadow-sm">
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90 [animation-delay:-0.3s]" />
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90 [animation-delay:-0.15s]" />
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90" />
@@ -263,26 +263,48 @@ export default function Counselor() {
         </div>
 
         {/* Composer */}
-        <div className="flex gap-2 border-t border-line bg-surface px-5 py-4">
-          <textarea
-            className="input min-h-[44px] resize-none"
-            rows={1}
-            placeholder="Message Yaar. Enter to send, Shift+Enter for a new line."
-            aria-label="Message Yaar"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-          />
-          <button className="btn-primary shrink-0 self-end" onClick={send} disabled={loading || !input.trim()} aria-label="Send">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-            </svg>
-          </button>
+        <div className="border-t border-line bg-surface px-5 py-4">
+          {/* Quick prompts, always within reach once the chat is going. */}
+          {messages.length > 1 && (
+            <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+              {STARTER_CHIPS.map((chip, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => gate("counselor", () => sendDirect(chip))}
+                  disabled={loading}
+                  className="chip shrink-0 whitespace-nowrap text-xs transition-all hover:border-brand-500 hover:text-brand-500 disabled:opacity-50 cursor-pointer"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-end gap-2">
+            <textarea
+              className="input min-h-[44px] flex-1 resize-none"
+              rows={1}
+              placeholder="Message Yaar. Enter to send, Shift+Enter for a new line."
+              aria-label="Message Yaar"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+            />
+            <button
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold-500 text-gold-ink shadow-sm transition hover:bg-gold-400 disabled:opacity-50 cursor-pointer"
+              onClick={send}
+              disabled={loading || !input.trim()}
+              aria-label="Send"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
