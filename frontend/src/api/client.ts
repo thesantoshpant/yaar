@@ -182,12 +182,60 @@ export const api = {
   transcribe: (mimeType: string, data: string) =>
     post<{ text: string; source: string }>("/api/transcribe", { mimeType, data }),
 
+  // Mock tests (IELTS / TOEFL) — adaptive generation, scoring, and saved history.
+  mockGenerateReading: (exam: string, profileId?: string) =>
+    post<MockReadingTest>("/api/mock/reading/generate", { exam, profileId }),
+  mockScoreReading: (testId: string, responses: Record<string, string>, profileId?: string) =>
+    post<MockReadingResult>("/api/mock/reading/score", { testId, responses, profileId }),
+  mockHistory: (profileId: string) => get<{ attempts: MockAttemptSummary[] }>(`/api/mock/history/${profileId}`),
+
   // Parent mode — a warm, plain-language update for a parent, in any language, plus a
   // no-login shareable link.
   generateParentReport: (profileId: string, language?: string) =>
     post<{ report: ParentReport; shareToken: string; shareUrl: string }>(`/api/parent/${profileId}/report`, { language }),
   getSharedParentReport: (token: string) => get<{ report: ParentReport }>(`/api/parent/shared/${token}`),
 };
+
+export interface MockQuestion {
+  id: string;
+  type: string;
+  prompt: string;
+  options?: string[];
+}
+export interface MockReadingTest {
+  testId: string;
+  exam: string;
+  skill: string;
+  title: string;
+  passage: string;
+  questions: MockQuestion[];
+  timeSec: number;
+  targetBand: string;
+}
+export interface MockReadingResult {
+  exam: string;
+  skill: string;
+  rawCorrect: number;
+  rawTotal: number;
+  scaled: number;
+  scaledLabel: string;
+  byType: { type: string; correct: number; total: number }[];
+  weakTypes: string[];
+  feedback: string;
+  questions: { id: string; type: string; prompt: string; your: string; correctAnswer: string; correct: boolean; explanation: string }[];
+}
+export interface MockAttemptSummary {
+  id: string;
+  exam: string;
+  skill: string;
+  scaled: number;
+  scaledLabel: string;
+  rawCorrect?: number;
+  rawTotal?: number;
+  weakTypes: string[];
+  feedback: string;
+  createdAt: string;
+}
 
 export interface ParentReport {
   childName: string;

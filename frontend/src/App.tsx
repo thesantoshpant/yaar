@@ -13,6 +13,7 @@ import Coaches from "./pages/Coaches";
 import Evidence from "./pages/Evidence";
 import Memory from "./pages/Memory";
 import SpeakingPractice from "./pages/SpeakingPractice";
+import MockTest from "./pages/MockTest";
 import VisaSimulator from "./pages/VisaSimulator";
 import Company from "./pages/Company";
 import Parent from "./pages/Parent";
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="coaches" element={<Coaches />} />
         <Route path="evidence" element={<Evidence />} />
         <Route path="speaking" element={<SpeakingPractice />} />
+        <Route path="mock" element={<MockTest />} />
         <Route path="visa" element={<VisaSimulator />} />
         <Route path="company" element={<Company />} />
         <Route path="parent" element={<Parent />} />

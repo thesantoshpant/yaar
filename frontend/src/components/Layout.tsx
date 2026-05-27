@@ -26,6 +26,7 @@ const NAV: { to: string; label: string; end?: boolean; Icon: (p: IconProps) => J
   { to: "/app/coaches", label: "Coaches", Icon: I("M12 14l9-5-9-5-9 5 9 5zm0 0v7m-5-9.5V17l5 3 5-3v-5.5") },
   { to: "/app/evidence", label: "Evidence vault", Icon: I("M12 2l8 4v6c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6l8-4zm-2 9l1.8 1.8L15 9") },
   { to: "/app/speaking", label: "Speaking prep", Icon: I("M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM5 11a7 7 0 0 0 14 0M12 18v3") },
+  { to: "/app/mock", label: "Mock test", Icon: I("M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11") },
   { to: "/app/visa", label: "Visa simulator", Icon: I("M9 12l2 2 4-4m-2.5-6.5a2 2 0 0 0-1 0L5 6v6c0 4 3 7 7 8 4-1 7-4 7-8V6l-5.5-2.5z") },
   { to: "/app/parent", label: "For parents", Icon: I("M17 20h5v-2a4 4 0 0 0-3-3.87M9 20H4v-2a4 4 0 0 1 3-3.87m6-1.13a4 4 0 1 0-4 0M12 7a3 3 0 1 0 0-6 3 3 0 0 0 0 6z") },
   { to: "/app/company", label: "Company", Icon: I("M3 21h18M5 21V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v16M14 21V9a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v12M8 8h2M8 12h2M8 16h2") },
