@@ -6,6 +6,7 @@ import { generateJson } from "./gemini";
 import { store } from "../lib/store";
 import { rememberFacts } from "./memoryUpdate";
 import { YAAR_PRINCIPLES } from "../lib/prompts";
+import { IELTS_SPEAKING_CRITERIA, TOEFL_SPEAKING_CRITERIA } from "../data/rubrics";
 import type { MockAttempt } from "../lib/types";
 
 export type Exam = "IELTS" | "TOEFL";
@@ -20,17 +21,18 @@ interface KeyedQuestion extends MockQuestion {
   answer: string;
   explanation: string;
 }
-interface CachedReading {
+interface CachedSection {
   exam: Exam;
+  skill: "reading" | "listening";
   title: string;
-  passage: string;
+  passage: string; // reading passage, or the listening transcript (read aloud client-side)
   questions: KeyedQuestion[];
   targetBand: string;
   createdAt: number;
 }
 
 // Generated tests live in memory until scored (the answer key must never reach the client).
-const cache = new Map<string, CachedReading>();
+const cache = new Map<string, CachedSection>();
 const TTL = 3 * 60 * 60 * 1000;
 function prune() {
   const now = Date.now();
@@ -128,7 +130,7 @@ Return ONLY JSON: { "title": string, "passage": string, "questions": [ { "id": s
 
   const testId = id();
   const targetBand = exam === "IELTS" ? "calibrated to your level" : "scaled 0-30";
-  cache.set(testId, { exam, title: data.title || "Reading practice", passage: data.passage || "", questions, targetBand, createdAt: Date.now() });
+  cache.set(testId, { exam, skill: "reading", title: data.title || "Reading practice", passage: data.passage || "", questions, targetBand, createdAt: Date.now() });
 
   return {
     testId,
@@ -142,9 +144,9 @@ Return ONLY JSON: { "title": string, "passage": string, "questions": [ { "id": s
   };
 }
 
-export interface ReadingResult {
+export interface SectionResult {
   exam: Exam;
-  skill: "reading";
+  skill: "reading" | "listening";
   rawCorrect: number;
   rawTotal: number;
   scaled: number;
@@ -155,9 +157,10 @@ export interface ReadingResult {
   questions: { id: string; type: string; prompt: string; your: string; correctAnswer: string; correct: boolean; explanation: string }[];
 }
 
-export async function scoreReading(testId: string, responses: Record<string, string>, profileId?: string): Promise<ReadingResult | null> {
+export async function scoreSection(testId: string, responses: Record<string, string>, profileId?: string): Promise<SectionResult | null> {
   const test = cache.get(testId);
   if (!test) return null;
+  const skill = test.skill;
 
   const byType = new Map<string, { correct: number; total: number }>();
   let correctCount = 0;
@@ -198,7 +201,7 @@ export async function scoreReading(testId: string, responses: Record<string, str
     await store.saveMockAttempt({
       profileId,
       exam: test.exam,
-      skill: "reading",
+      skill,
       scaled,
       scaledLabel,
       rawCorrect: correctCount,
@@ -208,18 +211,18 @@ export async function scoreReading(testId: string, responses: Record<string, str
       feedback,
     });
 
-    // The next test (and the whole app) now knows their reading level + weak spots.
+    // The next test (and the whole app) now knows their level + weak spots for this skill.
     const ex = test.exam.toLowerCase();
     const facts = [
-      { profileId, key: `${ex}.reading.level`, type: "skill" as const, value: `${test.exam} reading: ${scaledLabel} (latest mock)`, confidence: 0.85, source: "module_outcome" as const },
-      ...weakTypes.slice(0, 4).map((w) => ({ profileId, key: `${ex}.reading.weak.${slug(w)}`, type: "constraint" as const, value: `Needs work on ${test.exam} reading "${w.replace(/_/g, " ")}" questions`, confidence: 0.8, source: "module_outcome" as const })),
+      { profileId, key: `${ex}.${skill}.level`, type: "skill" as const, value: `${test.exam} ${skill}: ${scaledLabel} (latest mock)`, confidence: 0.85, source: "module_outcome" as const },
+      ...weakTypes.slice(0, 4).map((w) => ({ profileId, key: `${ex}.${skill}.weak.${slug(w)}`, type: "constraint" as const, value: `Needs work on ${test.exam} ${skill} "${w.replace(/_/g, " ")}" questions`, confidence: 0.8, source: "module_outcome" as const })),
     ];
     await rememberFacts(facts);
-    await store.addEvent({ profileId, kind: "module_run", module: "test_prep", summary: `${test.exam} reading mock: ${scaledLabel}`, status: "done" }).catch(() => {});
+    await store.addEvent({ profileId, kind: "module_run", module: "test_prep", summary: `${test.exam} ${skill} mock: ${scaledLabel}`, status: "done" }).catch(() => {});
   }
 
   cache.delete(testId);
-  return { exam: test.exam, skill: "reading", rawCorrect: correctCount, rawTotal: total, scaled, scaledLabel, byType: byTypeArr, weakTypes, feedback, questions };
+  return { exam: test.exam, skill, rawCorrect: correctCount, rawTotal: total, scaled, scaledLabel, byType: byTypeArr, weakTypes, feedback, questions };
 }
 
 const roundHalf = (x: number) => Math.round(x * 2) / 2;
@@ -348,4 +351,171 @@ Return ONLY JSON: { "criteria": [ { "name": string, "score": number, "feedback":
   }
 
   return { exam, skill: "writing", scaled, scaledLabel, criteria: scored, modelNote: data.modelNote || "", weakTypes, feedback };
+}
+
+// ---------- Listening (transcript read aloud client-side, objective questions) ----------
+export interface GeneratedListening {
+  testId: string;
+  exam: Exam;
+  skill: "listening";
+  title: string;
+  transcript: string; // the browser reads this aloud (speechSynthesis); hidden until review
+  questions: MockQuestion[];
+  timeSec: number;
+}
+
+export async function generateListening(exam: Exam, profileId?: string): Promise<GeneratedListening> {
+  prune();
+  const hint = await memoryHint(profileId, exam, "listening");
+  const count = 8;
+  const { data } = await generateJson<{ title: string; transcript: string; questions: KeyedQuestion[] }>({
+    system: `${YAAR_PRINCIPLES}
+You are an expert ${exam} item writer. Create ONE authentic ${exam} listening item: a TRANSCRIPT that will be read aloud to the student (text-to-speech), plus ${count} questions.
+The transcript is a ${exam === "IELTS" ? "natural monologue or a two-speaker conversation (social or academic)" : "short academic lecture or a campus conversation"}, about 260-340 words, spoken style. For conversations, prefix each turn with the speaker and a colon (e.g. "Tutor:", "Student:") so different voices can be used.
+Questions: mostly multiple_choice (4 options) plus 1-2 short "completion" (answer is exact word(s) from the transcript, no options). Questions must be answerable only by listening (do not show the transcript during the test).
+Adaptivity: ${hint}
+Return ONLY JSON: { "title": string, "transcript": string, "questions": [ { "id": string, "type": string, "prompt": string, "options": string[], "answer": string, "explanation": string } ] }`,
+    prompt: `Write the ${exam} listening item now.`,
+    temperature: 0.7,
+    mock: () => ({
+      title: "Booking a Study Room",
+      transcript:
+        "Librarian: Good morning, how can I help? Student: Hi, I'd like to book a group study room for tomorrow afternoon. Librarian: Sure. Rooms hold up to six people and can be booked for two hours. The afternoon slots are 1 to 3, or 3 to 5. Student: The 3 to 5 slot, please, for four people. Librarian: Done. Just bring your student card to collect the key from this desk. (Demo transcript — add a Gemini key for a full item.)",
+      questions: [
+        { id: "q1", type: "multiple_choice", prompt: "How long can a room be booked for?", options: ["One hour", "Two hours", "Three hours", "All day"], answer: "Two hours", explanation: "The librarian says rooms can be booked for two hours." },
+        { id: "q2", type: "multiple_choice", prompt: "Which slot did the student choose?", options: ["1 to 3", "3 to 5", "2 to 4", "Morning"], answer: "3 to 5", explanation: "The student chose the 3 to 5 slot." },
+        { id: "q3", type: "completion", prompt: "To collect the key, bring your ____.", answer: "student card", explanation: "The librarian says to bring your student card." },
+      ],
+    }),
+  });
+
+  const questions: KeyedQuestion[] = (Array.isArray(data?.questions) ? data.questions : []).map((q, i) => ({
+    id: q.id || `q${i + 1}`,
+    type: q.type || "multiple_choice",
+    prompt: q.prompt || "",
+    options: Array.isArray(q.options) && q.options.length ? q.options : undefined,
+    answer: (q.answer ?? "").toString(),
+    explanation: q.explanation || "",
+  }));
+
+  const testId = id();
+  cache.set(testId, { exam, skill: "listening", title: data.title || "Listening", passage: data.transcript || "", questions, targetBand: "", createdAt: Date.now() });
+  return {
+    testId,
+    exam,
+    skill: "listening",
+    title: data.title || "Listening",
+    transcript: data.transcript || "",
+    questions: questions.map((q) => ({ id: q.id, type: q.type, prompt: q.prompt, options: q.options })),
+    timeSec: 8 * 60,
+  };
+}
+
+// ---------- Speaking (recorded answer -> transcript -> rubric score) ----------
+const SPEAKING_CRITERIA: Record<Exam, { name: string; max: number }[]> = {
+  IELTS: IELTS_SPEAKING_CRITERIA.map((c) => ({ name: c.name, max: 9 })),
+  TOEFL: TOEFL_SPEAKING_CRITERIA.map((c) => ({ name: c.name, max: 4 })),
+};
+
+export interface SpeakingTask {
+  exam: Exam;
+  skill: "speaking";
+  taskType: string;
+  prompt: string;
+  bullets?: string[];
+  prepSec: number;
+  speakSec: number;
+}
+
+export async function generateSpeaking(exam: Exam, profileId?: string): Promise<SpeakingTask> {
+  const hint = await memoryHint(profileId, exam, "speaking");
+  const { data } = await generateJson<{ prompt: string; bullets?: string[] }>({
+    system: `${YAAR_PRINCIPLES}
+You are an expert ${exam} examiner writing ONE authentic speaking task.
+${
+      exam === "IELTS"
+        ? 'IELTS Speaking Part 2 (the long turn): a cue-card topic. Return "prompt" = "Describe ..." and "bullets" = the 3-4 "You should say:" points plus a final "and explain ..." point.'
+        : 'TOEFL Speaking Task 1 (Independent): a paired-choice / opinion question the student answers in 45 seconds. Return "prompt" = the question. No bullets.'
+    }
+Adaptivity: ${hint}
+Return ONLY JSON: { "prompt": string, "bullets": string[] }`,
+    prompt: `Write the ${exam} speaking task now.`,
+    temperature: 0.8,
+    mock: () =>
+      exam === "IELTS"
+        ? { prompt: "Describe a skill you would like to learn.", bullets: ["what the skill is", "why you want to learn it", "how you would learn it", "and explain how it would help you"] }
+        : { prompt: "Some students prefer to study in the morning, while others prefer the evening. Which do you prefer, and why? Include reasons and examples." },
+  });
+  return {
+    exam,
+    skill: "speaking",
+    taskType: exam === "IELTS" ? "ielts_part2" : "toefl_task1",
+    prompt: data.prompt || "",
+    bullets: Array.isArray(data.bullets) && data.bullets.length ? data.bullets : undefined,
+    prepSec: exam === "IELTS" ? 60 : 15,
+    speakSec: exam === "IELTS" ? 120 : 45,
+  };
+}
+
+export interface SpeakingResult {
+  exam: Exam;
+  skill: "speaking";
+  scaled: number;
+  scaledLabel: string;
+  criteria: { name: string; score: number; max: number; feedback: string }[];
+  modelNote: string;
+  weakTypes: string[];
+  feedback: string;
+  note: string;
+}
+
+export async function scoreSpeaking(exam: Exam, taskType: string, prompt: string, transcript: string, profileId?: string): Promise<SpeakingResult> {
+  const crit = SPEAKING_CRITERIA[exam];
+  const { data } = await generateJson<{ criteria: { name: string; score: number; feedback: string }[]; modelNote: string }>({
+    system: `${YAAR_PRINCIPLES}
+You are a ${exam} speaking examiner. You are scoring from a TRANSCRIPT of the student's spoken answer, so judge Fluency/Language/Topic well, but treat Pronunciation/Delivery as approximate (a transcript cannot fully capture it) and say so in that criterion's feedback.
+Score each criterion out of ${crit[0].max}: ${crit.map((c) => c.name).join(", ")}. Use the real ${exam} descriptors. Give a 1-2 sentence "modelNote" on what a top answer does.
+Return ONLY JSON: { "criteria": [ { "name": string, "score": number, "feedback": string } ], "modelNote": string }`,
+    prompt: `Task: ${taskType}\nPrompt: ${prompt}\n\nStudent's spoken answer (transcribed, ${transcript.split(/\s+/).filter(Boolean).length} words):\n${transcript}\n\nScore it now.`,
+    temperature: 0.3,
+    mock: () => ({
+      criteria: crit.map((c) => ({ name: c.name, score: Math.round(c.max * 0.6 * 2) / 2, feedback: `Reasonable ${c.name.toLowerCase()}. Speak longer and develop ideas with examples to score higher.` })),
+      modelNote: "A top answer is fluent, well-organized, uses a range of accurate language, and fully develops the response with specific examples.",
+    }),
+  });
+
+  const scored = crit.map((c) => {
+    const found = (data.criteria ?? []).find((x) => x.name?.toLowerCase().includes(c.name.toLowerCase().slice(0, 6)));
+    const raw = typeof found?.score === "number" ? found.score : c.max * 0.6;
+    return { name: c.name, score: Math.max(0, Math.min(c.max, raw)), max: c.max, feedback: found?.feedback || "" };
+  });
+  const avg = scored.reduce((s, c) => s + c.score, 0) / scored.length;
+
+  let scaled: number;
+  let scaledLabel: string;
+  if (exam === "IELTS") {
+    scaled = roundHalf(avg);
+    scaledLabel = `Band ${scaled.toFixed(1)}`;
+  } else {
+    scaled = Math.round(Math.min(30, avg * 7.5));
+    scaledLabel = `${scaled} / 30`;
+  }
+
+  const weakTypes = scored.filter((c) => c.score / c.max < 0.6).map((c) => c.name);
+  const feedback =
+    weakTypes.length > 0
+      ? `${scaledLabel}. Focus next on: ${weakTypes.join(", ")}. Your next speaking task will target these.`
+      : `${scaledLabel}. Well balanced across the criteria. Your next task will push you further.`;
+
+  if (profileId) {
+    await store.saveMockAttempt({ profileId, exam, skill: "speaking", scaled, scaledLabel, byType: scored.map((c) => ({ type: c.name, correct: Math.round(c.score), total: c.max })), weakTypes, feedback });
+    const ex = exam.toLowerCase();
+    await rememberFacts([
+      { profileId, key: `${ex}.speaking.level`, type: "skill", value: `${exam} speaking: ${scaledLabel} (latest mock)`, confidence: 0.85, source: "module_outcome" },
+      ...weakTypes.slice(0, 3).map((w) => ({ profileId, key: `${ex}.speaking.weak.${slug(w)}`, type: "constraint" as const, value: `Needs work on ${exam} speaking: ${w}`, confidence: 0.8, source: "module_outcome" as const })),
+    ]);
+    await store.addEvent({ profileId, kind: "module_run", module: "test_prep", summary: `${exam} speaking mock: ${scaledLabel}`, status: "done" }).catch(() => {});
+  }
+
+  return { exam, skill: "speaking", scaled, scaledLabel, criteria: scored, modelNote: data.modelNote || "", weakTypes, feedback, note: "Pronunciation/delivery is estimated from your transcript and is approximate." };
 }

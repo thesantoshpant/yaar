@@ -2,7 +2,7 @@
 // memory), score it, and read past attempts (history). See services/mockExam.ts.
 import { Router } from "express";
 import { z } from "zod";
-import { generateReading, scoreReading, generateWriting, scoreWriting, type Exam } from "../services/mockExam";
+import { generateReading, scoreSection, generateWriting, scoreWriting, generateListening, generateSpeaking, scoreSpeaking, type Exam } from "../services/mockExam";
 import { store } from "../lib/store";
 import { assertOwnership } from "../lib/userAuth";
 
@@ -26,9 +26,43 @@ const scoreSchema = z.object({
 mockRouter.post("/reading/score", async (req, res) => {
   const parsed = scoreSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const result = await scoreReading(parsed.data.testId, parsed.data.responses, parsed.data.profileId);
+  const result = await scoreSection(parsed.data.testId, parsed.data.responses, parsed.data.profileId);
   if (!result) return res.status(404).json({ error: "This test expired. Start a fresh one." });
   res.json(result);
+});
+
+// Listening reuses the cached objective scorer (same as reading).
+mockRouter.post("/listening/generate", async (req, res) => {
+  const parsed = generateSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  res.json(await generateListening(examOf(parsed.data.exam), parsed.data.profileId));
+});
+mockRouter.post("/listening/score", async (req, res) => {
+  const parsed = scoreSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const result = await scoreSection(parsed.data.testId, parsed.data.responses, parsed.data.profileId);
+  if (!result) return res.status(404).json({ error: "This test expired. Start a fresh one." });
+  res.json(result);
+});
+
+// Speaking: generate a task, then score the recorded answer's transcript.
+mockRouter.post("/speaking/generate", async (req, res) => {
+  const parsed = generateSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  res.json(await generateSpeaking(examOf(parsed.data.exam), parsed.data.profileId));
+});
+const speakingScoreSchema = z.object({
+  exam: z.string().optional(),
+  taskType: z.string().default(""),
+  prompt: z.string().min(1),
+  transcript: z.string().min(1),
+  profileId: z.string().optional(),
+});
+mockRouter.post("/speaking/score", async (req, res) => {
+  const parsed = speakingScoreSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const d = parsed.data;
+  res.json(await scoreSpeaking(examOf(d.exam), d.taskType, d.prompt, d.transcript, d.profileId));
 });
 
 mockRouter.post("/writing/generate", async (req, res) => {
