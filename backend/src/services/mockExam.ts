@@ -221,3 +221,131 @@ export async function scoreReading(testId: string, responses: Record<string, str
   cache.delete(testId);
   return { exam: test.exam, skill: "reading", rawCorrect: correctCount, rawTotal: total, scaled, scaledLabel, byType: byTypeArr, weakTypes, feedback, questions };
 }
+
+const roundHalf = (x: number) => Math.round(x * 2) / 2;
+
+// Writing criteria per exam (drives the scoring prompt + the result UI).
+const WRITING_CRITERIA: Record<Exam, { name: string; max: number }[]> = {
+  IELTS: [
+    { name: "Task Response", max: 9 },
+    { name: "Coherence and Cohesion", max: 9 },
+    { name: "Lexical Resource", max: 9 },
+    { name: "Grammatical Range and Accuracy", max: 9 },
+  ],
+  TOEFL: [
+    { name: "Relevance and elaboration", max: 5 },
+    { name: "Coherence and organization", max: 5 },
+    { name: "Language use", max: 5 },
+  ],
+};
+
+export interface WritingTask {
+  exam: Exam;
+  skill: "writing";
+  taskType: string; // "ielts_task2" | "toefl_academic_discussion"
+  prompt: string;
+  context?: string; // TOEFL: professor question + two student posts
+  minWords: number;
+  timeSec: number;
+}
+
+async function memoryHint(profileId: string | undefined, exam: Exam, skill: string): Promise<string> {
+  if (!profileId) return "First attempt; aim for a balanced, mid-difficulty task.";
+  const attempts = (await store.listMockAttempts(profileId, 20)).filter((a) => a.exam === exam && a.skill === skill);
+  if (attempts.length === 0) return "First attempt for this skill; balanced, mid-difficulty.";
+  const weak = [...new Set(attempts.flatMap((a) => a.weakTypes))].slice(0, 4);
+  return `${attempts.length} prior attempt(s); last ${attempts[0].scaledLabel}. Weak areas to stretch: ${weak.join(", ") || "none yet"}. Calibrate just above their last result.`;
+}
+
+export async function generateWriting(exam: Exam, profileId?: string): Promise<WritingTask> {
+  const hint = await memoryHint(profileId, exam, "writing");
+  const taskType = exam === "IELTS" ? "ielts_task2" : "toefl_academic_discussion";
+  const { data } = await generateJson<{ prompt: string; context?: string }>({
+    system: `${YAAR_PRINCIPLES}
+You are an expert ${exam} item writer. Create ONE authentic ${exam} writing task.
+${
+      exam === "IELTS"
+        ? 'IELTS Academic Writing Task 2: an essay question on a topic of general interest (opinion / discuss both views / problem-solution / advantages-disadvantages). Return just the prompt text.'
+        : 'TOEFL "Writing for an Academic Discussion": return "context" = a professor\'s question plus two short student posts (label them, e.g. "Dr. ___:", "Student A:", "Student B:"), and "prompt" = the instruction to write your own contribution (>=100 words) stating and supporting a clear opinion.'
+    }
+Adaptivity: ${hint}
+Return ONLY JSON: { "prompt": string, "context": string }`,
+    prompt: `Write the ${exam} writing task now.`,
+    temperature: 0.8,
+    mock: () =>
+      exam === "IELTS"
+        ? { prompt: "Some people believe that university education should be free for all students. To what extent do you agree or disagree? Give reasons and examples. Write at least 250 words." }
+        : { prompt: "Write a post of at least 100 words contributing your own view, with reasons and examples.", context: "Dr. Lee: Should cities invest more in public transport or in roads for cars? Student A: Public transport reduces traffic and pollution. Student B: But many families rely on cars for work and rural access." },
+  });
+  return {
+    exam,
+    skill: "writing",
+    taskType,
+    prompt: data.prompt || "",
+    context: data.context,
+    minWords: exam === "IELTS" ? 250 : 100,
+    timeSec: exam === "IELTS" ? 40 * 60 : 10 * 60,
+  };
+}
+
+export interface WritingResult {
+  exam: Exam;
+  skill: "writing";
+  scaled: number;
+  scaledLabel: string;
+  criteria: { name: string; score: number; max: number; feedback: string }[];
+  modelNote: string;
+  weakTypes: string[];
+  feedback: string;
+}
+
+export async function scoreWriting(exam: Exam, taskType: string, prompt: string, context: string | undefined, essay: string, profileId?: string): Promise<WritingResult> {
+  const crit = WRITING_CRITERIA[exam];
+  const { data } = await generateJson<{ criteria: { name: string; score: number; feedback: string }[]; modelNote: string }>({
+    system: `${YAAR_PRINCIPLES}
+You are a strict but fair ${exam} writing examiner. Score the student's response against these criteria, each out of ${crit[0].max}: ${crit.map((c) => c.name).join(", ")}.
+Apply the real ${exam} band descriptors. Be honest and specific; cite what would push each criterion higher. Also give a 1-2 sentence "modelNote" describing what a top-scoring response does differently.
+Return ONLY JSON: { "criteria": [ { "name": string, "score": number, "feedback": string } ], "modelNote": string }`,
+    prompt: `Task type: ${taskType}\n${context ? `Stimulus:\n${context}\n` : ""}Prompt: ${prompt}\n\nStudent response (${essay.split(/\s+/).filter(Boolean).length} words):\n${essay}\n\nScore it now.`,
+    temperature: 0.3,
+    mock: () => ({
+      criteria: crit.map((c) => ({ name: c.name, score: Math.round(c.max * 0.6 * 2) / 2, feedback: `Reasonable ${c.name.toLowerCase()}. Develop ideas further with specific examples to score higher.` })),
+      modelNote: "A top response states a clear position, develops each point with a concrete example, and uses varied, precise language with very few errors.",
+    }),
+  });
+
+  const scored = crit.map((c) => {
+    const found = (data.criteria ?? []).find((x) => x.name?.toLowerCase().includes(c.name.toLowerCase().slice(0, 6)));
+    const raw = typeof found?.score === "number" ? found.score : c.max * 0.6;
+    return { name: c.name, score: Math.max(0, Math.min(c.max, raw)), max: c.max, feedback: found?.feedback || "" };
+  });
+  const avg = scored.reduce((s, c) => s + c.score, 0) / scored.length;
+
+  let scaled: number;
+  let scaledLabel: string;
+  if (exam === "IELTS") {
+    scaled = roundHalf(avg);
+    scaledLabel = `Band ${scaled.toFixed(1)}`;
+  } else {
+    scaled = Math.round(Math.min(30, avg * 6));
+    scaledLabel = `${scaled} / 30`;
+  }
+
+  const weakTypes = scored.filter((c) => c.score / c.max < 0.6).map((c) => c.name);
+  const feedback =
+    weakTypes.length > 0
+      ? `${scaledLabel}. Biggest gains will come from: ${weakTypes.join(", ")}. Your next writing task will target these.`
+      : `${scaledLabel}. Solid and balanced across the criteria. Your next task will push the difficulty up.`;
+
+  if (profileId) {
+    await store.saveMockAttempt({ profileId, exam, skill: "writing", scaled, scaledLabel, byType: scored.map((c) => ({ type: c.name, correct: Math.round(c.score), total: c.max })), weakTypes, feedback });
+    const ex = exam.toLowerCase();
+    await rememberFacts([
+      { profileId, key: `${ex}.writing.level`, type: "skill", value: `${exam} writing: ${scaledLabel} (latest mock)`, confidence: 0.85, source: "module_outcome" },
+      ...weakTypes.slice(0, 3).map((w) => ({ profileId, key: `${ex}.writing.weak.${slug(w)}`, type: "constraint" as const, value: `Needs work on ${exam} writing: ${w}`, confidence: 0.8, source: "module_outcome" as const })),
+    ]);
+    await store.addEvent({ profileId, kind: "module_run", module: "test_prep", summary: `${exam} writing mock: ${scaledLabel}`, status: "done" }).catch(() => {});
+  }
+
+  return { exam, skill: "writing", scaled, scaledLabel, criteria: scored, modelNote: data.modelNote || "", weakTypes, feedback };
+}
