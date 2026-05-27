@@ -48,6 +48,55 @@ function norm(s: string): string {
   return (s ?? "").toString().trim().toLowerCase().replace(/[.,!?;:"']/g, "").replace(/\s+/g, " ");
 }
 
+// The model sometimes returns the answer key as a bare letter ("B") while the options
+// are full strings ("B) The concept..."), or vice-versa. Grade robustly across all forms.
+function letterOf(opt: string, options?: string[]): string | null {
+  const m = opt.trim().match(/^\(?([A-Za-z])[).:]/);
+  if (m) return m[1].toUpperCase();
+  if (options) {
+    const i = options.findIndex((o) => norm(o) === norm(opt));
+    if (i >= 0 && i < 26) return String.fromCharCode(65 + i);
+  }
+  return null;
+}
+function gradeChoice(your: string, key: string, options?: string[]): boolean {
+  if (!your.trim()) return false;
+  if (norm(your) === norm(key)) return true;
+  const k = key.trim();
+  if (/^[A-Za-z]$/.test(k)) {
+    const yl = letterOf(your, options);
+    if (yl && yl === k.toUpperCase()) return true;
+    const idx = k.toUpperCase().charCodeAt(0) - 65;
+    if (options && options[idx] && norm(options[idx]) === norm(your)) return true;
+    return false;
+  }
+  const km = k.match(/^\(?([A-Za-z])[).:]\s*(.*)$/);
+  if (km) {
+    if (km[2] && norm(km[2]) === norm(your)) return true;
+    const yl = letterOf(your, options);
+    if (yl && yl === km[1].toUpperCase()) return true;
+  }
+  return false;
+}
+// Resolve the answer key to the full option text for display.
+function correctDisplay(key: string, options?: string[]): string {
+  const k = key.trim();
+  if (options && options.length) {
+    const exact = options.find((o) => norm(o) === norm(k));
+    if (exact) return exact;
+    if (/^[A-Za-z]$/.test(k)) {
+      const i = k.toUpperCase().charCodeAt(0) - 65;
+      if (options[i]) return options[i];
+    }
+    const km = k.match(/^\(?([A-Za-z])[).:]/);
+    if (km) {
+      const i = km[1].toUpperCase().charCodeAt(0) - 65;
+      if (options[i]) return options[i];
+    }
+  }
+  return key;
+}
+
 const READING_TYPES: Record<Exam, string> = {
   IELTS:
     "Use a realistic spread of IELTS Academic reading question types: true_false_notgiven, yes_no_notgiven, matching_headings, multiple_choice, sentence_completion, summary_completion. For *_notgiven the options are exactly [\"True\",\"False\",\"Not Given\"] or [\"Yes\",\"No\",\"Not Given\"]. For multiple_choice give 4 options. For completion types, answer is the exact word(s) from the passage (no options).",
@@ -166,13 +215,14 @@ export async function scoreSection(testId: string, responses: Record<string, str
   let correctCount = 0;
   const questions = test.questions.map((q) => {
     const your = (responses[q.id] ?? "").toString();
-    const correct = norm(your) === norm(q.answer) && your.trim() !== "";
+    const hasOptions = Array.isArray(q.options) && q.options.length > 0;
+    const correct = hasOptions ? gradeChoice(your, q.answer, q.options) : norm(your) === norm(q.answer) && your.trim() !== "";
     if (correct) correctCount++;
     const t = byType.get(q.type) ?? { correct: 0, total: 0 };
     t.total++;
     if (correct) t.correct++;
     byType.set(q.type, t);
-    return { id: q.id, type: q.type, prompt: q.prompt, your, correctAnswer: q.answer, correct, explanation: q.explanation };
+    return { id: q.id, type: q.type, prompt: q.prompt, your, correctAnswer: hasOptions ? correctDisplay(q.answer, q.options) : q.answer, correct, explanation: q.explanation };
   });
 
   const total = test.questions.length || 1;
