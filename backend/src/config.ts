@@ -17,6 +17,7 @@ export const config = {
   // Default to the strong, fast multimodal model. The flagship report uses the pro tier.
   geminiTextModel: process.env.GEMINI_TEXT_MODEL ?? "gemini-2.5-flash",
   geminiProModel: process.env.GEMINI_PRO_MODEL ?? "gemini-2.5-pro",
+  geminiTtsModel: process.env.GEMINI_TTS_MODEL ?? "gemini-2.5-flash-preview-tts",
   geminiLiveModel: process.env.GEMINI_LIVE_MODEL ?? "gemini-2.0-flash-live-001",
   collegeScorecardApiKey: process.env.COLLEGE_SCORECARD_API_KEY ?? "",
   mongodbUri: process.env.MONGODB_URI ?? "",

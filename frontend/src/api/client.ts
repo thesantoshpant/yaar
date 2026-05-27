@@ -182,6 +182,11 @@ export const api = {
   transcribe: (mimeType: string, data: string) =>
     post<{ text: string; source: string }>("/api/transcribe", { mimeType, data }),
 
+  // Natural text-to-speech (Gemini neural voice) -> a playable WAV (base64). source "mock"
+  // means TTS is unavailable and the caller should fall back to the browser voice.
+  tts: (text: string, voice?: string) =>
+    post<{ audioBase64: string; mimeType: string; source: string }>("/api/tts", { text, voice }),
+
   // Mock tests (IELTS / TOEFL) — adaptive generation, scoring, and saved history.
   mockGenerateReading: (exam: string, profileId?: string) =>
     post<MockReadingTest>("/api/mock/reading/generate", { exam, profileId }),
@@ -198,6 +203,8 @@ export const api = {
     post<MockListeningTest>("/api/mock/listening/generate", { exam, profileId }),
   mockScoreListening: (testId: string, responses: Record<string, string>, profileId?: string) =>
     post<MockReadingResult>("/api/mock/listening/score", { testId, responses, profileId }),
+  mockListeningAudio: (testId: string) =>
+    get<{ status: "pending" | "ready" | "failed"; audioBase64?: string; mimeType?: string }>(`/api/mock/listening/${testId}/audio`),
 
   mockGenerateSpeaking: (exam: string, profileId?: string) =>
     post<MockSpeakingTask>("/api/mock/speaking/generate", { exam, profileId }),

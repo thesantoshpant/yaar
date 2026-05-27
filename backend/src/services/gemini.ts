@@ -108,6 +108,33 @@ export async function generateJson<T>(opts: {
   }
 }
 
+// Natural text-to-speech via Gemini (neural voices, far better than the browser engine).
+// Returns base64 PCM (audio/L16). Supports up to 2 named speakers for conversations.
+export async function generateSpeech(
+  text: string,
+  opts?: { voice?: string; speakers?: { speaker: string; voice: string }[] }
+): Promise<{ audioBase64: string; mimeType: string; source: Source }> {
+  if (!ai || !text.trim()) return { audioBase64: "", mimeType: "", source: "mock" };
+  try {
+    const speechConfig =
+      opts?.speakers && opts.speakers.length >= 2
+        ? { multiSpeakerVoiceConfig: { speakerVoiceConfigs: opts.speakers.slice(0, 2).map((s) => ({ speaker: s.speaker, voiceConfig: { prebuiltVoiceConfig: { voiceName: s.voice } } })) } }
+        : { voiceConfig: { prebuiltVoiceConfig: { voiceName: opts?.voice || "Kore" } } };
+    const res = await ai.models.generateContent({
+      model: config.geminiTtsModel,
+      contents: text,
+      config: { responseModalities: ["AUDIO"], speechConfig },
+    });
+    const part = res?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
+    const data = part?.inlineData?.data;
+    if (!data) return { audioBase64: "", mimeType: "", source: "mock" };
+    return { audioBase64: data, mimeType: part?.inlineData?.mimeType || "audio/L16;rate=24000", source: "gemini" };
+  } catch (err) {
+    console.error("[gemini] generateSpeech failed:", err);
+    return { audioBase64: "", mimeType: "", source: "mock" };
+  }
+}
+
 // Reads uploaded files (PDF/images of an I-20, bank letter, etc.) and returns structured JSON.
 // Gemini handles PDFs and photos natively, so a student can just snap their documents.
 export async function generateJsonFromMedia<T>(opts: {

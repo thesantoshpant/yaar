@@ -5,6 +5,7 @@
 import { generateJson } from "./gemini";
 import { store } from "../lib/store";
 import { rememberFacts } from "./memoryUpdate";
+import { synthesize } from "./tts";
 import { YAAR_PRINCIPLES } from "../lib/prompts";
 import { IELTS_SPEAKING_CRITERIA, TOEFL_SPEAKING_CRITERIA } from "../data/rubrics";
 import type { MockAttempt } from "../lib/types";
@@ -34,9 +35,33 @@ interface CachedSection {
 // Generated tests live in memory until scored (the answer key must never reach the client).
 const cache = new Map<string, CachedSection>();
 const TTL = 3 * 60 * 60 * 1000;
+
+// Listening audio is generated in the background (TTS is slow) and cached by testId,
+// so it's ready by the time the student reads the page instead of waiting on a click.
+const audioCache = new Map<string, { status: "pending" | "ready" | "failed"; audio?: string; mimeType?: string; at: number }>();
+function prepareListeningAudio(testId: string, transcript: string): void {
+  audioCache.set(testId, { status: "pending", at: Date.now() });
+  void (async () => {
+    try {
+      const r = await synthesize(transcript);
+      if (r.source === "gemini" && r.audioBase64) audioCache.set(testId, { status: "ready", audio: r.audioBase64, mimeType: r.mimeType, at: Date.now() });
+      else audioCache.set(testId, { status: "failed", at: Date.now() });
+    } catch {
+      audioCache.set(testId, { status: "failed", at: Date.now() });
+    }
+  })();
+}
+export function getListeningAudio(testId: string): { status: "pending" | "ready" | "failed"; audioBase64?: string; mimeType?: string } {
+  const e = audioCache.get(testId);
+  if (!e) return { status: "failed" }; // unknown -> client uses the browser-voice fallback
+  if (e.status === "ready") return { status: "ready", audioBase64: e.audio, mimeType: e.mimeType };
+  return { status: e.status };
+}
+
 function prune() {
   const now = Date.now();
   for (const [k, v] of cache) if (now - v.createdAt > TTL) cache.delete(k);
+  for (const [k, v] of audioCache) if (now - v.at > TTL) audioCache.delete(k);
 }
 function id(): string {
   return Math.random().toString(36).slice(2, 12);
@@ -421,7 +446,7 @@ export async function generateListening(exam: Exam, profileId?: string): Promise
   const { data } = await generateJson<{ title: string; transcript: string; questions: KeyedQuestion[] }>({
     system: `${YAAR_PRINCIPLES}
 You are an expert ${exam} item writer. Create ONE authentic ${exam} listening item: a TRANSCRIPT that will be read aloud to the student (text-to-speech), plus ${count} questions.
-The transcript is a ${exam === "IELTS" ? "natural monologue or a two-speaker conversation (social or academic)" : "short academic lecture or a campus conversation"}, about 260-340 words, spoken style. For conversations, prefix each turn with the speaker and a colon (e.g. "Tutor:", "Student:") so different voices can be used.
+The transcript is a ${exam === "IELTS" ? "natural monologue or a two-speaker conversation (social or academic)" : "short academic lecture or a campus conversation"}, about 150-190 words, spoken style. For conversations, prefix each turn with the speaker and a colon (e.g. "Tutor:", "Student:") so different voices can be used.
 Questions: mostly multiple_choice (4 options) plus 1-2 short "completion" (answer is exact word(s) from the transcript, no options). Questions must be answerable only by listening (do not show the transcript during the test).
 Adaptivity: ${hint}
 Return ONLY JSON: { "title": string, "transcript": string, "questions": [ { "id": string, "type": string, "prompt": string, "options": string[], "answer": string, "explanation": string } ] }`,
@@ -450,6 +475,7 @@ Return ONLY JSON: { "title": string, "transcript": string, "questions": [ { "id"
 
   const testId = id();
   cache.set(testId, { exam, skill: "listening", title: data.title || "Listening", passage: data.transcript || "", questions, targetBand: "", createdAt: Date.now() });
+  prepareListeningAudio(testId, data.transcript || ""); // start TTS now so it's ready on play
   return {
     testId,
     exam,

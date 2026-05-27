@@ -2,7 +2,7 @@
 // memory), score it, and read past attempts (history). See services/mockExam.ts.
 import { Router } from "express";
 import { z } from "zod";
-import { generateReading, scoreSection, generateWriting, scoreWriting, generateListening, generateSpeaking, scoreSpeaking, type Exam } from "../services/mockExam";
+import { generateReading, scoreSection, generateWriting, scoreWriting, generateListening, generateSpeaking, scoreSpeaking, getListeningAudio, type Exam } from "../services/mockExam";
 import { store } from "../lib/store";
 import { assertOwnership } from "../lib/userAuth";
 
@@ -36,6 +36,10 @@ mockRouter.post("/listening/generate", async (req, res) => {
   const parsed = generateSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   res.json(await generateListening(examOf(parsed.data.exam), parsed.data.profileId));
+});
+// Poll for the pre-generated natural-voice audio (generated in the background at /generate).
+mockRouter.get("/listening/:testId/audio", (req, res) => {
+  res.json(getListeningAudio(req.params.testId));
 });
 mockRouter.post("/listening/score", async (req, res) => {
   const parsed = scoreSchema.safeParse(req.body);

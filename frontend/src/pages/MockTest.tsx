@@ -613,28 +613,74 @@ function ListeningTaking({
   onSubmit: () => void;
   answered: number;
 }) {
-  const ttsSupported = typeof window !== "undefined" && "speechSynthesis" in window;
+  const browserTts = typeof window !== "undefined" && "speechSynthesis" in window;
+  const [audioStatus, setAudioStatus] = useState<"pending" | "ready" | "failed">("pending");
   const [playing, setPlaying] = useState(false);
   const [played, setPlayed] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false); // last-resort fallback
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Stop any speech if we unmount mid-playback.
+  // The natural voice is generated in the background when the test is created; poll for it
+  // so it's ready to play with no long wait. Falls back to the browser voice if it fails.
   useEffect(() => {
-    return () => {
-      if (ttsSupported) window.speechSynthesis.cancel();
+    let active = true;
+    let tries = 0;
+    const poll = async () => {
+      if (!active) return;
+      try {
+        const r = await api.mockListeningAudio(test.testId);
+        if (!active) return;
+        if (r.status === "ready" && r.audioBase64) {
+          const a = new Audio(`data:${r.mimeType || "audio/wav"};base64,${r.audioBase64}`);
+          a.onended = () => setPlaying(false);
+          a.onerror = () => setPlaying(false);
+          audioRef.current = a;
+          setAudioStatus("ready");
+          return;
+        }
+        if (r.status === "failed") {
+          setAudioStatus("failed");
+          return;
+        }
+      } catch {
+        /* retry */
+      }
+      tries += 1;
+      if (tries < 40) setTimeout(poll, 2500);
+      else setAudioStatus("failed");
     };
-  }, [ttsSupported]);
+    void poll();
+    return () => {
+      active = false;
+      audioRef.current?.pause();
+      if (browserTts) window.speechSynthesis.cancel();
+    };
+  }, [test.testId, browserTts]);
 
-  function play() {
-    if (!ttsSupported) return;
+  function browserSpeak() {
+    if (!browserTts) {
+      setShowTranscript(true);
+      return;
+    }
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(test.transcript);
     u.rate = 0.95;
     u.onend = () => setPlaying(false);
     u.onerror = () => setPlaying(false);
     setPlaying(true);
-    setPlayed(true);
-    if (!timerOn) startTimer();
     window.speechSynthesis.speak(u);
+  }
+
+  function play() {
+    if (!timerOn) startTimer();
+    setPlayed(true);
+    if (audioStatus === "ready" && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      setPlaying(true);
+      void audioRef.current.play().catch(() => setPlaying(false));
+      return;
+    }
+    browserSpeak(); // audio unavailable -> browser voice (or transcript)
   }
 
   return (
@@ -649,22 +695,22 @@ function ListeningTaking({
 
       <div className="card">
         <h2 className="font-display text-lg font-bold text-ink">{test.title}</h2>
-        {ttsSupported ? (
+        {showTranscript ? (
           <>
-            <p className="mt-1 text-sm text-muted">Play the audio and answer from memory — the transcript stays hidden until you finish.</p>
-            <div className="mt-3 flex items-center gap-3">
-              <button className="btn-primary" onClick={play} disabled={playing}>
-                {playing ? "▶ Playing..." : played ? "▶ Play again" : "▶ Play audio"}
-              </button>
-              {!played && <span className="text-xs text-faint">The timer starts when you first play.</span>}
-            </div>
+            <p className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-200">
+              Audio playback isn't available here, so read the transcript once, then answer.
+            </p>
+            <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-ink/90">{test.transcript}</div>
           </>
         ) : (
           <>
-            <p className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-200">
-              Audio playback isn't available in this browser, so we're showing the transcript instead. Read it once, then answer.
-            </p>
-            <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-ink/90">{test.transcript}</div>
+            <p className="mt-1 text-sm text-muted">Play the audio and answer from memory — the transcript stays hidden until you finish.</p>
+            <div className="mt-3 flex items-center gap-3">
+              <button className="btn-primary" onClick={play} disabled={audioStatus === "pending" || playing}>
+                {audioStatus === "pending" ? <Spinner label="Preparing audio..." /> : playing ? "▶ Playing..." : played ? "▶ Play again" : "▶ Play audio"}
+              </button>
+              {!played && <span className="text-xs text-faint">A real voice reads it aloud. The timer starts when you first play.</span>}
+            </div>
           </>
         )}
       </div>
