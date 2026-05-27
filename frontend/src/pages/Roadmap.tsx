@@ -5,6 +5,7 @@ import { markCompleted, getProfileId } from "../lib/progress";
 import { useProfile } from "../lib/profile";
 import { useAuthGate } from "../lib/authGate";
 import { Spinner, SourceBadge, PageHeading, ErrorNote, CopyButton } from "../components/ui";
+import { SkeletonCard, SkeletonList } from "../components/Skeleton";
 import Markdown from "../components/Markdown";
 
 const STORAGE_KEY = "yaar.roadmap";
@@ -216,6 +217,13 @@ export default function Roadmap() {
           {loading ? <Spinner label="Building..." /> : roadmap ? "Rebuild my roadmap" : "Build my roadmap"}
         </button>
       </div>
+
+      {loading && !roadmap && (
+        <div className="space-y-4">
+          <SkeletonCard lines={3} />
+          <SkeletonList count={3} lines={2} />
+        </div>
+      )}
 
       {roadmap && (
         <div className="space-y-4" ref={resultRef}>

@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import type { InboxItem } from "../lib/types";
 import { getProfileId } from "../lib/progress";
 import { Spinner, SourceBadge, PageHeading, ErrorNote } from "../components/ui";
+import { SkeletonList } from "../components/Skeleton";
 import Markdown from "../components/Markdown";
 
 const KIND_EMOJI: Record<string, string> = {
@@ -141,7 +142,7 @@ export default function Updates() {
         </div>
       )}
 
-      {(loading || running) && items.length === 0 && <Spinner label="Yaar is finding your first moves..." />}
+      {(loading || running) && items.length === 0 && <SkeletonList count={3} lines={2} />}
 
       {!loading && !running && !error && items.length === 0 && (
         <div className="card flex flex-col items-center py-12 text-center text-muted">

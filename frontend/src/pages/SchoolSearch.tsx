@@ -4,6 +4,7 @@ import type { School } from "../lib/types";
 import { markCompleted } from "../lib/progress";
 import { useProfile } from "../lib/profile";
 import { Spinner, SourceBadge, PageHeading, ErrorNote } from "../components/ui";
+import { SkeletonList } from "../components/Skeleton";
 import Markdown from "../components/Markdown";
 
 const CAT_STYLE: Record<string, string> = {
@@ -179,6 +180,8 @@ export default function SchoolSearch() {
           {loading ? <Spinner label="Searching..." /> : "Find my schools"}
         </button>
       </div>
+
+      {loading && schools.length === 0 && <SkeletonList count={4} lines={2} />}
 
       {searched && (
         <>

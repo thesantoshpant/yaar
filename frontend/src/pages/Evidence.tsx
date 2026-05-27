@@ -5,6 +5,7 @@ import type { EvidenceArtifact } from "../lib/types";
 import { getProfileId } from "../lib/progress";
 import { useAuthGate } from "../lib/authGate";
 import { Spinner, SourceBadge, PageHeading, ErrorNote, CopyButton } from "../components/ui";
+import { SkeletonList } from "../components/Skeleton";
 import Markdown from "../components/Markdown";
 
 function Label({ children }: { children: React.ReactNode }) {
@@ -17,6 +18,7 @@ export default function Evidence() {
   const [params] = useSearchParams();
   const [form, setForm] = useState({ title: "", whatYouDid: "", whoBenefited: "", proofUrl: "", skills: "", reflection: "" });
   const [items, setItems] = useState<EvidenceArtifact[]>([]);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [summary, setSummary] = useState<{ activityLines: string[]; essayParagraph: string; source: string } | null>(null);
   const [summarizing, setSummarizing] = useState(false);
@@ -36,6 +38,8 @@ export default function Evidence() {
       setItems(Array.isArray(res.evidence) ? res.evidence : []);
     } catch {
       // Leave existing items in place; a transient load failure shouldn't look like data loss.
+    } finally {
+      setLoading(false);
     }
   }, [profileId]);
 
@@ -195,6 +199,8 @@ export default function Evidence() {
           <Markdown className="mt-1 text-sm text-muted">{summary.essayParagraph}</Markdown>
         </div>
       )}
+
+      {loading && items.length === 0 && <SkeletonList count={3} lines={2} />}
 
       <div className="grid gap-3 sm:grid-cols-2">
         {items.map((it) => (

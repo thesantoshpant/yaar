@@ -5,6 +5,7 @@ import type { AgentPlan, ModuleKey, JourneyState } from "../lib/types";
 import { clearStudent, getCompleted } from "../lib/progress";
 import { useProfile } from "../lib/profile";
 import { Spinner, SourceBadge, ScoreBar, PageHeading, ErrorNote } from "../components/ui";
+import { SkeletonCard } from "../components/Skeleton";
 import PersonaPicker from "../components/PersonaPicker";
 import WhatIf from "../components/WhatIf";
 
@@ -231,12 +232,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {loading && !plan && (
-        <div className="card animate-pulse">
-          <div className="h-4 w-40 rounded bg-surface-2" />
-          <div className="mt-4 h-24 rounded-xl bg-surface-2" />
-        </div>
-      )}
+      {loading && !plan && <SkeletonCard lines={3} />}
 
       {plan && (
         <div className="card relative overflow-hidden">

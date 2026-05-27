@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeading, Spinner, SourceBadge, ErrorNote } from "../components/ui";
+import { Skeleton, SkeletonCard } from "../components/Skeleton";
 import { getProfileId } from "../lib/progress";
 import { api } from "../api/client";
 
@@ -93,10 +94,18 @@ export default function Memory() {
 
       {refreshError && <ErrorNote onRetry={refresh}>Yaar couldn't re-synthesize right now. Try again in a moment.</ErrorNote>}
 
-      {loading ? (
-        <div className="card">
-          <Spinner label="Loading your mind..." />
-        </div>
+      {loading && !memory ? (
+        <>
+          <SkeletonCard lines={3} />
+          <div className="card">
+            <Skeleton className="h-5 w-1/3" />
+            <div className="mt-3 flex flex-wrap gap-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-7 w-24 rounded-full" />
+              ))}
+            </div>
+          </div>
+        </>
       ) : loadError ? (
         <ErrorNote onRetry={load} />
       ) : (

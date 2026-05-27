@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { PageHeading, Spinner, ErrorNote } from "../components/ui";
+import { SkeletonCard, SkeletonList } from "../components/Skeleton";
 import Markdown from "../components/Markdown";
 import {
   ops,
@@ -242,9 +243,11 @@ export default function Company() {
       )}
 
       {loading ? (
-        <div className="card">
-          <Spinner label="Loading the company..." />
-        </div>
+        <>
+          <SkeletonCard lines={3} />
+          <SkeletonCard lines={3} />
+          <SkeletonList count={3} lines={1} />
+        </>
       ) : loadError ? (
         <ErrorNote onRetry={load} />
       ) : needsToken ? null : (
