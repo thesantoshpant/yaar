@@ -170,37 +170,53 @@ async function adaptiveHint(profileId: string | undefined, exam: Exam): Promise<
 export async function generateReading(exam: Exam, profileId?: string): Promise<GeneratedReading> {
   prune();
   const hint = await adaptiveHint(profileId, exam);
-  const count = 10;
-  const { data } = await generateJson<{ title: string; passage: string; questions: KeyedQuestion[] }>({
-    system: `${YAAR_PRINCIPLES}
-You are an expert ${exam} item writer. Create ONE authentic ${exam} Academic Reading practice set: a single academic passage plus ${count} questions, exam-accurate in style and difficulty.
+  const count = 7;
+  const genOnce = () =>
+    generateJson<{ title: string; passage: string; questions: KeyedQuestion[] }>({
+      system: `${YAAR_PRINCIPLES}
+You are an expert ${exam} item writer. Create ONE authentic ${exam} Academic Reading practice set: a single academic passage plus EXACTLY ${count} questions (the "questions" array must contain ${count} items), exam-accurate in style and difficulty.
 ${READING_TYPES[exam]}
-Passage length: ${exam === "IELTS" ? "about 750-850 words" : "about 600-700 words"}, non-specialist academic prose, original (do not copy real exam texts).
+Passage length: ${exam === "IELTS" ? "about 500-600 words" : "about 400-500 words"}, non-specialist academic prose, original (do not copy real exam texts). Keep it focused so it generates quickly.
 Each question needs: a unique short id, a "type" (snake_case from the list), a "prompt", optional "options" (string array) for choice/notgiven types, the exact "answer" (must match an option string for choice types, or the exact passage word(s) for completion), and a one-sentence "explanation" grounded in the passage.
 Adaptivity: ${hint}
 Return ONLY JSON: { "title": string, "passage": string, "questions": [ { "id": string, "type": string, "prompt": string, "options": string[], "answer": string, "explanation": string } ] }`,
-    prompt: `Write the ${exam} reading practice set now.`,
-    temperature: 0.7,
-    mock: () => ({
-      title: "The Rise of Urban Vertical Farms",
-      passage:
-        "Vertical farming, the practice of growing crops in stacked layers indoors, has moved from a niche experiment to a serious response to urban food security. By controlling light, temperature, and nutrients, these farms can produce greens year-round using a fraction of the water of traditional agriculture. Critics note the high energy cost of artificial lighting, yet proponents argue that proximity to cities cuts transport emissions and waste. As LED efficiency improves, the economics continue to shift. (Demo passage — add a Gemini key for a full exam-accurate set.)",
-      questions: [
-        { id: "q1", type: "true_false_notgiven", prompt: "Vertical farms use less water than traditional agriculture.", options: ["True", "False", "Not Given"], answer: "True", explanation: "The passage says they use a fraction of the water." },
-        { id: "q2", type: "true_false_notgiven", prompt: "Vertical farms are cheaper to run than outdoor farms today.", options: ["True", "False", "Not Given"], answer: "Not Given", explanation: "Costs are discussed but no direct comparison of total cost is made." },
-        { id: "q3", type: "multiple_choice", prompt: "What is the main drawback critics raise?", options: ["Water use", "Energy cost of lighting", "Transport emissions", "Crop variety"], answer: "Energy cost of lighting", explanation: "Critics note the high energy cost of artificial lighting." },
-      ],
-    }),
-  });
+      prompt: `Write the ${exam} reading practice set now. Include all ${count} questions.`,
+      temperature: 0.7,
+      mock: () => ({
+        title: "The Rise of Urban Vertical Farms",
+        passage:
+          "Vertical farming, the practice of growing crops in stacked layers indoors, has moved from a niche experiment to a serious response to urban food security. By controlling light, temperature, and nutrients, these farms can produce greens year-round using a fraction of the water of traditional agriculture. Critics note the high energy cost of artificial lighting, yet proponents argue that proximity to cities cuts transport emissions and waste. As LED efficiency improves, the economics continue to shift. (Demo passage — add a Gemini key for a full exam-accurate set.)",
+        questions: [
+          { id: "q1", type: "true_false_notgiven", prompt: "Vertical farms use less water than traditional agriculture.", options: ["True", "False", "Not Given"], answer: "True", explanation: "The passage says they use a fraction of the water." },
+          { id: "q2", type: "true_false_notgiven", prompt: "Vertical farms are cheaper to run than outdoor farms today.", options: ["True", "False", "Not Given"], answer: "Not Given", explanation: "Costs are discussed but no direct comparison of total cost is made." },
+          { id: "q3", type: "multiple_choice", prompt: "What is the main drawback critics raise?", options: ["Water use", "Energy cost of lighting", "Transport emissions", "Crop variety"], answer: "Energy cost of lighting", explanation: "Critics note the high energy cost of artificial lighting." },
+        ],
+      }),
+    });
 
-  const questions: KeyedQuestion[] = (Array.isArray(data?.questions) ? data.questions : []).map((q, i) => ({
-    id: q.id || `q${i + 1}`,
-    type: q.type || "multiple_choice",
-    prompt: q.prompt || "",
-    options: Array.isArray(q.options) && q.options.length ? q.options : undefined,
-    answer: (q.answer ?? "").toString(),
-    explanation: q.explanation || "",
-  }));
+  // The model occasionally returns a passage with an empty/short questions array; retry
+  // until we have a usable set so a student never gets a 0-question test.
+  let data: { title?: string; passage?: string; questions?: KeyedQuestion[] } = {};
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await genOnce();
+    if (res.data?.passage && !data.passage) data = res.data;
+    const valid = (Array.isArray(res.data?.questions) ? res.data.questions : []).filter((q) => q && q.prompt && String(q.answer ?? "").trim());
+    if (valid.length >= 3) {
+      data = res.data;
+      break;
+    }
+  }
+
+  const questions: KeyedQuestion[] = (Array.isArray(data?.questions) ? data.questions : [])
+    .filter((q) => q && q.prompt && String(q.answer ?? "").trim())
+    .map((q, i) => ({
+      id: q.id || `q${i + 1}`,
+      type: q.type || "multiple_choice",
+      prompt: q.prompt || "",
+      options: Array.isArray(q.options) && q.options.length ? q.options : undefined,
+      answer: (q.answer ?? "").toString(),
+      explanation: q.explanation || "",
+    }));
 
   const testId = id();
   const targetBand = exam === "IELTS" ? "calibrated to your level" : "scaled 0-30";
@@ -442,36 +458,51 @@ export interface GeneratedListening {
 export async function generateListening(exam: Exam, profileId?: string): Promise<GeneratedListening> {
   prune();
   const hint = await memoryHint(profileId, exam, "listening");
-  const count = 8;
-  const { data } = await generateJson<{ title: string; transcript: string; questions: KeyedQuestion[] }>({
-    system: `${YAAR_PRINCIPLES}
-You are an expert ${exam} item writer. Create ONE authentic ${exam} listening item: a TRANSCRIPT that will be read aloud to the student (text-to-speech), plus ${count} questions.
+  const count = 6;
+  const genOnce = () =>
+    generateJson<{ title: string; transcript: string; questions: KeyedQuestion[] }>({
+      system: `${YAAR_PRINCIPLES}
+You are an expert ${exam} item writer. Create ONE authentic ${exam} listening item: a TRANSCRIPT that will be read aloud to the student (text-to-speech), plus EXACTLY ${count} questions (the "questions" array must contain ${count} items).
 The transcript is a ${exam === "IELTS" ? "natural monologue or a two-speaker conversation (social or academic)" : "short academic lecture or a campus conversation"}, about 150-190 words, spoken style. For conversations, prefix each turn with the speaker and a colon (e.g. "Tutor:", "Student:") so different voices can be used.
 Questions: mostly multiple_choice (4 options) plus 1-2 short "completion" (answer is exact word(s) from the transcript, no options). Questions must be answerable only by listening (do not show the transcript during the test).
 Adaptivity: ${hint}
 Return ONLY JSON: { "title": string, "transcript": string, "questions": [ { "id": string, "type": string, "prompt": string, "options": string[], "answer": string, "explanation": string } ] }`,
-    prompt: `Write the ${exam} listening item now.`,
-    temperature: 0.7,
-    mock: () => ({
-      title: "Booking a Study Room",
-      transcript:
-        "Librarian: Good morning, how can I help? Student: Hi, I'd like to book a group study room for tomorrow afternoon. Librarian: Sure. Rooms hold up to six people and can be booked for two hours. The afternoon slots are 1 to 3, or 3 to 5. Student: The 3 to 5 slot, please, for four people. Librarian: Done. Just bring your student card to collect the key from this desk. (Demo transcript — add a Gemini key for a full item.)",
-      questions: [
-        { id: "q1", type: "multiple_choice", prompt: "How long can a room be booked for?", options: ["One hour", "Two hours", "Three hours", "All day"], answer: "Two hours", explanation: "The librarian says rooms can be booked for two hours." },
-        { id: "q2", type: "multiple_choice", prompt: "Which slot did the student choose?", options: ["1 to 3", "3 to 5", "2 to 4", "Morning"], answer: "3 to 5", explanation: "The student chose the 3 to 5 slot." },
-        { id: "q3", type: "completion", prompt: "To collect the key, bring your ____.", answer: "student card", explanation: "The librarian says to bring your student card." },
-      ],
-    }),
-  });
+      prompt: `Write the ${exam} listening item now. Include all ${count} questions.`,
+      temperature: 0.7,
+      mock: () => ({
+        title: "Booking a Study Room",
+        transcript:
+          "Librarian: Good morning, how can I help? Student: Hi, I'd like to book a group study room for tomorrow afternoon. Librarian: Sure. Rooms hold up to six people and can be booked for two hours. The afternoon slots are 1 to 3, or 3 to 5. Student: The 3 to 5 slot, please, for four people. Librarian: Done. Just bring your student card to collect the key from this desk. (Demo transcript — add a Gemini key for a full item.)",
+        questions: [
+          { id: "q1", type: "multiple_choice", prompt: "How long can a room be booked for?", options: ["One hour", "Two hours", "Three hours", "All day"], answer: "Two hours", explanation: "The librarian says rooms can be booked for two hours." },
+          { id: "q2", type: "multiple_choice", prompt: "Which slot did the student choose?", options: ["1 to 3", "3 to 5", "2 to 4", "Morning"], answer: "3 to 5", explanation: "The student chose the 3 to 5 slot." },
+          { id: "q3", type: "completion", prompt: "To collect the key, bring your ____.", answer: "student card", explanation: "The librarian says to bring your student card." },
+        ],
+      }),
+    });
 
-  const questions: KeyedQuestion[] = (Array.isArray(data?.questions) ? data.questions : []).map((q, i) => ({
-    id: q.id || `q${i + 1}`,
-    type: q.type || "multiple_choice",
-    prompt: q.prompt || "",
-    options: Array.isArray(q.options) && q.options.length ? q.options : undefined,
-    answer: (q.answer ?? "").toString(),
-    explanation: q.explanation || "",
-  }));
+  // Retry if the model returns too few usable questions, so a student never gets an empty test.
+  let data: { title?: string; transcript?: string; questions?: KeyedQuestion[] } = {};
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await genOnce();
+    if (res.data?.transcript && !data.transcript) data = res.data;
+    const valid = (Array.isArray(res.data?.questions) ? res.data.questions : []).filter((q) => q && q.prompt && String(q.answer ?? "").trim());
+    if (valid.length >= 3) {
+      data = res.data;
+      break;
+    }
+  }
+
+  const questions: KeyedQuestion[] = (Array.isArray(data?.questions) ? data.questions : [])
+    .filter((q) => q && q.prompt && String(q.answer ?? "").trim())
+    .map((q, i) => ({
+      id: q.id || `q${i + 1}`,
+      type: q.type || "multiple_choice",
+      prompt: q.prompt || "",
+      options: Array.isArray(q.options) && q.options.length ? q.options : undefined,
+      answer: (q.answer ?? "").toString(),
+      explanation: q.explanation || "",
+    }));
 
   const testId = id();
   cache.set(testId, { exam, skill: "listening", title: data.title || "Listening", passage: data.transcript || "", questions, targetBand: "", createdAt: Date.now() });

@@ -38,6 +38,43 @@ const SECTIONS: { key: Section; label: string; icon: string; blurb: string }[] =
 
 const ESTIMATE_LINE = "This is an AI practice estimate, not an official score.";
 
+const LOADER_STEPS: Record<Section, string[]> = {
+  reading: ["Choosing a fresh topic…", "Writing your passage…", "Crafting exam-style questions…", "Tuning the difficulty to you…", "Almost there…"],
+  listening: ["Scripting a natural conversation…", "Casting the voices…", "Writing the questions…", "Getting the audio ready…", "Almost there…"],
+  writing: ["Picking a strong prompt…", "Setting up your task…", "Almost there…"],
+  speaking: ["Choosing your topic…", "Setting up the task…", "Almost there…"],
+};
+const LOADER_ICON: Record<Section, string> = { reading: "📖", listening: "🎧", writing: "✍️", speaking: "🎙️" };
+
+// A reassuring, progress-y loader so the generation wait feels like "almost there".
+function GeneratingLoader({ section }: { section: Section }) {
+  const msgs = LOADER_STEPS[section];
+  const [i, setI] = useState(0);
+  const [pct, setPct] = useState(8);
+  useEffect(() => {
+    const m = setInterval(() => setI((x) => Math.min(x + 1, msgs.length - 1)), 3000);
+    const p = setInterval(() => setPct((x) => Math.min(x + Math.random() * 6 + 2, 96)), 850);
+    return () => {
+      clearInterval(m);
+      clearInterval(p);
+    };
+  }, [msgs.length]);
+  return (
+    <div className="card relative overflow-hidden border-brand-500/20 bg-brand-500/5 text-center">
+      <div className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_80%_at_100%_0%,rgba(99,102,241,0.12)_0,transparent_60%)]" />
+      <div className="relative py-4">
+        <div className="text-4xl">{LOADER_ICON[section]}</div>
+        <h2 className="mt-2 font-display text-lg font-bold text-ink">Building your {section} mock…</h2>
+        <p className="mt-1 min-h-[1.25rem] text-sm text-muted">{msgs[i]}</p>
+        <div className="mx-auto mt-4 h-2 w-full max-w-md overflow-hidden rounded-full bg-surface-2">
+          <div className="h-2 rounded-full bg-gradient-to-r from-brand-500 to-violet-500 transition-all duration-700 ease-out" style={{ width: `${pct}%` }} />
+        </div>
+        <p className="mt-2 text-xs text-faint">Yaar is writing this fresh and tailoring it to you. Just a few seconds.</p>
+      </div>
+    </div>
+  );
+}
+
 export default function MockTest() {
   const profileId = getProfileId() || undefined;
   const [exam, setExam] = useState("IELTS");
@@ -65,6 +102,18 @@ export default function MockTest() {
   const [timerOn, setTimerOn] = useState(false);
   const [history, setHistory] = useState<MockAttemptSummary[]>([]);
   const submittingRef = useRef(false);
+  // Speculatively generate the selected section in the background so Start is instant.
+  const prefetch = useRef<Map<string, Promise<unknown>>>(new Map());
+
+  const genPromise = useCallback(
+    (sec: Section, ex: string): Promise<unknown> => {
+      if (sec === "reading") return api.mockGenerateReading(ex, profileId);
+      if (sec === "listening") return api.mockGenerateListening(ex, profileId);
+      if (sec === "writing") return api.mockGenerateWriting(ex, profileId);
+      return api.mockGenerateSpeaking(ex, profileId);
+    },
+    [profileId]
+  );
 
   const loadHistory = useCallback(() => {
     if (!profileId) return;
@@ -88,31 +137,52 @@ export default function MockTest() {
     submittingRef.current = false;
   }
 
-  // Generate the selected section. `keepSection` lets "Practice again" reuse it.
+  // While the student is on the intro, quietly pre-generate the selected section so
+  // clicking Start feels instant. Debounced so flipping between options doesn't spam.
+  useEffect(() => {
+    if (phase !== "intro" || loading) return;
+    const key = `${exam}:${section}`;
+    if (prefetch.current.has(key)) return;
+    const t = setTimeout(() => {
+      if (!prefetch.current.has(key)) prefetch.current.set(key, genPromise(section, exam).catch(() => null));
+    }, 500);
+    return () => clearTimeout(t);
+  }, [phase, exam, section, loading, genPromise]);
+
+  // Generate the selected section (using the prefetched result if it's ready).
   const start = useCallback(
     async (sec: Section = section) => {
       setLoading(true);
       resetState();
       setSection(sec);
+      const key = `${exam}:${sec}`;
       try {
+        const cached = prefetch.current.get(key);
+        prefetch.current.delete(key); // consume; "Practice again" then regenerates fresh
+        let t = await (cached ?? genPromise(sec, exam));
+        if (!t) t = await genPromise(sec, exam).catch(() => null); // prefetch failed -> retry fresh
+        if (!t) {
+          setError(true);
+          return;
+        }
         if (sec === "reading") {
-          const t = await api.mockGenerateReading(exam, profileId);
-          setReading(t);
-          setTimeLeft(t.timeSec);
+          const r = t as MockReadingTest;
+          setReading(r);
+          setTimeLeft(r.timeSec);
           setTimerOn(true);
         } else if (sec === "listening") {
-          const t = await api.mockGenerateListening(exam, profileId);
-          setListening(t);
-          setTimeLeft(t.timeSec);
+          const r = t as MockListeningTest;
+          setListening(r);
+          setTimeLeft(r.timeSec);
           setTimerOn(false); // starts after first play
         } else if (sec === "writing") {
-          const t = await api.mockGenerateWriting(exam, profileId);
-          setWriting(t);
-          setTimeLeft(t.timeSec);
+          const r = t as MockWritingTask;
+          setWriting(r);
+          setTimeLeft(r.timeSec);
           setTimerOn(true);
         } else {
-          const t = await api.mockGenerateSpeaking(exam, profileId);
-          setSpeaking(t);
+          const r = t as MockSpeakingTask;
+          setSpeaking(r);
           setTimeLeft(0);
           setTimerOn(false);
         }
@@ -123,7 +193,7 @@ export default function MockTest() {
         setLoading(false);
       }
     },
-    [exam, section, profileId]
+    [exam, section, profileId, genPromise]
   );
 
   const backToIntro = useCallback(() => {
@@ -232,8 +302,11 @@ export default function MockTest() {
         subtitle="A real IELTS or TOEFL section, generated fresh, scored honestly, and saved. Yaar learns where you slip and makes your next test target exactly that."
       />
 
+      {/* Generating a section (shown over the intro while we build the test). */}
+      {phase === "intro" && loading && <GeneratingLoader section={section} />}
+
       {/* INTRO */}
-      {phase === "intro" && (
+      {phase === "intro" && !loading && (
         <>
           <div className="card">
             <h2 className="text-lg font-semibold text-ink">Start a mock</h2>
