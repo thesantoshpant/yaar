@@ -6,6 +6,7 @@ import { visaQuestionsFor } from "../data/questionBanks";
 import { VISA_DIMENSIONS } from "../data/rubrics";
 import { VISA_OFFICER_SYSTEM, visaScoreSystem } from "../lib/prompts";
 import { buildContextPack } from "../services/contextPack";
+import { recordActivity } from "../services/activity";
 import type { VisaScore, VisaTurn } from "../lib/types";
 
 export const visaRouter = Router();
@@ -117,5 +118,13 @@ Return ONLY JSON: { "overall": number 0-100, "recommendation": string, "dimensio
     redFlags: Array.isArray(data?.redFlags) ? data.redFlags : [],
     drills: Array.isArray(data?.drills) ? data.drills : [],
   };
+
+  // A scored mock interview is a real readiness signal worth remembering.
+  recordActivity(profileId, {
+    module: "visa",
+    summary: `Mock visa interview: ${score.overall}/100 readiness`,
+    facts: [{ profileId: profileId!, key: "visa.mock.readiness", type: "skill", value: `Mock visa interview readiness ${score.overall}/100`, confidence: 0.8, source: "module_outcome" }],
+  });
+
   res.json({ score, source });
 });

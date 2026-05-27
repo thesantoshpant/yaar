@@ -19,6 +19,7 @@ const NAV: { to: string; label: string; end?: boolean; Icon: (p: IconProps) => J
   { to: "/app", label: "Dashboard", end: true, Icon: I("M3 12l9-9 9 9M5 10v10h14V10") },
   { to: "/app/updates", label: "Updates", Icon: I("M4 5h16v10H7l-3 3V5z") },
   { to: "/app/memory", label: "Mind", Icon: I("M9.5 4a3 3 0 0 0-3 3 3 3 0 0 0-1 5.8A3 3 0 0 0 9.5 18 2.5 2.5 0 0 0 12 15.5V6.5A2.5 2.5 0 0 0 9.5 4zm5 0A2.5 2.5 0 0 0 12 6.5v9a2.5 2.5 0 0 0 2.5 2.5 3 3 0 0 0 4-5.2 3 3 0 0 0-1-5.8 3 3 0 0 0-3-3z") },
+  { to: "/app/progress", label: "Progress", Icon: I("M3 3v18h18M7 14l4-4 3 3 5-6") },
   { to: "/app/counselor", label: "Counselor", Icon: I("M21 11.5a8.38 8.38 0 0 1-9 8.34 9 9 0 0 1-3.5-.66L3 21l1.82-5.5A8.38 8.38 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z") },
   { to: "/app/roadmap", label: "Roadmap", Icon: I("M9 4v13l-5 3V7l5-3zm0 0l6 3m0 0l5-3v13l-5 3m0-13v13m-6-3l6 3") },
   { to: "/app/schools", label: "School search", Icon: I("M3 10l9-6 9 6-9 6-9-6zm3 4v5l6 3 6-3v-5") },

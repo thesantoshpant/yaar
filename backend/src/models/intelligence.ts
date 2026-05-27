@@ -207,6 +207,7 @@ const mockAttemptSchema = new Schema(
     byType: { type: [Schema.Types.Mixed], default: [] },
     weakTypes: { type: [String], default: [] },
     feedback: { type: String, default: "" },
+    analysis: { type: Schema.Types.Mixed },
     createdAt: { type: String, required: true },
   },
   { collection: "mock_attempts" }

@@ -300,6 +300,7 @@ export async function scoreSection(testId: string, responses: Record<string, str
       byType: byTypeArr,
       weakTypes,
       feedback,
+      analysis: { kind: "objective", title: test.title, questions },
     });
 
     // The next test (and the whole app) now knows their level + weak spots for this skill.
@@ -432,7 +433,7 @@ Return ONLY JSON: { "criteria": [ { "name": string, "score": number, "feedback":
       : `${scaledLabel}. Solid and balanced across the criteria. Your next task will push the difficulty up.`;
 
   if (profileId) {
-    await store.saveMockAttempt({ profileId, exam, skill: "writing", scaled, scaledLabel, byType: scored.map((c) => ({ type: c.name, correct: Math.round(c.score), total: c.max })), weakTypes, feedback });
+    await store.saveMockAttempt({ profileId, exam, skill: "writing", scaled, scaledLabel, byType: scored.map((c) => ({ type: c.name, correct: Math.round(c.score), total: c.max })), weakTypes, feedback, analysis: { kind: "rubric", prompt, context, essay, criteria: scored, modelNote: data.modelNote || "" } });
     const ex = exam.toLowerCase();
     await rememberFacts([
       { profileId, key: `${ex}.writing.level`, type: "skill", value: `${exam} writing: ${scaledLabel} (latest mock)`, confidence: 0.85, source: "module_outcome" },
@@ -615,7 +616,7 @@ Return ONLY JSON: { "criteria": [ { "name": string, "score": number, "feedback":
       : `${scaledLabel}. Well balanced across the criteria. Your next task will push you further.`;
 
   if (profileId) {
-    await store.saveMockAttempt({ profileId, exam, skill: "speaking", scaled, scaledLabel, byType: scored.map((c) => ({ type: c.name, correct: Math.round(c.score), total: c.max })), weakTypes, feedback });
+    await store.saveMockAttempt({ profileId, exam, skill: "speaking", scaled, scaledLabel, byType: scored.map((c) => ({ type: c.name, correct: Math.round(c.score), total: c.max })), weakTypes, feedback, analysis: { kind: "rubric", prompt, transcript, criteria: scored, modelNote: data.modelNote || "" } });
     const ex = exam.toLowerCase();
     await rememberFacts([
       { profileId, key: `${ex}.speaking.level`, type: "skill", value: `${exam} speaking: ${scaledLabel} (latest mock)`, confidence: 0.85, source: "module_outcome" },

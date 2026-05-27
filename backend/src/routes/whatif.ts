@@ -6,6 +6,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { generateJson } from "../services/gemini";
 import { buildContextPack } from "../services/contextPack";
+import { recordActivity } from "../services/activity";
 import { YAAR_PRINCIPLES } from "../lib/prompts";
 
 export const whatifRouter = Router();
@@ -42,6 +43,15 @@ Return ONLY JSON: { "impact": string (2-3 sentences on what changes overall), "o
       watchOut: ["Make sure the new plan still fits your real budget", "Some timelines may shift"],
       verdict: "Worth exploring, but keep it realistic and honest with the numbers.",
     }),
+  });
+
+  // A what-if reveals what the student is weighing (a different major, a master's, a
+  // gap year). That's a real signal about where their head is, so remember it.
+  recordActivity(profileId, {
+    module: "whatif",
+    kind: "note",
+    summary: `Explored a what-if: "${scenario.slice(0, 80)}"`,
+    facts: [{ profileId: profileId!, key: "context.considering", type: "context", value: `Considering: ${scenario}`, confidence: 0.6, source: "inferred" }],
   });
 
   res.json({

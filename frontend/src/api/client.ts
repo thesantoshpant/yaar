@@ -194,6 +194,9 @@ export const api = {
     post<MockReadingResult>("/api/mock/reading/score", { testId, responses, profileId }),
   mockHistory: (profileId: string) => get<{ attempts: MockAttemptSummary[] }>(`/api/mock/history/${profileId}`),
 
+  // Progress + history: trends, comparisons, weak areas, activity timeline, AI recap.
+  progress: (profileId: string) => get<ProgressData>(`/api/progress/${profileId}`),
+
   mockGenerateWriting: (exam: string, profileId?: string) =>
     post<MockWritingTask>("/api/mock/writing/generate", { exam, profileId }),
   mockScoreWriting: (exam: string, taskType: string, prompt: string, context: string | undefined, essay: string, profileId?: string) =>
@@ -300,7 +303,38 @@ export interface MockAttemptSummary {
   rawTotal?: number;
   weakTypes: string[];
   feedback: string;
+  analysis?: unknown;
   createdAt: string;
+}
+
+// ---- Progress / history (see backend services/progress.ts) ----
+export interface TrendPoint {
+  date: string;
+  scaled: number;
+  label: string;
+}
+export interface SkillTrend {
+  key: string;
+  exam: string;
+  skill: string;
+  unit: "band" | "points";
+  max: number;
+  points: TrendPoint[];
+  latest: number;
+  latestLabel: string;
+  previous: number | null;
+  delta: number | null;
+  best: number;
+  attempts: number;
+}
+export interface ProgressData {
+  totals: { mocks: number; activities: number; evidence: number; factsKnown: number; activeDays: number; streak: number };
+  monthly: { thisMonth: { activities: number; mocks: number }; lastMonth: { activities: number; mocks: number } };
+  skills: SkillTrend[];
+  weakAreas: { type: string; count: number }[];
+  timeline: { ts: string; kind: string; module?: string; summary: string; status?: string }[];
+  recap: string;
+  hasData: boolean;
 }
 
 export interface ParentReport {

@@ -5,6 +5,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { generateJson } from "../services/gemini";
 import { buildContextPack } from "../services/contextPack";
+import { recordActivity } from "../services/activity";
 import {
   RECOMMENDER_COACH_SYSTEM,
   FUNDING_COACH_SYSTEM,
@@ -57,6 +58,11 @@ Write the recommender package now.`,
       projectSummary: "One paragraph describing your most meaningful project: what you built, why, and the impact. (Add your details.)",
       logistics: ["Share the deadline for each school", "How the letter is submitted (usually an email link)", "Your final school list"],
     }),
+  });
+  recordActivity(b.profileId, {
+    module: "coaches",
+    summary: `Worked with the recommender coach${b.recommenderRole ? ` (${b.recommenderRole})` : ""}`,
+    extractText: b.achievements && b.achievements.trim().length > 24 ? `Achievements the student listed for a recommendation: ${b.achievements}` : undefined,
   });
   // Defensive normalization in case the model returns partial JSON.
   res.json({
@@ -120,6 +126,15 @@ Return ONLY JSON: { "costExplanation": string, "sponsorStory": string, "gapAnaly
         "Simple version for parents: the US school needs to see that our family can pay for one year up front, on paper. Let's make sure our real documents clearly show that, or choose a school that fits our budget.",
     }),
   });
+  recordActivity(b.profileId, {
+    module: "coaches",
+    summary: `Reviewed funding${gap != null ? `, gap ~$${gap.toLocaleString()}` : ""}`,
+    facts: [
+      ...(b.i20CostUsd != null ? [{ profileId: b.profileId!, key: "finance.i20_cost", type: "constraint" as const, value: `I-20 cost ~$${b.i20CostUsd.toLocaleString()}/yr`, confidence: 0.85, source: "student_stated" as const }] : []),
+      ...(b.fundsUsd != null ? [{ profileId: b.profileId!, key: "finance.funds_shown", type: "constraint" as const, value: `Funds available ~$${b.fundsUsd.toLocaleString()}`, confidence: 0.85, source: "student_stated" as const }] : []),
+      ...(b.sponsor ? [{ profileId: b.profileId!, key: "finance.sponsor", type: "context" as const, value: `Sponsor: ${b.sponsor}`, confidence: 0.85, source: "student_stated" as const }] : []),
+    ],
+  });
   // Defensive normalization in case the model returns partial JSON.
   res.json({
     costExplanation: typeof data?.costExplanation === "string" ? data.costExplanation : "",
@@ -180,6 +195,10 @@ Build a term-by-term milestone plan from grade ${b.gradeLevel} through grade 12.
       ],
     }),
   });
+  recordActivity(b.profileId, {
+    module: "coaches",
+    summary: `Built a grade ${b.gradeLevel}-12 milestone plan`,
+  });
   // Defensive normalization in case the model returns partial JSON.
   res.json({
     overview: typeof data?.overview === "string" ? data.overview : "",
@@ -233,6 +252,12 @@ Return ONLY JSON: { "answer": string, "mustDo": string[], "checkWithDSO": true, 
       checkWithDSO: true,
       disclaimer: "This is general information, not legal advice. Always confirm with your DSO and, if needed, an immigration attorney before acting.",
     }),
+  });
+  recordActivity(b.profileId, {
+    module: "coaches",
+    kind: "note",
+    summary: `Asked about F-1 status: "${b.question.slice(0, 70)}"`,
+    facts: [{ profileId: b.profileId!, key: "visa.concern.f1", type: "context", value: `Asked about F-1 status: ${b.question}`, confidence: 0.6, source: "inferred" }],
   });
   // Defensive normalization in case the model returns partial JSON.
   res.json({

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../api/client";
 import type { School } from "../lib/types";
-import { markCompleted } from "../lib/progress";
+import { markCompleted, getProfileId } from "../lib/progress";
 import { useProfile } from "../lib/profile";
 import { Spinner, SourceBadge, PageHeading, ErrorNote } from "../components/ui";
 import { SkeletonList } from "../components/Skeleton";
@@ -74,12 +74,13 @@ export default function SchoolSearch() {
     setLoading(true);
     setError(false);
     try {
-      await saveNow(); // keep the shared profile fresh before searching
+      const pid = await saveNow(); // keep the shared profile fresh before searching
       const res = await api.searchSchools({
         search: local.search || undefined,
         state: local.state || undefined,
         maxNetPriceUsd: profile.budget ? Number(profile.budget) : undefined,
         intendedMajor: profile.intendedMajor || undefined,
+        profileId: pid || undefined,
       });
       setSchools(res.schools);
       setNote(res.advisorNote);
@@ -99,7 +100,7 @@ export default function SchoolSearch() {
     setLoading(true);
     setError(false);
     api
-      .searchSchools({ intendedMajor: profile.intendedMajor || undefined })
+      .searchSchools({ intendedMajor: profile.intendedMajor || undefined, profileId: getProfileId() || undefined })
       .then((res) => {
         setSchools(res.schools);
         setNote(res.advisorNote);

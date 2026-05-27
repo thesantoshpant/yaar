@@ -3,6 +3,7 @@ import { z } from "zod";
 import { generateText } from "../services/gemini";
 import { hasGemini } from "../config";
 import { buildContextPack } from "../services/contextPack";
+import { recordActivity } from "../services/activity";
 
 export const applicationsRouter = Router();
 
@@ -43,6 +44,16 @@ applicationsRouter.post("/draft", async (req, res) => {
   const parsed = bodySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const b = parsed.data;
+
+  // Whichever path we take, remember they're working on this essay and mine the real
+  // details they shared (their notes are some of the most valuable, true facts we get).
+  const kindLabel = b.type === "common_app" ? "Common App essay" : "Statement of Purpose";
+  recordActivity(b.profileId, {
+    module: "applications",
+    summary: `Drafted a ${kindLabel}${b.school ? ` for ${b.school}` : ""}`,
+    facts: b.school ? [{ profileId: b.profileId!, key: `application.target.${b.school.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 30)}`, type: "goal", value: `Working on an application to ${b.school}`, confidence: 0.8, source: "student_stated" }] : undefined,
+    extractText: b.notes && b.notes.trim().length > 24 ? `Real details the student shared for their essay: ${b.notes}` : undefined,
+  });
 
   if (!hasGemini) {
     return res.json({ draft: mockDraft(b), source: "mock" });

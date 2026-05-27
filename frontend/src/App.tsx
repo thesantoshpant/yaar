@@ -12,6 +12,7 @@ import Applications from "./pages/Applications";
 import Coaches from "./pages/Coaches";
 import Evidence from "./pages/Evidence";
 import Memory from "./pages/Memory";
+import Progress from "./pages/Progress";
 import SpeakingPractice from "./pages/SpeakingPractice";
 import MockTest from "./pages/MockTest";
 import VisaSimulator from "./pages/VisaSimulator";
@@ -28,6 +29,7 @@ export default function App() {
         <Route index element={<Dashboard />} />
         <Route path="updates" element={<Updates />} />
         <Route path="memory" element={<Memory />} />
+        <Route path="progress" element={<Progress />} />
         <Route path="counselor" element={<Counselor />} />
         <Route path="roadmap" element={<Roadmap />} />
         <Route path="schools" element={<SchoolSearch />} />

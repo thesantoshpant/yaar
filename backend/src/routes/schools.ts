@@ -3,6 +3,7 @@ import { z } from "zod";
 import { searchSchools } from "../services/collegeScorecard";
 import { generateText } from "../services/gemini";
 import { hasGemini } from "../config";
+import { recordActivity } from "../services/activity";
 import type { School } from "../lib/types";
 
 export const schoolsRouter = Router();
@@ -14,6 +15,7 @@ const bodySchema = z.object({
   minAdmitRate: z.number().optional(),
   intendedMajor: z.string().optional(),
   country: z.string().optional(),
+  profileId: z.string().optional(),
 });
 
 function categorize(s: School): School {
@@ -66,6 +68,14 @@ schoolsRouter.post("/search", async (req, res) => {
     });
     if (text && !text.startsWith("[mock]")) advisorNote = text;
   }
+
+  // Remember what they're looking for, so the rest of the app reflects their interest.
+  const searchLabel = [b.search, b.state && `in ${b.state}`, b.maxNetPriceUsd && `under $${b.maxNetPriceUsd.toLocaleString()}/yr`].filter(Boolean).join(" ");
+  recordActivity(b.profileId, {
+    module: "school_search",
+    summary: `Searched schools${searchLabel ? `: ${searchLabel}` : ""} (${ranked.length} results)`,
+    facts: b.maxNetPriceUsd ? [{ profileId: b.profileId!, key: "preference.school_budget", type: "preference", value: `Looking at schools under ~$${b.maxNetPriceUsd.toLocaleString()}/yr`, confidence: 0.7, source: "inferred" }] : undefined,
+  });
 
   res.json({ schools: ranked, advisorNote, source });
 });

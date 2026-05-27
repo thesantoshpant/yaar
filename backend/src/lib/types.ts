@@ -234,6 +234,10 @@ export interface MockAttempt {
   byType: { type: string; correct: number; total: number }[]; // per question-type performance
   weakTypes: string[]; // question types to drill next
   feedback: string;
+  // Full revisitable breakdown of the attempt: per-question review (reading/listening)
+  // or per-criterion scoring + model note (writing/speaking). Stored so a student can
+  // reopen any past attempt and see exactly how they did, not just the headline score.
+  analysis?: unknown;
   createdAt: string;
 }
 

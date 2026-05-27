@@ -2,9 +2,15 @@ import { Router } from "express";
 import { z } from "zod";
 import { generateJson } from "../services/gemini";
 import { buildContextPack } from "../services/contextPack";
+import { recordActivity } from "../services/activity";
+import { store } from "../lib/store";
 import { SPEAKING_PROMPTS } from "../data/questionBanks";
 import { examCriteria } from "../data/rubrics";
 import type { SpeakingScore } from "../lib/types";
+
+function slug(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 30);
+}
 
 export const speakingRouter = Router();
 
@@ -78,5 +84,34 @@ Return ONLY JSON: { "band": number, "exam": "${examName}", "criteria": { "name":
     improvedAnswer: typeof data?.improvedAnswer === "string" ? data.improvedAnswer : "",
     drills: Array.isArray(data?.drills) ? data.drills : [],
   };
+
+  // Standalone speaking practice counts toward the student's history + progress just
+  // like a mock does. Persist the attempt and write their level/weak areas to memory.
+  if (profileId) {
+    const scaledLabel = examName === "IELTS" ? `Band ${score.band.toFixed(1)}` : `${Math.round(score.band)} / 30`;
+    const weakTypes = score.criteria.filter((c) => c.score / scale < 0.6).map((c) => c.name);
+    void store
+      .saveMockAttempt({
+        profileId,
+        exam: examName as "IELTS" | "TOEFL",
+        skill: "speaking",
+        scaled: score.band,
+        scaledLabel,
+        byType: score.criteria.map((c) => ({ type: c.name, correct: Math.round(c.score), total: scale })),
+        weakTypes,
+        feedback: `Speaking practice: ${scaledLabel}.`,
+        analysis: { kind: "rubric", prompt, transcript: answer, criteria: score.criteria.map((c) => ({ ...c, max: scale })), modelNote: score.improvedAnswer },
+      })
+      .catch(() => {});
+    recordActivity(profileId, {
+      module: "speaking",
+      summary: `${examName} speaking practice: ${scaledLabel}`,
+      facts: [
+        { profileId, key: `${examName.toLowerCase()}.speaking.level`, type: "skill", value: `${examName} speaking: ${scaledLabel} (latest practice)`, confidence: 0.8, source: "module_outcome" },
+        ...weakTypes.slice(0, 3).map((w) => ({ profileId, key: `${examName.toLowerCase()}.speaking.weak.${slug(w)}`, type: "constraint" as const, value: `Needs work on ${examName} speaking: ${w}`, confidence: 0.75, source: "module_outcome" as const })),
+      ],
+    });
+  }
+
   res.json({ score, source });
 });

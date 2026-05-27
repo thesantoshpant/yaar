@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { generateJson } from "../services/gemini";
 import { buildContextPack } from "../services/contextPack";
+import { recordActivity } from "../services/activity";
 import type { Roadmap } from "../lib/types";
 
 export const roadmapRouter = Router();
@@ -103,5 +104,16 @@ Create the roadmap now.`;
         }))
       : [],
   };
+  // Remember that they built a plan, and mine their goals/timeline from it.
+  recordActivity(b.profileId, {
+    module: "roadmap",
+    summary: `Built a roadmap${b.intendedMajor ? ` for ${b.intendedMajor}` : ""}${b.targetIntake ? `, targeting ${b.targetIntake}` : ""}`,
+    facts: [
+      ...(b.targetIntake ? [{ profileId: b.profileId!, key: "target.intake", type: "goal" as const, value: b.targetIntake, confidence: 0.8, source: "student_stated" as const }] : []),
+      ...(b.intendedMajor ? [{ profileId: b.profileId!, key: "goal.major", type: "goal" as const, value: b.intendedMajor, confidence: 0.8, source: "student_stated" as const }] : []),
+    ],
+    extractText: roadmap.summary && roadmap.realisticOutcome ? `Roadmap built for this student. Summary: ${roadmap.summary} Realistic outcome: ${roadmap.realisticOutcome}` : undefined,
+  });
+
   res.json({ roadmap, source });
 });

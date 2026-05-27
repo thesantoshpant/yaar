@@ -127,6 +127,19 @@ async function main() {
 
   const mh = await call("GET", `/api/mock/history/${pid}`);
   check("mock.history", mh.status === 200 && Array.isArray(mh.json?.attempts), mh.status);
+  // Saved attempts must now carry the full revisitable analysis, not just the score.
+  check("mock.history.analysis", mh.status === 200 && mh.json?.attempts?.some((a) => a.analysis), mh.status);
+
+  // Progress pipeline: all the calls above used `pid`, so trends, a timeline of
+  // everything they did, and an honest recap should all be there.
+  const prog = await call("GET", `/api/progress/${pid}`);
+  const progOk =
+    prog.status === 200 &&
+    prog.json?.hasData &&
+    Array.isArray(prog.json?.skills) && prog.json.skills.length > 0 &&
+    Array.isArray(prog.json?.timeline) && prog.json.timeline.length > 0 &&
+    typeof prog.json?.recap === "string" && prog.json.recap.length > 0;
+  check("progress (trends+timeline)", progOk, prog.status, prog.json?.totals ? `${prog.json.totals.activities} acts` : "-");
 
   // Agentic company (ops is open on localhost).
   const org = await call("GET", "/api/ops/org");

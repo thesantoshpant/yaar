@@ -26,6 +26,7 @@ import { whatifRouter } from "./routes/whatif";
 import { digestRouter } from "./routes/digest";
 import { transcribeRouter } from "./routes/transcribe";
 import { mockRouter } from "./routes/mock";
+import { progressRouter } from "./routes/progress";
 import { ttsRouter } from "./routes/tts";
 import { opsRouter } from "./routes/ops";
 import { requireAdmin } from "./lib/adminAuth";
@@ -80,6 +81,7 @@ app.use("/api/whatif", whatifRouter);
 app.use("/api/digest", digestRouter);
 app.use("/api/transcribe", transcribeRouter);
 app.use("/api/mock", mockRouter);
+app.use("/api/progress", progressRouter);
 app.use("/api/tts", ttsRouter);
 app.use("/api/ops", requireAdmin, opsRouter);
 
