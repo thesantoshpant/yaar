@@ -15,6 +15,7 @@ import type {
   Entitlement,
   AgentAction,
   CompanyTask,
+  MockAttempt,
 } from "../lib/types";
 
 const journeySchema = new Schema(
@@ -193,6 +194,24 @@ const companyTaskSchema = new Schema(
   { collection: "company_tasks" }
 );
 
+const mockAttemptSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true, index: true },
+    profileId: { type: String, required: true, index: true },
+    exam: { type: String, required: true },
+    skill: { type: String, required: true },
+    scaled: { type: Number, default: 0 },
+    scaledLabel: { type: String, default: "" },
+    rawCorrect: { type: Number },
+    rawTotal: { type: Number },
+    byType: { type: [Schema.Types.Mixed], default: [] },
+    weakTypes: { type: [String], default: [] },
+    feedback: { type: String, default: "" },
+    createdAt: { type: String, required: true },
+  },
+  { collection: "mock_attempts" }
+);
+
 function model<T>(name: string, schema: Schema): mongoose.Model<T> {
   return (mongoose.models[name] as mongoose.Model<T>) ?? (mongoose.model(name, schema) as unknown as mongoose.Model<T>);
 }
@@ -209,3 +228,4 @@ export const EvidenceModel = model<EvidenceArtifact>("Evidence", evidenceSchema)
 export const EntitlementModel = model<Entitlement>("Entitlement", entitlementSchema);
 export const AgentActionModel = model<AgentAction>("AgentAction", agentActionSchema);
 export const CompanyTaskModel = model<CompanyTask>("CompanyTask", companyTaskSchema);
+export const MockAttemptModel = model<MockAttempt>("MockAttempt", mockAttemptSchema);

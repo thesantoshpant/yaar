@@ -15,6 +15,7 @@ import type {
   Entitlement,
   AgentAction,
   CompanyTask,
+  MockAttempt,
 } from "./types";
 import { dbConnected } from "../db";
 import { ProfileModel } from "../models/Profile";
@@ -31,6 +32,7 @@ import {
   EntitlementModel,
   AgentActionModel,
   CompanyTaskModel,
+  MockAttemptModel,
 } from "../models/intelligence";
 
 // ---- in-memory fallback collections ----
@@ -48,6 +50,7 @@ const mem = {
   entitlements: new Set<string>(), // `${profileId}:${product}`
   agentActions: [] as AgentAction[],
   companyTasks: [] as CompanyTask[],
+  mockAttempts: [] as MockAttempt[],
 };
 
 const now = () => new Date().toISOString();
@@ -290,6 +293,22 @@ export const store = {
     }
     const list = mem.riskReports.filter((r) => r.profileId === profileId);
     return list.length ? list[list.length - 1] : null;
+  },
+
+  // ---------- mock test attempts (history) ----------
+  async saveMockAttempt(input: Omit<MockAttempt, "id" | "createdAt">): Promise<MockAttempt> {
+    const attempt: MockAttempt = { ...input, id: nanoid(10), createdAt: now() };
+    if (dbConnected()) await MockAttemptModel.create(attempt);
+    else mem.mockAttempts.push(attempt);
+    return attempt;
+  },
+
+  async listMockAttempts(profileId: string, limit = 50): Promise<MockAttempt[]> {
+    if (dbConnected()) {
+      const docs = await MockAttemptModel.find({ profileId }).sort({ createdAt: -1 }).limit(limit).lean<MockAttempt[]>().exec();
+      return docs.map(clean);
+    }
+    return mem.mockAttempts.filter((a) => a.profileId === profileId).slice(-limit).reverse();
   },
 
   // ---------- evidence vault ----------

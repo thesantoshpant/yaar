@@ -221,6 +221,22 @@ export interface RiskReport {
   createdAt: string;
 }
 
+// A completed mock-test section (IELTS/TOEFL). Saved per attempt for history + memory.
+export interface MockAttempt {
+  id: string;
+  profileId: string;
+  exam: "IELTS" | "TOEFL";
+  skill: "reading" | "listening" | "writing" | "speaking";
+  scaled: number; // IELTS band (0-9) or TOEFL scaled (0-30) for this skill
+  scaledLabel: string; // e.g. "Band 6.5" or "24 / 30"
+  rawCorrect?: number;
+  rawTotal?: number;
+  byType: { type: string; correct: number; total: number }[]; // per question-type performance
+  weakTypes: string[]; // question types to drill next
+  feedback: string;
+  createdAt: string;
+}
+
 // Evidence Vault: every action a student takes becomes reusable application evidence.
 export interface EvidenceArtifact {
   id: string;
