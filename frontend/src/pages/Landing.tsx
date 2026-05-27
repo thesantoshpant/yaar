@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Reveal, stagger, staggerItem } from "../components/Reveal";
 import ThemeToggle from "../components/ThemeToggle";
+import { getUser } from "../lib/progress";
 
 const JOURNEY = [
   { step: "01", title: "Roadmap", text: "An honest plan for your tests, timeline, and budget. No fluff." },
@@ -358,6 +359,9 @@ function InteractiveSandbox() {
 }
 
 export default function Landing() {
+  // Reflect sign-in state: a signed-in visitor shouldn't be told to "Start free".
+  const user = getUser();
+  const firstName = user?.name?.split(" ")[0] ?? "";
   return (
     <div className="bg-bg">
       {/* Hero — deep premium navy with vibrant gradient energy; fills the viewport */}
@@ -372,7 +376,7 @@ export default function Landing() {
           </div>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <Link to="/app" className="btn-gold">Start free</Link>
+            <Link to="/app" className="btn-gold">{user ? "Go to my dashboard" : "Start free"}</Link>
           </div>
         </nav>
 
@@ -416,7 +420,7 @@ export default function Landing() {
               transition={{ duration: 0.6, delay: 0.18 }}
               className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start"
             >
-              <Link to="/app" className="btn-gold px-6 py-3 text-base">Start free, no card</Link>
+              <Link to="/app" className="btn-gold px-6 py-3 text-base">{user ? `Continue, ${firstName}` : "Start free, no card"}</Link>
               <Link to="/app/visa" className="btn px-6 py-3 text-base text-white ring-1 ring-white/25 backdrop-blur-sm hover:bg-white/10">
                 Try a mock visa interview
               </Link>
@@ -569,7 +573,7 @@ export default function Landing() {
           <p className="mx-auto mt-4 max-w-xl text-muted">
             Start free today. Yaar figures out your next best step and walks you through it, like a friend who's already been through it.
           </p>
-          <Link to="/app" className="btn-primary mt-8 px-8 py-3.5 text-base">Start free. It takes 2 minutes</Link>
+          <Link to="/app" className="btn-primary mt-8 px-8 py-3.5 text-base">{user ? "Pick up where you left off" : "Start free. It takes 2 minutes"}</Link>
           <p className="mx-auto mt-8 max-w-xl text-xs leading-relaxed text-faint">
             Yaar is a coaching and information tool. It is not legal or immigration advice, and outcomes are never guaranteed.
           </p>
