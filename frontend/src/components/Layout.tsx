@@ -53,8 +53,8 @@ export default function Layout() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-6 py-5">
         <Link to="/" className="flex items-center gap-2">
-          <img src="/star.svg" alt="" className="h-7 w-7 dark:[filter:brightness(0)_invert(1)]" />
-          <span className="font-display text-lg font-extrabold tracking-tight text-ink">Yaar</span>
+          <img src="/star.svg" alt="" className="h-7 w-7 [filter:brightness(0)_invert(1)]" />
+          <span className="font-display text-lg font-extrabold tracking-tight text-white">Yaar</span>
         </Link>
         <ThemeToggle />
       </div>
@@ -70,19 +70,19 @@ export default function Layout() {
             to={n.to}
             end={n.end}
             className={({ isActive }) =>
-              `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+              `group flex items-center gap-3 rounded-full px-3.5 py-2.5 text-sm font-medium transition-all ${
                 isActive
-                  ? "bg-gradient-to-r from-brand-600 to-violet-500 text-white shadow-sm shadow-brand-700/30"
-                  : "text-muted hover:bg-surface-2 hover:text-ink"
+                  ? "bg-gold-500 text-gold-ink shadow-sm"
+                  : "text-white/75 hover:bg-white/10 hover:text-white"
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <n.Icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-white" : "text-faint group-hover:text-brand-500"}`} />
+                <n.Icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-gold-ink" : "text-white/60 group-hover:text-white"}`} />
                 <span className="flex-1">{n.label}</span>
                 {n.to === "/app/updates" && unread > 0 && (
-                  <span className={`badge ${isActive ? "bg-white/20 text-white" : "bg-brand-600 text-white"}`}>{unread}</span>
+                  <span className={`badge ${isActive ? "bg-gold-ink/20 text-gold-ink" : "bg-coral-500 text-white"}`}>{unread}</span>
                 )}
               </>
             )}
@@ -92,13 +92,13 @@ export default function Layout() {
 
       <div className="px-4 py-4">
         {mode && (
-          <div className="rounded-xl border border-line bg-surface-2/60 p-3 text-xs text-muted">
-            <div className="mb-1 font-semibold text-ink">System</div>
+          <div className="rounded-xl border border-white/15 bg-white/10 p-3 text-xs text-white/80">
+            <div className="mb-1 font-semibold text-white">System</div>
             <SysRow label="AI" ok={mode.gemini === "live"} on="live Gemini" off="demo mode" />
             <SysRow label="Schools" ok={mode.collegeScorecard === "live"} on="live data" off="demo data" />
             <div className="flex items-center justify-between">
               <span>Database</span>
-              <span className="font-medium text-ink">{mode.db}</span>
+              <span className="font-medium text-white">{mode.db}</span>
             </div>
           </div>
         )}
@@ -140,7 +140,7 @@ export default function Layout() {
               onClick={() => setOpen(false)}
             />
             <motion.aside
-              className="fixed inset-y-0 left-0 z-50 w-72 border-r border-line bg-surface lg:hidden"
+              className="fixed inset-y-0 left-0 z-50 w-72 border-r border-brand-700 bg-brand-600 lg:hidden"
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
@@ -153,7 +153,7 @@ export default function Layout() {
       </AnimatePresence>
 
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen border-r border-line bg-surface lg:block lg:w-64 lg:shrink-0">
+      <aside className="sticky top-0 hidden h-screen border-r border-brand-700 bg-brand-600 lg:block lg:w-64 lg:shrink-0">
         {Sidebar}
       </aside>
 

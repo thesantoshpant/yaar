@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Yaar - Your Study Abroad Buddy</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error": "#ba1a1a",
+                        "on-secondary-container": "#296e6d",
+                        "on-tertiary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "inverse-primary": "#ffb951",
+                        "on-primary-fixed": "#291800",
+                        "on-tertiary-fixed-variant": "#90003d",
+                        "on-error-container": "#93000a",
+                        "on-primary-container": "#613e00",
+                        "tertiary-fixed-dim": "#ffb1c0",
+                        "on-tertiary-container": "#8e003c",
+                        "primary-fixed-dim": "#ffb951",
+                        "secondary-fixed": "#abefed",
+                        "on-surface-variant": "#524533",
+                        "surface-bright": "#fcf8ff",
+                        "primary-fixed": "#ffddb3",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed-variant": "#633f00",
+                        "secondary": "#216867",
+                        "on-secondary-fixed": "#00201f",
+                        "outline": "#857461",
+                        "on-primary": "#ffffff",
+                        "on-background": "#1a1a2e",
+                        "on-tertiary-fixed": "#3f0017",
+                        "inverse-surface": "#2f2e43",
+                        "surface-container-highest": "#e2e0fc",
+                        "surface-container-high": "#e8e5ff",
+                        "on-surface": "#1a1a2e",
+                        "surface-tint": "#825500",
+                        "secondary-container": "#abefed",
+                        "background": "#fcf8ff",
+                        "on-secondary-fixed-variant": "#00504f",
+                        "tertiary": "#b32053",
+                        "tertiary-container": "#ff94ab",
+                        "inverse-on-surface": "#f2efff",
+                        "primary-container": "#f4a300",
+                        "outline-variant": "#d7c3ad",
+                        "surface-variant": "#e2e0fc",
+                        "surface-container": "#efecff",
+                        "secondary-fixed-dim": "#90d2d0",
+                        "tertiary-fixed": "#ffd9df",
+                        "primary": "#825500",
+                        "surface-container-low": "#f5f2ff",
+                        "surface-dim": "#dad7f3",
+                        "surface": "#fcf8ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "8px",
+                        "container-max": "1200px",
+                        "lg": "48px",
+                        "xs": "4px",
+                        "xl": "80px",
+                        "gutter": "24px",
+                        "md": "24px",
+                        "sm": "12px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Be Vietnam Pro"],
+                        "headline-xl": ["Plus Jakarta Sans"],
+                        "label-sm": ["Be Vietnam Pro"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Be Vietnam Pro"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"],
+                        "body-lg": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "label-md": ["14px", { "lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-xl": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "label-sm": ["12px", { "lineHeight": "1.4", "fontWeight": "500" }],
+                        "headline-md": ["24px", { "lineHeight": "1.3", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-card {
+            background: rgba(252, 248, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(244, 163, 0, 0.2);
+            box-shadow: 0 8px 32px rgba(26, 26, 46, 0.05);
+        }
+        .hero-glow {
+            background: radial-gradient(circle at 50% 0%, rgba(244,163,0,0.15) 0%, rgba(252,248,255,0) 60%);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen overflow-x-hidden">
+<!-- Top Navigation -->
+<nav class="fixed top-0 left-0 w-full z-50 glass-card px-md py-sm flex justify-between items-center md:px-xl transition-all duration-300" id="navbar">
+<div class="flex items-center gap-sm cursor-pointer">
+<img alt="Yaar Logo" class="w-10 h-10 rounded-DEFAULT" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAH1ElEQVR4AexbX4hUVRz+zoym7cyKgvSSYooW7KxkGCoEhYJYC1GCGq4zK/S4PfiS9mAPBikVPgnpc7r5tJHWg6EQFBWpWJHugulqqJGaZba6rK0719933bvMnzv37zl3LjrLPXPP+f073++b+83M3tnNoPUTi4EWgbHoA1oEtgiMyUDM9FRfgcN96OCI2aPR9FQTmLGwnsMoAzGLp5rAMrCBI2aPRtNTS+DoASxUQAcH50ZZiFE8tQSOA5ucvirnji0t59QSWCndynlaiHNwpJJASpbSdUByTpuzTtM5lQS6SdbNlgYiU0mgm2TdbBEJ1JqWOgIpVUq2tkva6Ku1N3udOgK9pOrlaxaRqSPQS6pevhaBwgAlSqnK1PWgjzGuziYZU3UFBpFokJgkuUwVgUEkGiTmkSSQ0qRE/ZpnDGP94pLyp+YKDCPNMLGmiUwNgWGkGSb2kSCQkqQ0gzbLWOYEjTcZl4orMIoko+SYIDIVBEaRZJSch5JASpGS9G6u3ssc5tZ7krU0/QqMI8U4ubpobjqBcaQYJ/ehIJASpBSjNsNc1oiaryOvqVegDgnqqBGHyKYSqEOCOmpoJfB2Hzbf3o/R2wdgmR6UYBzwzGUN0zjt+uREuOGelaPuCswX8YkFPA8LlyoDk5qf+nc2tg0sw9oTq1H4ep09OH9HbPQlhaNqH+GCnJCbKrss6ggUG9p7cCaXwWKZH5GRyDE6nsX7Z5/Da8dXo+/KIhy/+QRujk2zB+cHxEbfzt+WYKzsCtsUziPkgpy4bdAQiSriv3wJXSKR7ZIor9XyaOgYGJ6F1T90Ye/vHSijISTb9/HFAl758WUwxxAcp+y4ArbbHAgXjrH23BjtRGSuhF3ZDFZZFv6aMGk/HfpzHoZGZgSuOyiEMydwQshA9sqe2btfqi+BLPD4JnyrpoikLZzgWuc4Ka95ey92hC7JHCNXofTIXtlzEFCBCGShfDeu5ebiBXlz2QONP/1/LJCSIpaQNS0o7L+0KGSWT7iFPeyRvfpETroDE8gMtRL38j3YIknrpOs7tDUcAR1nRI4BQ+vCzt8JLvu65EqDhTvsib2xx0qX31zy/ELq/W0lfDZFYYkFnKv3hrMMxSDhXIxcByV7YC/sybGFOUcikBtML+F8fqZNYj/XUcdjGaNv8J6whLx+9sBePAM9nJEJZE31KkbaS1gv71pbRNJjtIUdne03w6ZMxkfOtTBGzMTOHiYLRpjEItDZTz5k7lEZ8A3mqmMLei7MiE5gpFwLV4mVmINi9IrTQiA3yBVxMicfdeSZ/YbroGPjk0OYqsLLOJcdQ/ecoaDb2HHERozEahs0PGgjkFhUN27kL8iHbmCXrC0ZvseC3DDeXnjaN642YNvCXzG/bbjW3Ggt3GEXsRFjo6Aodq0EEoDagbK8tvDXvy4LuEWb3+idP4jO9n/8wib9BYl9c97ZybXXZAJDFzERm1dsFJ92Ah0Q8jvkV1mRtKx9L6+ssvDF8qN4a/4AMvIbr+S4HvT1PjWILyWWOa5B1cbTxEAs1WZ9K2MEEmLbRlzOTbNvjR3k2mtMz45j+9O/4PDyYyjNOYfls65j1tS79uC8KDb63n3mZzDWq5bts3CQexODvTb0YJRAYlYb8L+VwU7Og4ylM2/gw8IJfL7sGAZW9duD84/ERl+QGozhntybc5PDOIEE34z/d0tqz0QIbMb3FkntWUUgrxbdg187KiD8/aqYQLgn945ZxjfdOIHyEXnyf9580WgOSGJv4wQmJSU37pPY2yiBlBCl5NZcEjbuTQwm9zJKYBIS8iPHNAajBCYhIT8CTWMwRiClQwn5NWjaTwzEYmofYwSOW+iOBdrCCBRKUqMoN2tH5Bz5MCljYwSWFd6I3LGFgSlZLM4X0Sc3Aj7lXEgciFrPpIyNEEjJUDpRGpbbT/tys7F0+iZccPI5p40+xxbmTCzEFCYnaKwRAqNIRsi5pcp4Xe7b9aou3K1tgDbbJzGMrfX7raNg8qtJvxECQ0vGwqmsQmduMw4TlNdgDGNF0qe84mp9oTHVFmiw1k4gpULJNNiv1iwXE3bn5mJFWxFXap2N1oxljvh3y2ANOXkfCuggttqouGvtBAaVinR9Q8CvkTeJrWol7sk81MEc5krSmolaMvU+gmLzrlLt1U5gEKnINzzfiQQLQsCxajjhV3YNCwW7pk96EGw+JercWgmkRCiVul0cg4WyXC3vybdjL7X34LpjjntmLdZkbXlihCf3isRGjO7eaFatBPpI5FomgxflnXSH2oGGTUZrA2BN1uYeAK7JcD18MLrmeBm1EiisbGiw2dFcGQV58f++gV+bmXtwLyl4VEbd4YGxLjaIQRuBlIaSd7qqTS3w72W2yuvUGrUZf1f5DC64F/eULbaKpIlBpg8OYiTWB6v4j9oIrJOGhctKYYU0wo8a8ZFGqMC9iUFIvFyZXoe10hlyro3ASmlYwKFcBp25En4KiUd7ODEQCzE5xSuxOraoZy0EUhKUhjzTo3LulRfztfwr/6igdOcRi40J6J3AqO1DtRYCKQn5HDYkX2YvlWd8n24CdNUjNmIkVmLWUVcLgZbC3TzwbHsRgzpAmaxBjMRKzDr20UKg3Lf7QPVAyx+d62jKrwaxErNfXBC/FgKDbKQxJlWlWgTGfDpaBLYIjMlAzPT7AAAA///wRvU6AAAABklEQVQDAMNYsL8PLlUrAAAAAElFTkSuQmCC"/>
+<span class="font-headline-md text-headline-md text-primary">Yaar</span>
+</div>
+<div class="hidden md:flex items-center gap-md">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">How it works</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Pricing</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Testimonials</a>
+</div>
+<div class="flex items-center gap-sm">
+<button class="hidden md:block font-label-md text-label-md text-on-surface-variant px-md py-base rounded-full border border-transparent hover:border-outline-variant transition-all">Sign in</button>
+<button class="font-label-md text-label-md bg-primary-container text-on-primary-container px-md py-base rounded-full hover:bg-primary hover:text-on-primary transition-all shadow-sm">Get Started</button>
+</div>
+</nav>
+<!-- Hero Section -->
+<main class="pt-32 pb-xl px-md md:px-xl hero-glow min-h-[90vh] flex flex-col justify-center">
+<div class="max-w-container-max mx-auto w-full grid md:grid-cols-2 gap-lg items-center">
+<div class="flex flex-col gap-md items-start">
+<div class="inline-flex items-center gap-xs bg-surface-container-high border border-outline-variant rounded-full px-sm py-xs">
+<span class="material-symbols-outlined text-primary text-[16px]">waving_hand</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">"Yaar" means buddy. That's the whole idea.</span>
+</div>
+<h1 class="font-headline-xl text-headline-xl md:text-[56px] text-on-surface leading-tight">
+                    From your hometown to a US degree, with a buddy who never takes a cut.
+                </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-lg">
+                    No agents. No commissions. Just a supportive AI that runs your whole study-abroad journey, honest and unbiased.
+                </p>
+<div class="flex flex-col sm:flex-row gap-sm w-full mt-sm">
+<button class="font-label-md text-label-md bg-primary-container text-on-primary-container px-lg py-sm rounded-full hover:bg-primary hover:text-on-primary transition-all shadow-md w-full sm:w-auto text-center">
+                        Start free, no card
+                    </button>
+<button class="font-label-md text-label-md bg-transparent border border-secondary text-secondary px-lg py-sm rounded-full hover:bg-secondary hover:text-on-secondary transition-all w-full sm:w-auto text-center">
+                        Try a mock visa interview
+                    </button>
+</div>
+<div class="flex items-center gap-sm mt-md flex-wrap">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Supporting students from:</span>
+<div class="flex gap-xs">
+<span class="bg-surface-container px-xs py-xs rounded-DEFAULT text-label-sm font-label-sm border border-outline-variant">🇳🇵 Nepal</span>
+<span class="bg-surface-container px-xs py-xs rounded-DEFAULT text-label-sm font-label-sm border border-outline-variant">🇮🇳 India</span>
+<span class="bg-surface-container px-xs py-xs rounded-DEFAULT text-label-sm font-label-sm border border-outline-variant">🇧🇩 Bangladesh</span>
+<span class="bg-surface-container px-xs py-xs rounded-DEFAULT text-label-sm font-label-sm border border-outline-variant">+ South Asia</span>
+</div>
+</div>
+</div>
+<div class="hidden md:flex justify-center relative">
+<!-- Chat Preview Card -->
+<div class="glass-card w-full max-w-sm rounded-xl p-md flex flex-col gap-sm shadow-xl border border-outline-variant relative z-10 transform rotate-1 hover:rotate-0 transition-transform duration-500">
+<div class="flex items-center gap-sm border-b border-outline-variant pb-sm mb-sm">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center">
+<img alt="Yaar Avatar" class="w-6 h-6 rounded-sm" src="data:image/png;base64,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"/>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface">Yaar AI</p>
+<p class="font-label-sm text-label-sm text-secondary">Online</p>
+</div>
+</div>
+<div class="flex flex-col gap-base overflow-y-auto max-h-[300px] pr-xs">
+<!-- User Message -->
+<div class="self-end bg-surface-container-high text-on-surface rounded-xl rounded-tr-none px-sm py-base max-w-[85%]">
+<p class="font-body-md text-body-md text-sm">I'm really stressed about the visa interview. I feel like my English isn't good enough.</p>
+</div>
+<!-- AI Message -->
+<div class="self-start bg-gradient-to-br from-secondary-container to-primary-container/30 text-on-surface rounded-xl rounded-tl-none px-sm py-base max-w-[85%] border border-outline-variant/30">
+<p class="font-body-md text-body-md text-sm">Hey, take a deep breath! 🌱 Your English is perfectly fine for this. The visa officer just wants to see you're a genuine student.</p>
+</div>
+<!-- AI Message 2 -->
+<div class="self-start bg-gradient-to-br from-secondary-container to-primary-container/30 text-on-surface rounded-xl rounded-tl-none px-sm py-base max-w-[85%] border border-outline-variant/30">
+<p class="font-body-md text-body-md text-sm">Want to try a quick 5-minute mock interview right now to build some confidence?</p>
+</div>
+</div>
+<div class="mt-sm relative">
+<input class="w-full bg-surface border border-outline-variant rounded-full py-base px-sm font-body-md text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="Type a message..." type="text"/>
+<button class="absolute right-xs top-1/2 transform -translate-y-1/2 text-primary p-xs rounded-full hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[20px]">send</span>
+</button>
+</div>
+</div>
+<!-- Decorative background elements -->
+<div class="absolute -z-10 top-10 right-10 w-64 h-64 bg-primary-container/20 rounded-full blur-3xl"></div>
+<div class="absolute -z-10 bottom-10 left-10 w-48 h-48 bg-secondary/20 rounded-full blur-3xl"></div>
+</div>
+</div>
+</main>
+<script>
+        // Simple navbar scroll effect
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                nav.classList.add('shadow-md', 'bg-surface-container-lowest/90');
+                nav.classList.remove('glass-card');
+            } else {
+                nav.classList.remove('shadow-md', 'bg-surface-container-lowest/90');
+                nav.classList.add('glass-card');
+            }
+        });
+    </script>
+</body></html>

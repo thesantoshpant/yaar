@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Counselor Chat - Yaar</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "error": "#ba1a1a",
+                      "on-secondary-container": "#296e6d",
+                      "on-tertiary": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "inverse-primary": "#ffb951",
+                      "on-primary-fixed": "#291800",
+                      "on-tertiary-fixed-variant": "#90003d",
+                      "on-error-container": "#93000a",
+                      "on-primary-container": "#613e00",
+                      "tertiary-fixed-dim": "#ffb1c0",
+                      "on-tertiary-container": "#8e003c",
+                      "primary-fixed-dim": "#ffb951",
+                      "secondary-fixed": "#abefed",
+                      "on-surface-variant": "#524533",
+                      "surface-bright": "#fcf8ff",
+                      "primary-fixed": "#ffddb3",
+                      "surface-container-lowest": "#ffffff",
+                      "on-error": "#ffffff",
+                      "on-secondary": "#ffffff",
+                      "on-primary-fixed-variant": "#633f00",
+                      "secondary": "#216867",
+                      "on-secondary-fixed": "#00201f",
+                      "outline": "#857461",
+                      "on-primary": "#ffffff",
+                      "on-background": "#1a1a2e",
+                      "on-tertiary-fixed": "#3f0017",
+                      "inverse-surface": "#2f2e43",
+                      "surface-container-highest": "#e2e0fc",
+                      "surface-container-high": "#e8e5ff",
+                      "on-surface": "#1a1a2e",
+                      "surface-tint": "#825500",
+                      "secondary-container": "#abefed",
+                      "background": "#fcf8ff",
+                      "on-secondary-fixed-variant": "#00504f",
+                      "tertiary": "#b32053",
+                      "tertiary-container": "#ff94ab",
+                      "inverse-on-surface": "#f2efff",
+                      "primary-container": "#f4a300",
+                      "outline-variant": "#d7c3ad",
+                      "surface-variant": "#e2e0fc",
+                      "surface-container": "#efecff",
+                      "secondary-fixed-dim": "#90d2d0",
+                      "tertiary-fixed": "#ffd9df",
+                      "primary": "#825500",
+                      "surface-container-low": "#f5f2ff",
+                      "surface-dim": "#dad7f3",
+                      "surface": "#fcf8ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "base": "8px",
+                      "container-max": "1200px",
+                      "lg": "48px",
+                      "xs": "4px",
+                      "xl": "80px",
+                      "gutter": "24px",
+                      "md": "24px",
+                      "sm": "12px"
+              },
+              "fontFamily": {
+                      "label-md": [
+                              "Be Vietnam Pro"
+                      ],
+                      "headline-xl": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "label-sm": [
+                              "Be Vietnam Pro"
+                      ],
+                      "headline-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "headline-lg": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-md": [
+                              "Be Vietnam Pro"
+                      ],
+                      "headline-lg-mobile": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-lg": [
+                              "Be Vietnam Pro"
+                      ]
+              },
+              "fontSize": {
+                      "label-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-xl": [
+                              "48px",
+                              {
+                                      "lineHeight": "1.1",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "28px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        body { background-color: #fcf8ff; color: #1a1a2e; }
+        .ghost-border { border: 1px solid #FFEFC9; }
+        
+        /* Chat bubble gradient */
+        .bg-yaar-gradient {
+            background: linear-gradient(135deg, #216867 0%, #f4a300 100%);
+        }
+        
+        /* Typing animation */
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out;
+            fill: #1a1a2e;
+        }
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 100% { opacity: 0.2; transform: translateY(0); }
+            50% { opacity: 1; transform: translateY(-4px); }
+        }
+        
+        /* Hide scrollbar for clean look in chat area */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md h-screen w-screen overflow-hidden flex">
+<!-- SideNavBar (Web) -->
+<nav class="hidden md:flex flex-col h-full py-8 px-4 gap-2 bg-secondary dark:bg-secondary h-screen w-72 fixed left-0 top-0 shadow-sm z-20">
+<div class="mb-8 px-4">
+<h1 class="font-headline-lg text-headline-lg text-primary dark:text-primary-fixed font-black">Yaar</h1>
+<p class="font-label-sm text-label-sm text-on-secondary opacity-80 mt-1">Signed in as Student</p>
+</div>
+<div class="flex flex-col gap-1 overflow-y-auto no-scrollbar flex-1">
+<a class="text-on-secondary hover:text-primary-fixed-dim px-4 py-2 flex items-center gap-3 transition-colors hover:bg-secondary-container/10 transition-all rounded-full" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="text-on-secondary hover:text-primary-fixed-dim px-4 py-2 flex items-center gap-3 transition-colors hover:bg-secondary-container/10 transition-all rounded-full" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span>
+<span class="font-label-md text-label-md">Updates</span>
+</a>
+<a class="text-on-secondary hover:text-primary-fixed-dim px-4 py-2 flex items-center gap-3 transition-colors hover:bg-secondary-container/10 transition-all rounded-full" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">psychology</span>
+<span class="font-label-md text-label-md">Mind</span>
+</a>
+<a class="text-on-secondary hover:text-primary-fixed-dim px-4 py-2 flex items-center gap-3 transition-colors hover:bg-secondary-container/10 transition-all rounded-full" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">trending_up</span>
+<span class="font-label-md text-label-md">Progress</span>
+</a>
+<!-- ACTIVE TAB -->
+<a class="bg-primary text-on-primary rounded-full px-4 py-2 flex items-center gap-3 font-bold hover:bg-secondary-container/10 transition-all scale-95 duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">support_agent</span>
+<span class="font-label-md text-label-md">Counselor</span>
+</a>
+<a class="text-on-secondary hover:text-primary-fixed-dim px-4 py-2 flex items-center gap-3 transition-colors hover:bg-secondary-container/10 transition-all rounded-full" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">map</span>
+<span class="font-label-md text-label-md">Roadmap</span>
+</a>
+<a class="text-on-secondary hover:text-primary-fixed-dim px-4 py-2 flex items-center gap-3 transition-colors hover:bg-secondary-container/10 transition-all rounded-full" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">search</span>
+<span class="font-label-md text-label-md">School search</span>
+</a>
+<a class="text-on-secondary hover:text-primary-fixed-dim px-4 py-2 flex items-center gap-3 transition-colors hover:bg-secondary-container/10 transition-all rounded-full" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">assignment</span>
+<span class="font-label-md text-label-md">Applications</span>
+</a>
+</div>
+<div class="mt-auto px-4 pt-4 border-t border-secondary-fixed-dim/20">
+<p class="font-label-sm text-label-sm text-on-secondary opacity-70">System Status: Active</p>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 ml-0 md:ml-72 flex flex-col h-full bg-background relative">
+<!-- TopAppBar -->
+<header class="hidden md:flex justify-end items-center px-10 py-6 bg-transparent fixed top-0 right-0 w-[calc(100%-18rem)] z-10 pointer-events-none">
+<div class="pointer-events-auto flex gap-4">
+<button class="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center ghost-border text-on-surface-variant hover:opacity-80 cursor-pointer transition-opacity">
+<span class="material-symbols-outlined">dark_mode</span>
+</button>
+</div>
+</header>
+<!-- Chat Container -->
+<div class="flex-1 flex flex-col h-full pt-4 md:pt-20 pb-4 px-4 md:px-gutter max-w-container-max mx-auto w-full">
+<!-- Messages Area -->
+<div class="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-6 py-4">
+<!-- Timestamp -->
+<div class="text-center font-label-sm text-label-sm text-on-surface-variant opacity-70">
+                    Today, 10:42 AM
+                </div>
+<!-- Yaar Message -->
+<div class="flex items-end gap-3 max-w-[85%] md:max-w-[70%]">
+<img alt="Yaar Avatar" class="w-10 h-10 rounded-full shadow-sm" src="data:image/png;base64,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"/>
+<div class="bg-yaar-gradient text-white px-5 py-4 rounded-2xl rounded-bl-sm shadow-sm font-body-md text-body-md">
+                        Hey Arjun, I've got your back. What's on your mind today?
+                    </div>
+</div>
+<!-- Student Message -->
+<div class="flex items-end gap-3 max-w-[85%] md:max-w-[70%] self-end">
+<div class="bg-white border border-[#FFEFC9] text-on-surface px-5 py-4 rounded-2xl rounded-br-sm shadow-sm font-body-md text-body-md">
+                        I'm feeling a bit overwhelmed with my essay drafts. Not sure if they sound authentic enough.
+                    </div>
+</div>
+<!-- Yaar Message (Typing) -->
+<div class="flex items-end gap-3 max-w-[85%] md:max-w-[70%]">
+<img alt="Yaar Avatar" class="w-10 h-10 rounded-full shadow-sm" src="data:image/png;base64,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"/>
+<div class="bg-surface-container-low border border-[#FFEFC9] px-5 py-4 rounded-2xl rounded-bl-sm shadow-sm flex items-center gap-1 h-12">
+<svg height="12" viewbox="0 0 24 12" width="24" xmlns="http://www.w3.org/2000/svg">
+<circle class="typing-dot" cx="4" cy="6" r="3"></circle>
+<circle class="typing-dot" cx="12" cy="6" r="3"></circle>
+<circle class="typing-dot" cx="20" cy="6" r="3"></circle>
+</svg>
+</div>
+</div>
+</div>
+<!-- Input Area -->
+<div class="mt-auto flex flex-col gap-4 bg-background pt-2 pb-4">
+<!-- Suggested Prompts -->
+<div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-[#DCEDEC] text-[#216867] font-label-sm text-label-sm hover:bg-[#c0e0de] transition-colors flex items-center gap-2">
+                        💡 Check my visa chances
+                    </button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-[#DCEDEC] text-[#216867] font-label-sm text-label-sm hover:bg-[#c0e0de] transition-colors flex items-center gap-2">
+                        📝 Help with my essay
+                    </button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-[#DCEDEC] text-[#216867] font-label-sm text-label-sm hover:bg-[#c0e0de] transition-colors flex items-center gap-2">
+                        🏫 Find safe schools
+                    </button>
+</div>
+<!-- Chat Input Box -->
+<div class="relative flex items-center bg-white rounded-full p-2 ghost-border shadow-sm focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-fixed-dim/30 transition-all">
+<input class="flex-1 bg-transparent border-none outline-none px-4 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant/60 focus:ring-0" placeholder="Type your message..." type="text"/>
+<div class="flex items-center gap-2 pr-1">
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined">mic</span>
+</button>
+<button class="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">send</span>
+</button>
+</div>
+</div>
+<div class="text-center">
+<p class="font-label-sm text-label-sm text-on-surface-variant/60">Yaar AI can make mistakes. Consider verifying important information.</p>
+</div>
+</div>
+</div>
+</main>
+</body></html>

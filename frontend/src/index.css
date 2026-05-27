@@ -7,26 +7,28 @@
      Values are space-separated RGB channels so Tailwind's <alpha-value>
      syntax (e.g. bg-surface/60) works. */
   :root {
-    --bg: 248 249 253;
+    /* "Warm Buddy": a warm cream canvas, white cards, plum ink, warm hairlines. */
+    --bg: 255 246 233;
     --surface: 255 255 255;
-    --surface-2: 240 242 249;
-    --ink: 15 23 42;
-    --muted: 71 85 105;
-    --faint: 148 163 184;
-    --line: 225 229 240;
+    --surface-2: 251 239 217;
+    --ink: 26 26 46;
+    --muted: 91 79 62;
+    --faint: 138 122 102;
+    --line: 236 221 196;
   }
   .dark {
-    --bg: 10 12 27;
-    --surface: 20 25 44;
-    --surface-2: 31 38 63;
-    --ink: 244 247 252;
-    --muted: 161 172 197;
-    --faint: 110 124 156;
-    --line: 42 51 78;
+    /* Deep teal-plum night, keeping the warm accents glowing. */
+    --bg: 14 27 34;
+    --surface: 20 37 43;
+    --surface-2: 30 48 54;
+    --ink: 242 239 230;
+    --muted: 176 192 191;
+    --faint: 122 142 141;
+    --line: 41 60 64;
   }
 
   html {
-    font-family: "Inter", system-ui, sans-serif;
+    font-family: "Be Vietnam Pro", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     scroll-behavior: smooth;
   }
@@ -35,15 +37,15 @@
     /* Ambient color wash so backgrounds have depth instead of flat gray.
        The gradients fade to transparent, letting the bg token show through. */
     background-image:
-      radial-gradient(42rem 30rem at 100% -8%, rgba(99, 102, 241, 0.07), transparent 60%),
-      radial-gradient(38rem 28rem at -8% 2%, rgba(217, 70, 239, 0.05), transparent 55%);
+      radial-gradient(42rem 30rem at 100% -8%, rgba(244, 163, 0, 0.10), transparent 60%),
+      radial-gradient(38rem 28rem at -8% 2%, rgba(255, 92, 138, 0.06), transparent 55%);
     background-attachment: fixed;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
   .dark body {
     background-image:
-      radial-gradient(46rem 32rem at 100% -8%, rgba(99, 102, 241, 0.18), transparent 60%),
-      radial-gradient(40rem 30rem at -8% 4%, rgba(139, 92, 246, 0.13), transparent 55%);
+      radial-gradient(46rem 32rem at 100% -8%, rgba(244, 163, 0, 0.12), transparent 60%),
+      radial-gradient(40rem 30rem at -8% 4%, rgba(33, 104, 103, 0.22), transparent 55%);
   }
   ::selection {
     @apply bg-brand-500/25;
@@ -67,17 +69,23 @@
 }
 
 @layer components {
+  /* Pill-shaped buttons, the friendly Warm Buddy shape language. */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 disabled:opacity-50 disabled:cursor-not-allowed;
   }
+  /* Primary action = marigold fill with dark plum-brown text. */
   .btn-primary {
-    @apply btn bg-gradient-to-r from-brand-600 via-brand-500 to-violet-500 text-white shadow-sm shadow-brand-700/30 hover:shadow-glow hover:brightness-[1.07] active:brightness-95;
+    @apply btn bg-gold-500 text-gold-ink shadow-sm shadow-gold-500/30 hover:bg-gold-400 hover:shadow-glow active:brightness-95;
+  }
+  /* Secondary = deep teal, cream text. */
+  .btn-secondary {
+    @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-500 active:brightness-95;
   }
   .btn-ghost {
     @apply btn border border-line bg-surface text-ink hover:bg-surface-2;
   }
   .btn-gold {
-    @apply btn bg-gradient-to-r from-gold-300 to-gold-500 text-slate-950 shadow-sm shadow-gold-500/30 hover:brightness-[1.06] active:brightness-95;
+    @apply btn bg-gradient-to-r from-gold-300 to-gold-500 text-gold-ink shadow-sm shadow-gold-500/30 hover:brightness-[1.06] active:brightness-95;
   }
   .card {
     @apply rounded-2xl border border-line bg-surface p-6 shadow-soft;
@@ -103,12 +111,12 @@
 }
 
 @layer utilities {
-  /* Vibrant indigo→violet→fuchsia gradient text for hero/brand accents */
+  /* Warm coral→marigold→teal gradient text for hero/brand accents */
   .text-vibe {
-    @apply bg-gradient-to-r from-brand-400 via-violet-400 to-fuchsia-400 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-coral-500 via-gold-500 to-brand-500 bg-clip-text text-transparent;
   }
   .text-gradient {
-    @apply bg-gradient-to-r from-brand-500 via-brand-400 to-violet-400 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-brand-600 via-brand-500 to-gold-500 bg-clip-text text-transparent;
   }
   /* Frosted panel used on the landing hero (dark glass) */
   .glass {
@@ -120,7 +128,7 @@
   }
   /* Animated gradient sheen, used behind hero accents */
   .bg-vibe-anim {
-    background: linear-gradient(120deg, #6366f1, #8b5cf6, #d946ef, #fbbf24, #6366f1);
+    background: linear-gradient(120deg, #f4a300, #ff5c8a, #216867, #ffb951, #f4a300);
     background-size: 300% 300%;
     animation: gradient-pan 12s ease infinite;
   }
@@ -208,7 +216,7 @@
 .voice-wave-bar {
   display: inline-block;
   width: 3px;
-  background-color: #6366f1;
+  background-color: #1f8c8a;
   border-radius: 2px;
   animation: pulse-wave 1s ease-in-out infinite;
 }
@@ -216,13 +224,13 @@
 /* Glowing Pulse Rings */
 @keyframes pulse-glow {
   0% {
-    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+    box-shadow: 0 0 0 0 rgba(244, 163, 0, 0.45);
   }
   70% {
-    box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+    box-shadow: 0 0 0 10px rgba(244, 163, 0, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+    box-shadow: 0 0 0 0 rgba(244, 163, 0, 0);
   }
 }
 .pulse-ring-active {

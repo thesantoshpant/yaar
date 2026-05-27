@@ -366,7 +366,7 @@ export default function Landing() {
     <div className="bg-bg">
       {/* Hero — deep premium navy with vibrant gradient energy; fills the viewport */}
       <header className="relative flex min-h-screen flex-col overflow-hidden bg-brand-950 text-white">
-        <div className="pointer-events-none absolute inset-0 opacity-80 [background:radial-gradient(60%_50%_at_12%_8%,rgba(99,102,241,0.5)_0,transparent_60%),radial-gradient(50%_45%_at_88%_5%,rgba(217,70,239,0.32)_0,transparent_55%),radial-gradient(45%_45%_at_75%_95%,rgba(251,191,36,0.2)_0,transparent_60%)]" />
+        <div className="pointer-events-none absolute inset-0 opacity-80 [background:radial-gradient(60%_50%_at_12%_8%,rgba(244,163,0,0.42)_0,transparent_60%),radial-gradient(50%_45%_at_88%_5%,rgba(255,92,138,0.30)_0,transparent_55%),radial-gradient(45%_45%_at_75%_95%,rgba(255,185,81,0.20)_0,transparent_60%)]" />
         <div className="pointer-events-none absolute inset-0 opacity-[0.04] [background-image:linear-gradient(white_1px,transparent_1px),linear-gradient(90deg,white_1px,transparent_1px)] [background-size:64px_64px]" />
 
         <nav className="relative mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
