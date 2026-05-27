@@ -82,6 +82,30 @@ async function main() {
   const drop = await call("POST", `/api/engine/run-now/${pid}`, {});
   check("engine.drop", drop.status === 200 && Array.isArray(drop.json?.inbox), drop.status, drop.json?.source);
 
+  // Mock tests (reading) for both exams: generate (adaptive) + score (objective) + history.
+  for (const exam of ["IELTS", "TOEFL"]) {
+    const gen = await call("POST", "/api/mock/reading/generate", { exam, profileId: pid });
+    const t = gen.json;
+    const genOk = gen.status === 200 && t?.testId && Array.isArray(t.questions) && t.questions.length > 0;
+    check(`mock.generate ${exam}`, genOk, gen.status, "gemini");
+    if (genOk) {
+      const responses = {};
+      for (const q of t.questions) responses[q.id] = q.options ? q.options[0] : "x";
+      const sc = await call("POST", "/api/mock/reading/score", { testId: t.testId, responses, profileId: pid });
+      check(`mock.score ${exam}`, sc.status === 200 && has(sc.json, ["scaledLabel", "questions"]), sc.status);
+    }
+  }
+  // Guest scoring (no profileId) must NOT 500.
+  const gg = await call("POST", "/api/mock/reading/generate", { exam: "TOEFL" });
+  if (gg.json?.testId) {
+    const gr = {};
+    for (const q of gg.json.questions) gr[q.id] = q.options ? q.options[0] : "x";
+    const gsc = await call("POST", "/api/mock/reading/score", { testId: gg.json.testId, responses: gr });
+    check("mock.score guest (no profile)", gsc.status === 200, gsc.status);
+  }
+  const mh = await call("GET", `/api/mock/history/${pid}`);
+  check("mock.history", mh.status === 200 && Array.isArray(mh.json?.attempts), mh.status);
+
   // Agentic company (ops is open on localhost).
   const org = await call("GET", "/api/ops/org");
   check("ops.org", org.status === 200 && Array.isArray(org.json?.employees), org.status);

@@ -192,22 +192,23 @@ export async function scoreReading(testId: string, responses: Record<string, str
       ? `You got ${correctCount} of ${total} right (${scaledLabel}). You're losing the most marks on: ${weakTypes.join(", ")}. Your next practice set will give you more of these so you can turn them into strengths.`
       : `Strong work: ${correctCount} of ${total} right (${scaledLabel}). No single weak question type stood out. Your next set will push the difficulty up a notch.`;
 
-  // History.
-  await store.saveMockAttempt({
-    profileId: profileId ?? "",
-    exam: test.exam,
-    skill: "reading",
-    scaled,
-    scaledLabel,
-    rawCorrect: correctCount,
-    rawTotal: total,
-    byType: byTypeArr,
-    weakTypes,
-    feedback,
-  });
-
-  // Memory: the next test (and the whole app) now knows their reading level + weak spots.
+  // Save history + write memory only for known students (guests still get scored, just
+  // not persisted — there is no identity to attach the attempt to).
   if (profileId) {
+    await store.saveMockAttempt({
+      profileId,
+      exam: test.exam,
+      skill: "reading",
+      scaled,
+      scaledLabel,
+      rawCorrect: correctCount,
+      rawTotal: total,
+      byType: byTypeArr,
+      weakTypes,
+      feedback,
+    });
+
+    // The next test (and the whole app) now knows their reading level + weak spots.
     const ex = test.exam.toLowerCase();
     const facts = [
       { profileId, key: `${ex}.reading.level`, type: "skill" as const, value: `${test.exam} reading: ${scaledLabel} (latest mock)`, confidence: 0.85, source: "module_outcome" as const },

@@ -197,7 +197,7 @@ const companyTaskSchema = new Schema(
 const mockAttemptSchema = new Schema(
   {
     id: { type: String, required: true, unique: true, index: true },
-    profileId: { type: String, required: true, index: true },
+    profileId: { type: String, default: "", index: true },
     exam: { type: String, required: true },
     skill: { type: String, required: true },
     scaled: { type: Number, default: 0 },
