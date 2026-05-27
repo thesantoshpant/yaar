@@ -189,6 +189,21 @@ export const api = {
     post<MockReadingResult>("/api/mock/reading/score", { testId, responses, profileId }),
   mockHistory: (profileId: string) => get<{ attempts: MockAttemptSummary[] }>(`/api/mock/history/${profileId}`),
 
+  mockGenerateWriting: (exam: string, profileId?: string) =>
+    post<MockWritingTask>("/api/mock/writing/generate", { exam, profileId }),
+  mockScoreWriting: (exam: string, taskType: string, prompt: string, context: string | undefined, essay: string, profileId?: string) =>
+    post<MockSkillResult>("/api/mock/writing/score", { exam, taskType, prompt, context, essay, profileId }),
+
+  mockGenerateListening: (exam: string, profileId?: string) =>
+    post<MockListeningTest>("/api/mock/listening/generate", { exam, profileId }),
+  mockScoreListening: (testId: string, responses: Record<string, string>, profileId?: string) =>
+    post<MockReadingResult>("/api/mock/listening/score", { testId, responses, profileId }),
+
+  mockGenerateSpeaking: (exam: string, profileId?: string) =>
+    post<MockSpeakingTask>("/api/mock/speaking/generate", { exam, profileId }),
+  mockScoreSpeaking: (exam: string, taskType: string, prompt: string, transcript: string, profileId?: string) =>
+    post<MockSkillResult>("/api/mock/speaking/score", { exam, taskType, prompt, transcript, profileId }),
+
   // Parent mode — a warm, plain-language update for a parent, in any language, plus a
   // no-login shareable link.
   generateParentReport: (profileId: string, language?: string) =>
@@ -223,6 +238,50 @@ export interface MockReadingResult {
   weakTypes: string[];
   feedback: string;
   questions: { id: string; type: string; prompt: string; your: string; correctAnswer: string; correct: boolean; explanation: string }[];
+}
+export interface MockCriterion {
+  name: string;
+  score: number;
+  max: number;
+  feedback: string;
+}
+export interface MockSkillResult {
+  exam: string;
+  skill: string;
+  scaled: number;
+  scaledLabel: string;
+  criteria: MockCriterion[];
+  modelNote: string;
+  weakTypes: string[];
+  feedback: string;
+  note?: string;
+}
+export interface MockWritingTask {
+  exam: string;
+  skill: string;
+  taskType: string;
+  prompt: string;
+  context?: string;
+  minWords: number;
+  timeSec: number;
+}
+export interface MockListeningTest {
+  testId: string;
+  exam: string;
+  skill: string;
+  title: string;
+  transcript: string;
+  questions: MockQuestion[];
+  timeSec: number;
+}
+export interface MockSpeakingTask {
+  exam: string;
+  skill: string;
+  taskType: string;
+  prompt: string;
+  bullets?: string[];
+  prepSec: number;
+  speakSec: number;
 }
 export interface MockAttemptSummary {
   id: string;

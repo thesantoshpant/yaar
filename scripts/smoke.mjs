@@ -103,6 +103,28 @@ async function main() {
     const gsc = await call("POST", "/api/mock/reading/score", { testId: gg.json.testId, responses: gr });
     check("mock.score guest (no profile)", gsc.status === 200, gsc.status);
   }
+  // Writing, Listening, Speaking sections (one exam each to keep the run reasonable).
+  const wg = await call("POST", "/api/mock/writing/generate", { exam: "IELTS", profileId: pid });
+  check("mock.writing.generate", wg.status === 200 && has(wg.json, ["prompt", "taskType"]), wg.status, "gemini");
+  if (wg.json?.prompt) {
+    const ws = await call("POST", "/api/mock/writing/score", { exam: "IELTS", taskType: wg.json.taskType, prompt: wg.json.prompt, essay: "University should be free because it widens access and benefits the economy. Talented students who cannot pay are lost to society. It must be funded fairly and standards kept high. Overall I agree, with safeguards.", profileId: pid });
+    check("mock.writing.score", ws.status === 200 && has(ws.json, ["scaledLabel", "criteria"]), ws.status, "gemini");
+  }
+  const lg = await call("POST", "/api/mock/listening/generate", { exam: "TOEFL", profileId: pid });
+  check("mock.listening.generate", lg.status === 200 && has(lg.json, ["transcript", "questions"]), lg.status, "gemini");
+  if (lg.json?.testId) {
+    const lr = {};
+    for (const q of lg.json.questions) lr[q.id] = q.options ? q.options[0] : "x";
+    const ls = await call("POST", "/api/mock/listening/score", { testId: lg.json.testId, responses: lr, profileId: pid });
+    check("mock.listening.score", ls.status === 200 && has(ls.json, ["scaledLabel"]), ls.status);
+  }
+  const sg = await call("POST", "/api/mock/speaking/generate", { exam: "IELTS", profileId: pid });
+  check("mock.speaking.generate", sg.status === 200 && has(sg.json, ["prompt", "taskType"]), sg.status, "gemini");
+  if (sg.json?.prompt) {
+    const ss = await call("POST", "/api/mock/speaking/score", { exam: "IELTS", taskType: sg.json.taskType, prompt: sg.json.prompt, transcript: "I would like to learn the guitar because music relaxes me. I would learn from free online tutorials and practise every evening, and it would help me share something creative with friends.", profileId: pid });
+    check("mock.speaking.score", ss.status === 200 && has(ss.json, ["scaledLabel", "criteria"]), ss.status, "gemini");
+  }
+
   const mh = await call("GET", `/api/mock/history/${pid}`);
   check("mock.history", mh.status === 200 && Array.isArray(mh.json?.attempts), mh.status);
 
