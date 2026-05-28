@@ -1,0 +1,14 @@
+{
+  "suite": "diya",
+  "name": "reject-hypey-tone",
+  "description": "Diya should reject overhyped marketing copy that fails the tone dimension.",
+  "input": {
+    "type": "email_campaign",
+    "title": "REVOLUTIONIZE your study abroad journey TODAY!!!",
+    "payload": "INCREDIBLE NEWS! Yaar is THE #1 GAME-CHANGING AI counselor in the WORLD!!! Don't WAIT another second — your DREAM university is just one click away! UNLOCK your potential NOW!"
+  },
+  "expect": {
+    "approved": false,
+    "weakest_includes": ["tone"]
+  }
+}

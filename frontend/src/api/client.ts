@@ -466,4 +466,11 @@ export const ops = {
   listActions: () => opsGet<{ actions: OpsAction[] }>("/api/ops/actions"),
   listTasks: () => opsGet<{ tasks: OpsTask[] }>("/api/ops/tasks"),
   runEmployee: (id: string) => opsPost<RunEmployeeResponse>(`/api/ops/run/${id}`, {}),
+  // Approvals + audit + pulse, the deploy-and-forget control plane.
+  listApprovals: () => opsGet<{ actions: OpsAction[] }>("/api/ops/approvals"),
+  approveAction: (id: string) => opsPost<{ action: OpsAction }>(`/api/ops/actions/${id}/approve`, {}),
+  rejectAction: (id: string) => opsPost<{ action: OpsAction }>(`/api/ops/actions/${id}/reject`, {}),
+  getSafety: () => opsGet<{ killSwitchEngaged: boolean; reason: string; totalSpendUsd: number; dailyHardCapUsd: number; callCount: number; autonomyMode: string; recentRejections: { ts: string; reason: string }[] }>("/api/ops/safety"),
+  setKill: (engaged: boolean, reason?: string) => opsPost<{ killSwitchEngaged: boolean }>("/api/ops/safety/kill", { engaged, reason }),
+  getPulse: () => opsGet<{ ok: boolean; autonomyMode: string; killSwitchEngaged: boolean; reason: string; spend: { today: number; cap: number; pct: number; calls: number }; pendingApprovalCount: number; recentActions: { id: string; agentId: string; type: string; status: string; title: string; createdAt: string }[]; recentRejections: { ts: string; reason: string }[]; serverTime: string }>("/api/ops/pulse"),
 };

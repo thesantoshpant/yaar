@@ -1,13 +1,16 @@
 // The safety layer: kill switch + per-day Vertex spend cap. Every autonomous
-// agent action and (optionally) every Gemini call consults this gate before
-// touching the world. Non-negotiable; without it a runaway loop can vaporize
-// the founder's $300 Vertex credit between dinner and breakfast.
+// agent action and every Gemini call consults this gate before touching the
+// world. Non-negotiable; without it a runaway loop can vaporize the founder's
+// $300 Vertex credit between dinner and breakfast.
 //
-// In-memory state is fine: the only invariant that matters is "per UTC day,"
-// and a server restart simply resets the counter, which is conservative.
-// To survive long-uptime production, swap to a Mongo doc behind the same API.
+// State lives in memory at runtime (sync API for hot-path calls) but is
+// hydrated from a Mongo singleton doc on boot and written through on every
+// mutation. This means: a tsx-watch reload, a crash, or a redeploy preserves
+// the kill switch and today's spend counter — the cap holds even mid-day.
 
 import { config } from "../config";
+import { dbConnected } from "../db";
+import { OpsStateModel } from "../models/intelligence";
 
 // Hard caps. Override via env in prod once we know real usage patterns.
 const DAILY_HARD_CAP_USD = Number(process.env.DAILY_HARD_CAP_USD ?? 8);
@@ -44,6 +47,59 @@ const state: SafetyState = {
   recentRejections: [],
 };
 
+// Hydration: on boot, pull the singleton ops_state doc from Mongo (if connected)
+// so the kill switch + today's counters survive a process restart. Fire-and-forget
+// so we never block the boot path on a slow Mongo.
+let hydrated = false;
+let hydratePromise: Promise<void> | null = null;
+function hydrate(): Promise<void> {
+  if (hydrated || !dbConnected()) return Promise.resolve();
+  if (hydratePromise) return hydratePromise;
+  hydratePromise = (async () => {
+    try {
+      const doc = await OpsStateModel.findOne({ id: "singleton" }).lean().exec();
+      if (doc && doc.day === today()) {
+        // Same UTC day -> resume the counters; if it's a new day we'll roll over below.
+        state.killSwitchEngaged = Boolean(doc.killSwitchEngaged);
+        state.reason = doc.reason ?? "";
+        state.day = doc.day;
+        state.totalSpendUsd = Number(doc.totalSpendUsd) || 0;
+        state.callCount = Number(doc.callCount) || 0;
+        state.perUserSpendUsd = (doc.perUserSpendUsd as Record<string, number>) ?? {};
+        state.perUserCallCount = (doc.perUserCallCount as Record<string, number>) ?? {};
+      } else if (doc) {
+        // Different day -> keep kill switch but reset counters.
+        state.killSwitchEngaged = Boolean(doc.killSwitchEngaged);
+        state.reason = doc.reason ?? "";
+      }
+      hydrated = true;
+    } catch (err) {
+      console.error("[safety] hydrate failed:", err);
+    }
+  })();
+  return hydratePromise;
+}
+void hydrate();
+
+// Write-through. Fire-and-forget; the in-memory state remains source of truth
+// for the hot path, Mongo is the durability layer for restarts.
+function persist(): void {
+  if (!dbConnected()) return;
+  const doc = {
+    killSwitchEngaged: state.killSwitchEngaged,
+    reason: state.reason,
+    day: state.day,
+    totalSpendUsd: state.totalSpendUsd,
+    callCount: state.callCount,
+    perUserSpendUsd: state.perUserSpendUsd,
+    perUserCallCount: state.perUserCallCount,
+    updatedAt: new Date().toISOString(),
+  };
+  OpsStateModel.updateOne({ id: "singleton" }, { $set: doc }, { upsert: true }).catch((err) => {
+    console.error("[safety] persist failed:", err);
+  });
+}
+
 function rolloverIfNewDay(): void {
   const t = today();
   if (state.day === t) return;
@@ -53,6 +109,7 @@ function rolloverIfNewDay(): void {
   state.perUserSpendUsd = {};
   state.perUserCallCount = {};
   // Keep recentRejections rolling across days, capped to the most recent.
+  persist();
 }
 
 export function estimateCostUsd(inputTokens: number, outputTokens: number): number {
@@ -97,13 +154,16 @@ export function recordSpend(profileId: string | undefined, costUsd: number): voi
     state.perUserSpendUsd[profileId] = (state.perUserSpendUsd[profileId] ?? 0) + costUsd;
     state.perUserCallCount[profileId] = (state.perUserCallCount[profileId] ?? 0) + 1;
   }
+  persist();
 }
 
 // Hard stop. Toggled from the ops console. When engaged, every external
-// action and Gemini call is rejected until a human flips it back.
+// action and Gemini call is rejected until a human flips it back. Persisted
+// so a restart doesn't silently re-open the door.
 export function setKillSwitch(engaged: boolean, reason = ""): void {
   state.killSwitchEngaged = engaged;
   state.reason = engaged ? (reason || "manually engaged") : "";
+  persist();
 }
 
 export function getSafetyStatus() {

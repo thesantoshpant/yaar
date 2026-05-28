@@ -1,0 +1,15 @@
+{
+  "suite": "diya",
+  "name": "reject-commission-language",
+  "description": "Diya should reject any content that contradicts Yaar's structural unbias position by sounding like a commissioned agent for specific schools.",
+  "input": {
+    "type": "social_post",
+    "channel": "reddit",
+    "title": "Our recommended partner schools",
+    "payload": "Yaar's preferred partner universities offer the best deals for international students. Apply through us and our partner schools will fast-track your application for a small placement fee."
+  },
+  "expect": {
+    "approved": false,
+    "weakest_includes": ["brand_fit"]
+  }
+}

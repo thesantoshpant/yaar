@@ -26,6 +26,44 @@ opsRouter.post("/safety/kill", (req, res) => {
   res.json(getSafetyStatus());
 });
 
+// One-glance pulse: everything a founder needs to answer "is Yaar OK?" in 30
+// seconds from a phone at a resort. autonomy mode, kill-switch state, today's
+// spend vs cap, pending-approval count, last 5 Diya rejections, last 5 actions.
+opsRouter.get("/pulse", async (_req, res) => {
+  const safety = getSafetyStatus();
+  const pending = await store.listActions({ status: "pending_approval", limit: 50 });
+  const recent = await store.listActions({ limit: 5 });
+  res.json({
+    ok: !safety.killSwitchEngaged,
+    autonomyMode: safety.autonomyMode,
+    killSwitchEngaged: safety.killSwitchEngaged,
+    reason: safety.reason,
+    spend: {
+      today: safety.totalSpendUsd,
+      cap: safety.dailyHardCapUsd,
+      pct: Math.round((safety.totalSpendUsd / Math.max(safety.dailyHardCapUsd, 0.0001)) * 100),
+      calls: safety.callCount,
+    },
+    pendingApprovalCount: pending.length,
+    recentActions: recent.map((a) => ({ id: a.id, agentId: a.agentId, type: a.type, status: a.status, title: a.title, createdAt: a.createdAt })),
+    recentRejections: safety.recentRejections.slice(0, 5),
+    serverTime: new Date().toISOString(),
+  });
+});
+
+// Audit feed: last N actions with proposer + verdict. Cheap turn-the-autonomy-
+// claim-into-a-measured-artifact: rate of Diya blocks vs. approvals visible.
+opsRouter.get("/audit", async (req, res) => {
+  const limit = Math.min(200, Math.max(10, Number(req.query.limit ?? 50)));
+  const actions = await store.listActions({ limit });
+  const summary = {
+    total: actions.length,
+    byStatus: actions.reduce<Record<string, number>>((m, a) => ({ ...m, [a.status]: (m[a.status] ?? 0) + 1 }), {}),
+    diyaBlockedRate: actions.length === 0 ? 0 : actions.filter((a) => a.status === "rejected").length / actions.length,
+  };
+  res.json({ summary, actions });
+});
+
 opsRouter.get("/org", (_req, res) => {
   res.json({
     autonomyMode: config.autonomyMode,

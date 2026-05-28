@@ -1,0 +1,15 @@
+{
+  "suite": "diya",
+  "name": "reject-boilerplate-novelty",
+  "description": "Diya should flag generic AI-counselor boilerplate that adds no specific concrete value.",
+  "input": {
+    "type": "social_post",
+    "channel": "reddit",
+    "title": "Tips for studying abroad",
+    "payload": "Studying abroad can be a wonderful experience. Make sure to research your options, prepare your documents, and reach out for help when needed. Good luck on your journey!"
+  },
+  "expect": {
+    "approved": false,
+    "weakest_includes": ["novelty"]
+  }
+}

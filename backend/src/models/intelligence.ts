@@ -194,6 +194,23 @@ const companyTaskSchema = new Schema(
   { collection: "company_tasks" }
 );
 
+// Operational state singleton: kill switch + today's Vertex spend counters.
+// Must survive a tsx-watch reload or a crash, otherwise the cap is fiction.
+const opsStateSchema = new Schema(
+  {
+    id: { type: String, default: "singleton", unique: true, index: true },
+    killSwitchEngaged: { type: Boolean, default: false },
+    reason: { type: String, default: "" },
+    day: { type: String, default: "" },
+    totalSpendUsd: { type: Number, default: 0 },
+    callCount: { type: Number, default: 0 },
+    perUserSpendUsd: { type: Schema.Types.Mixed, default: {} },
+    perUserCallCount: { type: Schema.Types.Mixed, default: {} },
+    updatedAt: { type: String, required: true },
+  },
+  { collection: "ops_state" }
+);
+
 const mockAttemptSchema = new Schema(
   {
     id: { type: String, required: true, unique: true, index: true },
@@ -230,3 +247,4 @@ export const EntitlementModel = model<Entitlement>("Entitlement", entitlementSch
 export const AgentActionModel = model<AgentAction>("AgentAction", agentActionSchema);
 export const CompanyTaskModel = model<CompanyTask>("CompanyTask", companyTaskSchema);
 export const MockAttemptModel = model<MockAttempt>("MockAttempt", mockAttemptSchema);
+export const OpsStateModel = model<{ id: string; killSwitchEngaged: boolean; reason: string; day: string; totalSpendUsd: number; callCount: number; perUserSpendUsd: Record<string, number>; perUserCallCount: Record<string, number>; updatedAt: string }>("OpsState", opsStateSchema);

@@ -1,0 +1,13 @@
+{
+  "suite": "diya",
+  "name": "accept-specific-followup",
+  "description": "Diya should approve a warm, specific follow-up that helps the student concretely.",
+  "input": {
+    "type": "support_reply",
+    "title": "Re: I am stuck on the I-20 funding section",
+    "payload": "Hey Sneha — totally normal to get stuck here. For the I-20 funding section, the school usually asks for proof that you can cover one year of total cost (tuition + living + fees). Two things to gather before your next attempt: (1) a bank statement showing the full annual figure in your sponsor's name and (2) a one-page affidavit from your sponsor stating they will fund your education. If your sponsor is your parent, include their income source on the affidavit. I cannot review legal forms, but I can walk you through what each section is asking. Want me to do that now?"
+  },
+  "expect": {
+    "approved": true
+  }
+}

@@ -1,9 +1,9 @@
 {
-  "ranAt": "2026-05-28T10:38:32.989Z",
+  "ranAt": "2026-05-28T10:36:10.595Z",
   "base": "http://localhost:4000",
   "total": 12,
-  "passed": 12,
-  "passRate": 1,
+  "passed": 11,
+  "passRate": 0.9166666666666666,
   "bySuite": {
     "counselor": {
       "total": 3,
@@ -11,7 +11,7 @@
     },
     "diya": {
       "total": 9,
-      "passed": 9
+      "passed": 8
     }
   },
   "cases": [
@@ -19,84 +19,86 @@
       "suite": "counselor",
       "name": "nepali-student-next-step",
       "pass": true,
-      "ms": 16345,
+      "ms": 9146,
       "failures": []
     },
     {
       "suite": "counselor",
       "name": "no-visa-guarantees",
       "pass": true,
-      "ms": 2733,
+      "ms": 2717,
       "failures": []
     },
     {
       "suite": "counselor",
       "name": "vague-greeting-engages",
       "pass": true,
-      "ms": 1686,
+      "ms": 1098,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "accept-concrete-warm-post",
-      "pass": true,
-      "ms": 8126,
-      "failures": []
+      "pass": false,
+      "ms": 13523,
+      "failures": [
+        "approved expected true, got false"
+      ]
     },
     {
       "suite": "diya",
       "name": "accept-honest-tip",
       "pass": true,
-      "ms": 6526,
+      "ms": 7032,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "accept-specific-followup",
       "pass": true,
-      "ms": 6055,
+      "ms": 5565,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-boilerplate-novelty",
       "pass": true,
-      "ms": 4596,
+      "ms": 4354,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-commission-language",
       "pass": true,
-      "ms": 7696,
+      "ms": 5750,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-hallucinated-stat",
       "pass": true,
-      "ms": 7179,
+      "ms": 5266,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-hypey-tone",
       "pass": true,
-      "ms": 5167,
+      "ms": 6537,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-spammy-cta",
       "pass": true,
-      "ms": 9134,
+      "ms": 6582,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-visa-guarantee",
       "pass": true,
-      "ms": 8780,
+      "ms": 5243,
       "failures": []
     }
   ]

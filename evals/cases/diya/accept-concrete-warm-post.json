@@ -1,0 +1,14 @@
+{
+  "suite": "diya",
+  "name": "accept-concrete-warm-post",
+  "description": "Diya should approve a specific, on-brand post that delivers a concrete tip with proper hedging.",
+  "input": {
+    "type": "social_post",
+    "channel": "reddit",
+    "title": "Two things that helped my IELTS Writing Task 2 from 6 to 7.5",
+    "payload": "(1) Stop trying to write 350+ words. The rubric rewards control, not volume. I wrote ~280 carefully and my Lexical Resource score jumped from 6 to 7. (2) Plan for 8 minutes before writing. I literally wrote my four body-paragraph topic sentences on the scratch paper first. My Coherence went from 6.5 to 8 just from that.\n\nYaar is a free practice tool that runs a Task 2 mock; not affiliated, not legal advice, your real score depends on the real examiner."
+  },
+  "expect": {
+    "approved": true
+  }
+}

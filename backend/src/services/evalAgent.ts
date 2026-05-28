@@ -61,6 +61,10 @@ function clamp01(x: unknown): number {
 export async function reviewAction(a: { type: string; channel?: string; title: string; payload: string }): Promise<ReviewResult> {
   const { data } = await generateJson<{ scores: Partial<RubricScores>; summary: string }>({
     system: SYSTEM,
+    // Low temperature so Diya is reproducible across runs of the eval suite.
+    // A non-deterministic reviewer would produce flaky pass-rates and erode
+    // the whole point of versioned evals.
+    temperature: 0.2,
     prompt: `Action type: ${a.type}, channel: ${a.channel ?? "n/a"}\nTitle: ${a.title}\nContent:\n${a.payload}\n\nScore it now.`,
     mock: () => ({
       // In dev (no key), default to all-pass so the rest of the pipeline is exercisable.

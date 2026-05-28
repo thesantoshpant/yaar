@@ -1,8 +1,36 @@
 // Gemini text + JSON generation with graceful mock fallback.
 // When GEMINI_API_KEY is absent or a call fails, we return a deterministic mock
 // so the whole app stays runnable and demoable before keys are wired in.
+//
+// Every export here is wrapped by the safety gate (services/safety.ts): a
+// pre-call `checkSpendOk` short-circuits to the mock when the kill switch is
+// engaged or the daily Vertex spend cap is reached, and a post-call
+// `recordSpend` charges the real token-based cost back to the day's bucket
+// (and to the per-user bucket if a profileId is passed). This is the single
+// chokepoint that protects the $300 Vertex credit — every counselor chat,
+// every mock score, every coach call ultimately funnels through here.
 import { GoogleGenAI } from "@google/genai";
 import { config, hasGemini } from "../config";
+import { checkSpendOk, recordSpend, estimateCostUsd } from "./safety";
+
+// Token-count helper. The Gemini SDK exposes usage at res.usageMetadata when
+// the call succeeds. We fall back to a rough char/4 estimate when usage is
+// not returned (e.g. TTS) so the cap still moves on every call.
+function chargeForCall(res: unknown, profileId: string | undefined, fallbackChars: number): void {
+  let inputTokens = 0;
+  let outputTokens = 0;
+  const u = (res as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } } | undefined)?.usageMetadata;
+  if (u?.promptTokenCount && u?.candidatesTokenCount) {
+    inputTokens = u.promptTokenCount;
+    outputTokens = u.candidatesTokenCount;
+  } else {
+    // Conservative fallback: assume ~4 chars per token, half input half output.
+    const estTokens = Math.ceil(fallbackChars / 4);
+    inputTokens = Math.ceil(estTokens * 0.5);
+    outputTokens = Math.ceil(estTokens * 0.5);
+  }
+  recordSpend(profileId, estimateCostUsd(inputTokens, outputTokens));
+}
 
 let ai: GoogleGenAI | null = null;
 if (hasGemini) {
@@ -59,9 +87,17 @@ export async function generateText(opts: {
   prompt: string;
   system?: string;
   temperature?: number;
+  profileId?: string; // optional, drives the per-user spend cap
 }): Promise<{ text: string; source: Source }> {
   if (!ai) {
     return { text: "[mock] Gemini is not configured. Add GEMINI_API_KEY to enable live AI.", source: "mock" };
+  }
+  // Pre-call safety gate. When the kill switch is engaged or the day's cap is
+  // reached, fall back to the same graceful mock the no-key path returns —
+  // the user sees a friendly message and we spend nothing.
+  const gate = checkSpendOk(opts.profileId, 0.005);
+  if (!gate.ok) {
+    return { text: `I'm temporarily unavailable (${gate.reason}). Try again shortly.`, source: "mock" };
   }
   try {
     const res = await ai.models.generateContent({
@@ -72,6 +108,7 @@ export async function generateText(opts: {
         temperature: opts.temperature ?? 0.7,
       },
     });
+    chargeForCall(res, opts.profileId, (opts.prompt?.length ?? 0) + (opts.system?.length ?? 0) + (res.text?.length ?? 0));
     return { text: res.text ?? "", source: "gemini" };
   } catch (err) {
     console.error("[gemini] generateText failed, using fallback:", err);
@@ -84,9 +121,14 @@ export async function generateJson<T>(opts: {
   system?: string;
   temperature?: number;
   model?: string;
+  profileId?: string;
   mock: () => T;
 }): Promise<{ data: T; source: Source }> {
   if (!ai) {
+    return { data: opts.mock(), source: "mock" };
+  }
+  const gate = checkSpendOk(opts.profileId, 0.006);
+  if (!gate.ok) {
     return { data: opts.mock(), source: "mock" };
   }
   try {
@@ -100,6 +142,7 @@ export async function generateJson<T>(opts: {
       },
     });
     const raw = res.text ?? "";
+    chargeForCall(res, opts.profileId, (opts.prompt?.length ?? 0) + (opts.system?.length ?? 0) + raw.length);
     const data = JSON.parse(extractJson(raw)) as T;
     return { data, source: "gemini" };
   } catch (err) {
@@ -112,9 +155,14 @@ export async function generateJson<T>(opts: {
 // Returns base64 PCM (audio/L16). Supports up to 2 named speakers for conversations.
 export async function generateSpeech(
   text: string,
-  opts?: { voice?: string; speakers?: { speaker: string; voice: string }[] }
+  opts?: { voice?: string; speakers?: { speaker: string; voice: string }[]; profileId?: string }
 ): Promise<{ audioBase64: string; mimeType: string; source: Source }> {
   if (!ai || !text.trim()) return { audioBase64: "", mimeType: "", source: "mock" };
+  // TTS is the expensive surface (long audio = many tokens). Gate harder.
+  const gate = checkSpendOk(opts?.profileId, Math.max(0.01, text.length * 0.00002));
+  if (!gate.ok) {
+    return { audioBase64: "", mimeType: "", source: "mock" };
+  }
   try {
     const speechConfig =
       opts?.speakers && opts.speakers.length >= 2
@@ -127,6 +175,7 @@ export async function generateSpeech(
     });
     const part = res?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
     const data = part?.inlineData?.data;
+    chargeForCall(res, opts?.profileId, text.length + (data?.length ?? 0));
     if (!data) return { audioBase64: "", mimeType: "", source: "mock" };
     return { audioBase64: data, mimeType: part?.inlineData?.mimeType || "audio/L16;rate=24000", source: "gemini" };
   } catch (err) {
@@ -143,9 +192,15 @@ export async function generateJsonFromMedia<T>(opts: {
   system?: string;
   temperature?: number;
   model?: string;
+  profileId?: string;
   mock: () => T;
 }): Promise<{ data: T; source: Source }> {
   if (!ai || opts.files.length === 0) {
+    return { data: opts.mock(), source: "mock" };
+  }
+  // Multimodal/Pro is the most expensive path; gate hardest.
+  const gate = checkSpendOk(opts.profileId, 0.02);
+  if (!gate.ok) {
     return { data: opts.mock(), source: "mock" };
   }
   try {
@@ -163,6 +218,7 @@ export async function generateJsonFromMedia<T>(opts: {
       },
     });
     const raw = res.text ?? "";
+    chargeForCall(res, opts.profileId, (opts.prompt?.length ?? 0) + opts.files.reduce((s, f) => s + (f.data?.length ?? 0), 0) + raw.length);
     const data = JSON.parse(extractJson(raw)) as T;
     return { data, source: "gemini" };
   } catch (err) {

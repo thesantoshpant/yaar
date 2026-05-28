@@ -392,7 +392,14 @@ export default function Company() {
             {actions.length > 0 ? (
               <div className="space-y-2">
                 {actions.map((a) => (
-                  <ActionRow key={a.id} action={a} />
+                  <ActionRow
+                    key={a.id}
+                    action={a}
+                    onChange={async () => {
+                      const r = await ops.listActions();
+                      setActions(r.actions ?? []);
+                    }}
+                  />
                 ))}
               </div>
             ) : (
@@ -513,8 +520,10 @@ function TaskRow({ task }: { task: OpsTask }) {
   );
 }
 
-function ActionRow({ action, compact = false }: { action: OpsAction; compact?: boolean }) {
+function ActionRow({ action, compact = false, onChange }: { action: OpsAction; compact?: boolean; onChange?: () => void }) {
   const d = deptMeta(action.department);
+  const [busy, setBusy] = useState(false);
+  const pending = action.status === "pending_approval";
   return (
     <div
       className={`flex items-center justify-between gap-3 rounded-lg border border-line bg-surface ${
@@ -536,7 +545,33 @@ function ActionRow({ action, compact = false }: { action: OpsAction; compact?: b
           </span>
         </div>
       </div>
-      <span className={`badge shrink-0 ${statusBadge(action.status)}`}>{action.status.replace(/_/g, " ")}</span>
+      <div className="flex shrink-0 items-center gap-2">
+        {pending && onChange && (
+          <>
+            <button
+              className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-emerald-600 disabled:opacity-50"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try { await ops.approveAction(action.id); onChange(); } finally { setBusy(false); }
+              }}
+            >
+              Approve
+            </button>
+            <button
+              className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-500/5 disabled:opacity-50"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try { await ops.rejectAction(action.id); onChange(); } finally { setBusy(false); }
+              }}
+            >
+              Reject
+            </button>
+          </>
+        )}
+        <span className={`badge ${statusBadge(action.status)}`}>{action.status.replace(/_/g, " ")}</span>
+      </div>
     </div>
   );
 }

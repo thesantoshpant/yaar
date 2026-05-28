@@ -51,15 +51,19 @@ export async function dispatch(p: ProposedAction): Promise<AgentAction> {
     return store.addAction({ ...p, external, status: "executed", result: "internal action recorded" });
   }
 
-  // dry_run: never touch the world, just log the intent.
-  if (config.autonomyMode === "dry_run") {
-    return store.addAction({ ...p, external, status: "dry_run", result: "dry run: nothing was sent" });
-  }
-
-  // assist + live: vet the content first.
+  // Diya scores EVERY external draft up front, regardless of autonomy mode.
+  // This is intentional: even in dry_run we want the audit log to show whether
+  // the draft would have been approved, so the founder can calibrate Diya
+  // before flipping to assist or live. A hard-rejected draft never reaches
+  // any later branch.
   const review = await reviewAction(p);
   if (!review.approved) {
     return store.addAction({ ...p, external, status: "rejected", result: `blocked by review: ${review.reason}` });
+  }
+
+  // dry_run: passed review, but never touch the world.
+  if (config.autonomyMode === "dry_run") {
+    return store.addAction({ ...p, external, status: "dry_run", result: `dry run (review passed): ${review.reason}` });
   }
 
   // assist: hold for human approval.
