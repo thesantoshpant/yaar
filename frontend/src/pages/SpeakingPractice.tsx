@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { SpeakingScore } from "../lib/types";
 import { markCompleted, getProfileId } from "../lib/progress";
@@ -6,6 +6,19 @@ import { useAuthGate } from "../lib/authGate";
 import { useRecorder } from "../lib/useRecorder";
 import { Spinner, SourceBadge, ScoreBar, PageHeading, ErrorNote } from "../components/ui";
 import Markdown from "../components/Markdown";
+
+// Real-exam-style prep + speak timers. Times match the IELTS Part 2 cue card
+// (60s prep / 120s speak) and TOEFL Independent (15s prep / 45s speak).
+const TIMER_PRESETS: Record<string, { prepSec: number; speakSec: number }> = {
+  IELTS: { prepSec: 60, speakSec: 120 },
+  TOEFL: { prepSec: 15, speakSec: 45 },
+};
+
+function fmtTime(s: number): string {
+  const m = Math.max(0, Math.floor(s / 60));
+  const sec = Math.max(0, Math.floor(s % 60));
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
 
 export default function SpeakingPractice() {
   const { gate } = useAuthGate();
@@ -22,6 +35,53 @@ export default function SpeakingPractice() {
   // Voice answers: record with the mic and transcribe with Gemini (reliable across
   // browsers, unlike the old Web Speech API). The typed box always works as a fallback.
   const rec = useRecorder();
+
+  // Real-exam timed mode. State machine:
+  //   off -> prep (countdown N seconds, no mic) -> speaking (mic on, M seconds) -> off
+  // Timer uses a wall-clock end timestamp so a backgrounded tab doesn't drift.
+  const [timedPhase, setTimedPhase] = useState<"off" | "prep" | "speaking">("off");
+  const [timeLeft, setTimeLeft] = useState(0);
+  const endTimeRef = useRef(0);
+
+  useEffect(() => {
+    if (timedPhase === "off") return;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining > 0) return;
+      if (timedPhase === "prep") {
+        // Prep ended -> start the mic + the speak countdown.
+        const ms = (TIMER_PRESETS[exam] ?? TIMER_PRESETS.IELTS).speakSec * 1000;
+        endTimeRef.current = Date.now() + ms;
+        setTimedPhase("speaking");
+        void rec.start();
+      } else if (timedPhase === "speaking") {
+        // Speak ended -> auto-stop the mic, drop transcript into the answer box.
+        void rec.stop().then((text) => {
+          if (text) setAnswer((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
+        });
+        setTimedPhase("off");
+      }
+    };
+    // 250ms tick is plenty for second-resolution; faster than 1s keeps the
+    // visible number from feeling stuck after a tab refocus.
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timedPhase, exam]);
+
+  function startTimedRun() {
+    const preset = TIMER_PRESETS[exam] ?? TIMER_PRESETS.IELTS;
+    setAnswer("");
+    endTimeRef.current = Date.now() + preset.prepSec * 1000;
+    setTimeLeft(preset.prepSec);
+    setTimedPhase("prep");
+  }
+
+  function cancelTimedRun() {
+    if (rec.recording) void rec.stop();
+    setTimedPhase("off");
+  }
 
   async function dictate() {
     if (rec.recording) {
@@ -93,6 +153,35 @@ export default function SpeakingPractice() {
               <span className="badge bg-brand-500/15 text-brand-500">Prompt</span>
               <p className="mt-2">{prompt}</p>
             </div>
+
+            {/* Real-exam timed mode. The student gets the same prep + speak windows
+               the actual test gives them, with a wall-clock countdown that doesn't
+               drift on backgrounded tabs. */}
+            {timedPhase === "off" && rec.supported && (
+              <button className="btn-ghost mt-3" onClick={startTimedRun} disabled={rec.recording || rec.transcribing}>
+                ⏱ Run timed practice ({TIMER_PRESETS[exam]?.prepSec ?? 60}s prep · {TIMER_PRESETS[exam]?.speakSec ?? 120}s speak)
+              </button>
+            )}
+            {timedPhase !== "off" && (
+              <div className={`mt-3 rounded-xl border p-4 ${timedPhase === "prep" ? "border-brand-500/30 bg-brand-500/5" : "border-rose-500/30 bg-rose-500/5"}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wider text-muted">
+                      {timedPhase === "prep" ? "Prep · think before you speak" : "Speak now"}
+                    </div>
+                    <div className={`mt-0.5 font-display text-3xl font-extrabold ${timedPhase === "prep" ? "text-brand-600" : "text-rose-600"}`}>
+                      {fmtTime(timeLeft)}
+                    </div>
+                  </div>
+                  <button className="btn-ghost text-xs" onClick={cancelTimedRun}>Cancel</button>
+                </div>
+                <p className="mt-2 text-xs text-muted">
+                  {timedPhase === "prep"
+                    ? "Plan your answer. The mic starts automatically when the prep timer hits 0."
+                    : "Your answer is being recorded. It auto-stops when this hits 0."}
+                </p>
+              </div>
+            )}
              <div className="mt-4 flex flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <label className="label mb-0">Your answer</label>
@@ -111,7 +200,8 @@ export default function SpeakingPractice() {
                         </div>
                       </div>
                     )}
-                    {rec.transcribing && <Spinner label="Transcribing..." />}
+                    {rec.phase === "uploading" && <Spinner label="Uploading your answer..." />}
+                    {rec.phase === "thinking" && <Spinner label="Yaar is listening — almost there..." />}
                     <button
                       type="button"
                       onClick={dictate}
@@ -144,7 +234,7 @@ export default function SpeakingPractice() {
               />
 
               <div className="flex gap-2.5">
-                <button className="btn-primary" onClick={() => gate("speaking", () => submit())} disabled={loading || !answer.trim()}>
+                <button className="btn-primary" onClick={() => gate("speaking", () => submit())} disabled={loading || !answer.trim() || rec.recording || rec.transcribing}>
                   {loading ? <Spinner label="Scoring..." /> : "Score my answer"}
                 </button>
                 {answer.trim() && (

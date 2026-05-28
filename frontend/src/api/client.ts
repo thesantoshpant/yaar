@@ -19,13 +19,25 @@ function authHeaders(): Record<string, string> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
+async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
+    signal,
   });
-  if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
+  if (!res.ok) {
+    // Surface server-side reason where present so the caller can show a
+    // specific message ("Recording too long...") rather than a blanket fail.
+    let serverMsg = "";
+    try {
+      const j = await res.json();
+      serverMsg = typeof j?.error === "string" ? j.error : "";
+    } catch {
+      // ignore non-JSON bodies
+    }
+    throw new Error(serverMsg || `${path} failed: ${res.status}`);
+  }
   return res.json() as Promise<T>;
 }
 
@@ -178,9 +190,10 @@ export const api = {
     post<{ brief: string; insights: number; source: string }>(`/api/memory/${profileId}/consolidate`, {}),
 
   // Transcribe a recorded audio clip with Gemini (reliable replacement for the browser's
-  // flaky Web Speech API). data is base64 (no data: prefix).
-  transcribe: (mimeType: string, data: string) =>
-    post<{ text: string; source: string }>("/api/transcribe", { mimeType, data }),
+  // flaky Web Speech API). data is base64 (no data: prefix). Optional signal lets
+  // the recorder abort the in-flight request when the user leaves the page.
+  transcribe: (mimeType: string, data: string, signal?: AbortSignal) =>
+    post<{ text: string; source: string }>("/api/transcribe", { mimeType, data }, signal),
 
   // Natural text-to-speech (Gemini neural voice) -> a playable WAV (base64). source "mock"
   // means TTS is unavailable and the caller should fall back to the browser voice.
@@ -261,6 +274,12 @@ export interface MockCriterion {
   score: number;
   max: number;
   feedback: string;
+  // Evidence-grounded fields. The backend extracts verbatim quotes from the
+  // essay/transcript and a concrete fix per criterion, so the UI can render
+  // a specific "this exact phrase pulls X down — replace with Y" diagnosis.
+  evidenceQuote?: string;
+  weakestQuote?: string;
+  specificFix?: string;
 }
 export interface MockSkillResult {
   exam: string;

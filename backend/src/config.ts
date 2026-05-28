@@ -18,7 +18,10 @@ export const config = {
   geminiTextModel: process.env.GEMINI_TEXT_MODEL ?? "gemini-2.5-flash",
   geminiProModel: process.env.GEMINI_PRO_MODEL ?? "gemini-2.5-pro",
   geminiTtsModel: process.env.GEMINI_TTS_MODEL ?? "gemini-2.5-flash-preview-tts",
-  geminiLiveModel: process.env.GEMINI_LIVE_MODEL ?? "gemini-2.0-flash-live-001",
+  // gemini-2.0-flash-live-001 was deprecated 2026-02-18 and retires 2026-06-01.
+  // Default now targets the supported native-audio Live model. Live is still
+  // off by default (see YAAR_ENABLE_LIVE_VOICE in index.ts).
+  geminiLiveModel: process.env.GEMINI_LIVE_MODEL ?? "gemini-2.5-flash-native-audio",
   collegeScorecardApiKey: process.env.COLLEGE_SCORECARD_API_KEY ?? "",
   mongodbUri: process.env.MONGODB_URI ?? "",
   corsOrigins: (process.env.CORS_ORIGINS ?? "http://localhost:5173")

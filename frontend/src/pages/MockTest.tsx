@@ -137,6 +137,8 @@ function GeneratingLoader({ section }: { section: Section }) {
 
 export default function MockTest() {
   const profileId = getProfileId() || undefined;
+  // Snapshotted at start() so a mid-test sign-out can't strand the attempt.
+  const profileIdAtStartRef = useRef<string | undefined>(undefined);
   const { profile } = useProfile();
   const shareName = profile.name || "A student";
   const [exam, setExam] = useState("IELTS");
@@ -199,21 +201,43 @@ export default function MockTest() {
     submittingRef.current = false;
   }
 
-  // While the student is on the intro, quietly pre-generate the selected section so
-  // clicking Start feels instant. Debounced so flipping between options doesn't spam.
+  // While the student is on the intro, quietly pre-generate the selected section
+  // so clicking Start feels instant. Debounced so flipping between options doesn't
+  // spam. The pending timeout id lives in a ref so start() can cancel it if the
+  // student clicks before the 500ms has elapsed — otherwise we'd kick off a
+  // second wasted generation right after start()'s.
+  const prefetchTimerRef = useRef<number | null>(null);
   useEffect(() => {
     if (phase !== "intro" || loading) return;
     const key = `${exam}:${section}`;
     if (prefetch.current.has(key)) return;
-    const t = setTimeout(() => {
+    prefetchTimerRef.current = window.setTimeout(() => {
+      prefetchTimerRef.current = null;
+      // Re-check phase before issuing: the student may have already clicked
+      // Start, in which case start() has its own genPromise in flight.
+      if (phase !== "intro" || loading) return;
       if (!prefetch.current.has(key)) prefetch.current.set(key, genPromise(section, exam).catch(() => null));
     }, 500);
-    return () => clearTimeout(t);
+    return () => {
+      if (prefetchTimerRef.current != null) {
+        window.clearTimeout(prefetchTimerRef.current);
+        prefetchTimerRef.current = null;
+      }
+    };
   }, [phase, exam, section, loading, genPromise]);
 
   // Generate the selected section (using the prefetched result if it's ready).
   const start = useCallback(
     async (sec: Section = section) => {
+      // Cancel any pending prefetch debounce so it can't fire a second
+      // generation right after we kick off our own.
+      if (prefetchTimerRef.current != null) {
+        window.clearTimeout(prefetchTimerRef.current);
+        prefetchTimerRef.current = null;
+      }
+      // Snapshot the profile id NOW so a sign-out (or persona switch) mid-test
+      // doesn't orphan the attempt when we submit. Submitters use this ref.
+      profileIdAtStartRef.current = getProfileId() || undefined;
       setLoading(true);
       resetState();
       setSection(sec);
@@ -271,7 +295,7 @@ export default function MockTest() {
     setTimerOn(false);
     setLoading(true);
     try {
-      const r = await api.mockScoreReading(reading.testId, responses, profileId);
+      const r = await api.mockScoreReading(reading.testId, responses, profileIdAtStartRef.current ?? profileId);
       setObjResult(r);
       setPhase("results");
       loadHistory();
@@ -289,7 +313,7 @@ export default function MockTest() {
     setTimerOn(false);
     setLoading(true);
     try {
-      const r = await api.mockScoreListening(listening.testId, responses, profileId);
+      const r = await api.mockScoreListening(listening.testId, responses, profileIdAtStartRef.current ?? profileId);
       setObjResult(r);
       setPhase("results");
       loadHistory();
@@ -307,7 +331,7 @@ export default function MockTest() {
     setTimerOn(false);
     setLoading(true);
     try {
-      const r = await api.mockScoreWriting(exam, writing.taskType, writing.prompt, writing.context, essay, profileId);
+      const r = await api.mockScoreWriting(exam, writing.taskType, writing.prompt, writing.context, essay, profileIdAtStartRef.current ?? profileId);
       setSkillResult(r);
       setPhase("results");
       loadHistory();
@@ -324,7 +348,7 @@ export default function MockTest() {
     submittingRef.current = true;
     setLoading(true);
     try {
-      const r = await api.mockScoreSpeaking(exam, speaking.taskType, speaking.prompt, transcript, profileId);
+      const r = await api.mockScoreSpeaking(exam, speaking.taskType, speaking.prompt, transcript, profileIdAtStartRef.current ?? profileId);
       setSkillResult(r);
       setPhase("results");
       loadHistory();
@@ -337,19 +361,35 @@ export default function MockTest() {
   }, [speaking, exam, transcript, profileId, loadHistory]);
 
   // ---- Timer (reading / listening / writing) -----------------------------
-  // Auto-submit objective sections at 0; writing auto-submits too. Speaking uses
-  // its own internal phase timer (below).
+  // Wall-clock countdown: store the absolute end time in a ref, then compute
+  // timeLeft from `Date.now()`. Background tab throttling and clock drift
+  // can't quietly steal seconds the way a setTimeout(.., 1000) chain does.
+  // Auto-submit objective + writing at 0; speaking uses its own phase timer.
+  const endTimeRef = useRef(0);
   useEffect(() => {
     if (phase !== "taking" || !timerOn) return;
-    if (timeLeft <= 0) {
-      if (section === "reading") void submitReading();
-      else if (section === "listening") void submitListening();
-      else if (section === "writing") void submitWriting();
-      return;
-    }
-    const id = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
-    return () => clearTimeout(id);
-  }, [phase, timerOn, timeLeft, section, submitReading, submitListening, submitWriting]);
+    // Reset the end time only when the timer transitions on (or section changes).
+    if (endTimeRef.current === 0) endTimeRef.current = Date.now() + timeLeft * 1000;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining === 0) {
+        if (section === "reading") void submitReading();
+        else if (section === "listening") void submitListening();
+        else if (section === "writing") void submitWriting();
+      }
+    };
+    // 250ms tick lets the visible number stay current after a tab refocus
+    // without spinning needlessly between seconds.
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, timerOn, section]);
+
+  // Reset the end-time anchor whenever the timer is restarted (e.g. starting a new section).
+  useEffect(() => {
+    if (!timerOn) endTimeRef.current = 0;
+  }, [timerOn]);
 
   const answered = (qs: MockQuestion[]) => qs.filter((q) => responses[q.id]?.trim()).length;
 
@@ -586,7 +626,8 @@ export default function MockTest() {
 
           <div className="card">
             <h3 className="font-semibold text-ink">Criteria</h3>
-            <div className="mt-3 space-y-4">
+            <p className="mt-1 text-xs text-muted">Each criterion is graded against a verbatim quote from your answer, with a specific replacement to consider.</p>
+            <div className="mt-3 space-y-5">
               {skillResult.criteria.map((c) => (
                 <div key={c.name}>
                   <div className="flex items-baseline justify-between gap-2">
@@ -594,7 +635,20 @@ export default function MockTest() {
                     <span className="text-sm font-semibold text-ink">{c.score}/{c.max}</span>
                   </div>
                   <div className="mt-1.5"><ScoreBar value={(c.score / c.max) * 100} /></div>
-                  {c.feedback && <p className="mt-1.5 text-xs text-muted">{c.feedback}</p>}
+                  {c.evidenceQuote && (
+                    <div className="mt-2.5 border-l-2 border-brand-500/40 bg-brand-500/5 px-3 py-2 text-xs">
+                      <div className="font-semibold uppercase tracking-wide text-faint">From your answer</div>
+                      <p className="mt-0.5 italic text-ink">"{c.evidenceQuote}"</p>
+                    </div>
+                  )}
+                  {c.weakestQuote && c.specificFix && (
+                    <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs">
+                      <div className="font-semibold uppercase tracking-wide text-amber-600">Pulling this score down</div>
+                      <p className="mt-0.5 italic text-rose-600 line-through">"{c.weakestQuote}"</p>
+                      <p className="mt-1.5 font-medium text-emerald-600">{c.specificFix}</p>
+                    </div>
+                  )}
+                  {c.feedback && <p className="mt-2 text-xs text-muted">{c.feedback}</p>}
                 </div>
               ))}
             </div>

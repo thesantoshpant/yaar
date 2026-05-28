@@ -383,36 +383,113 @@ Return ONLY JSON: { "prompt": string, "context": string }`,
   };
 }
 
+export interface ScoredCriterion {
+  name: string;
+  score: number;
+  max: number;
+  feedback: string;
+  // Evidence-grounded fields. The model is required to quote the student's
+  // own essay verbatim so feedback is specific, not generic boilerplate.
+  evidenceQuote?: string; // a verbatim 3-20 word excerpt that justifies the score
+  weakestQuote?: string; // verbatim phrase to change (empty if criterion is strong)
+  specificFix?: string; // concrete rewrite: 'Replace "X" with "Y"'
+}
+
 export interface WritingResult {
   exam: Exam;
   skill: "writing";
   scaled: number;
   scaledLabel: string;
-  criteria: { name: string; score: number; max: number; feedback: string }[];
+  criteria: ScoredCriterion[];
   modelNote: string;
   weakTypes: string[];
   feedback: string;
 }
 
+// New schema: every criterion carries quoted evidence + a specific fix. The
+// system prompt forbids generic boilerplate ("develop ideas further") and
+// requires verbatim quotes that we verify server-side; if the quotes don't
+// actually appear in the essay, we retry with a corrective instruction.
+type RawScoredCriterion = { name: string; score: number; feedback: string; evidenceQuote?: string; weakestQuote?: string; specificFix?: string };
+
+function verifyQuotes(criteria: RawScoredCriterion[] | undefined, essay: string): { ok: boolean; missing: string[] } {
+  const norm = essay.toLowerCase().replace(/\s+/g, " ");
+  const missing: string[] = [];
+  for (const c of criteria ?? []) {
+    for (const field of ["evidenceQuote", "weakestQuote"] as const) {
+      const q = c[field];
+      if (q && q.trim().length > 3) {
+        const ql = q.toLowerCase().replace(/\s+/g, " ");
+        if (!norm.includes(ql)) missing.push(`${c.name}.${field}: "${q.slice(0, 60)}"`);
+      }
+    }
+  }
+  return { ok: missing.length === 0, missing };
+}
+
 export async function scoreWriting(exam: Exam, taskType: string, prompt: string, context: string | undefined, essay: string, profileId?: string): Promise<WritingResult> {
   const crit = WRITING_CRITERIA[exam];
-  const { data } = await generateJson<{ criteria: { name: string; score: number; feedback: string }[]; modelNote: string }>({
-    system: `${YAAR_PRINCIPLES}
-You are a strict but fair ${exam} writing examiner. Score the student's response against these criteria, each out of ${crit[0].max}: ${crit.map((c) => c.name).join(", ")}.
-Apply the real ${exam} band descriptors. Be honest and specific; cite what would push each criterion higher. Also give a 1-2 sentence "modelNote" describing what a top-scoring response does differently.
-Return ONLY JSON: { "criteria": [ { "name": string, "score": number, "feedback": string } ], "modelNote": string }`,
-    prompt: `Task type: ${taskType}\n${context ? `Stimulus:\n${context}\n` : ""}Prompt: ${prompt}\n\nStudent response (${essay.split(/\s+/).filter(Boolean).length} words):\n${essay}\n\nScore it now.`,
-    temperature: 0.3,
-    mock: () => ({
-      criteria: crit.map((c) => ({ name: c.name, score: Math.round(c.max * 0.6 * 2) / 2, feedback: `Reasonable ${c.name.toLowerCase()}. Develop ideas further with specific examples to score higher.` })),
-      modelNote: "A top response states a clear position, develops each point with a concrete example, and uses varied, precise language with very few errors.",
-    }),
+  const strongThreshold = Math.round(crit[0].max * 0.85);
+  const SYSTEM = `${YAAR_PRINCIPLES}
+You are a strict ${exam} writing examiner. Apply real ${exam} band descriptors honestly.
+
+EVIDENCE RULES (non-negotiable):
+1. For EVERY criterion, evidenceQuote and weakestQuote MUST be exact substrings of the student's essay, copied character-for-character. No paraphrase. No ellipsis. 3-20 words each.
+2. If a criterion is strong (score >= ${strongThreshold}), weakestQuote may be "" and specificFix may say "no fix needed — already at-band".
+3. specificFix MUST be a concrete rewrite of weakestQuote in the form: 'Replace "<weakestQuote>" with "<your suggested rewrite>".' Generic advice like "develop further" or "add examples" is forbidden.
+4. feedback is 1-2 sentences MAX. It must reference the quotes you supplied — not restate the rubric.
+5. If essay is too short or off-topic to evidence a criterion, set evidenceQuote = "" and explain in feedback. Do not invent quotes.
+6. modelNote (1-2 sentences) describes what a band-${crit[0].max} response does that THIS essay does not, referencing one of the student's actual sentences when possible.
+
+Score each criterion out of ${crit[0].max}: ${crit.map((c) => c.name).join(", ")}.
+Return ONLY JSON: { "criteria": [ { "name": string, "score": number, "evidenceQuote": string, "weakestQuote": string, "specificFix": string, "feedback": string } ], "modelNote": string }`;
+
+  const userPrompt = `Task type: ${taskType}\n${context ? `Stimulus:\n${context}\n` : ""}Prompt: ${prompt}\n\nStudent response (${essay.split(/\s+/).filter(Boolean).length} words):\n${essay}\n\nScore it now. Remember: every quote must be verbatim from the essay.`;
+  const mock = () => ({
+    criteria: crit.map((c) => ({
+      name: c.name,
+      score: Math.round(c.max * 0.6 * 2) / 2,
+      evidenceQuote: "",
+      weakestQuote: "",
+      specificFix: "no fix needed — already at-band",
+      feedback: "(demo mode) add a Gemini key to receive evidence-grounded feedback.",
+    })),
+    modelNote: "A top response states a clear position, develops each point with a concrete example, and uses varied, precise language with very few errors.",
   });
 
-  const scored = crit.map((c) => {
+  let { data } = await generateJson<{ criteria: RawScoredCriterion[]; modelNote: string }>({ system: SYSTEM, prompt: userPrompt, temperature: 0.3, mock });
+
+  // If any quote isn't actually in the essay, the model hallucinated it.
+  // Retry once with a corrective instruction; if it still fails we accept
+  // the result and strip the bad quote so the UI doesn't show a lie.
+  const check = verifyQuotes(data?.criteria, essay);
+  if (!check.ok) {
+    const retry = await generateJson<{ criteria: RawScoredCriterion[]; modelNote: string }>({
+      system: SYSTEM,
+      prompt: `${userPrompt}\n\nYour previous response had quotes that are NOT actually in the student's essay: ${check.missing.join("; ")}. Re-extract every evidenceQuote and weakestQuote so each is a verbatim substring of the essay. Do not invent quotes.`,
+      temperature: 0.2,
+      mock,
+    });
+    if (verifyQuotes(retry.data?.criteria, essay).ok) data = retry.data;
+  }
+
+  const scored: ScoredCriterion[] = crit.map((c) => {
     const found = (data.criteria ?? []).find((x) => x.name?.toLowerCase().includes(c.name.toLowerCase().slice(0, 6)));
     const raw = typeof found?.score === "number" ? found.score : c.max * 0.6;
-    return { name: c.name, score: Math.max(0, Math.min(c.max, raw)), max: c.max, feedback: found?.feedback || "" };
+    // Quotes survive only if they actually appear in the essay; otherwise strip them.
+    const cleanQuote = (q?: string) => {
+      if (!q || q.length < 3) return "";
+      return essay.toLowerCase().replace(/\s+/g, " ").includes(q.toLowerCase().replace(/\s+/g, " ")) ? q : "";
+    };
+    return {
+      name: c.name,
+      score: Math.max(0, Math.min(c.max, raw)),
+      max: c.max,
+      feedback: found?.feedback || "",
+      evidenceQuote: cleanQuote(found?.evidenceQuote),
+      weakestQuote: cleanQuote(found?.weakestQuote),
+      specificFix: typeof found?.specificFix === "string" ? found.specificFix : "",
+    };
   });
   const avg = scored.reduce((s, c) => s + c.score, 0) / scored.length;
 
@@ -570,7 +647,7 @@ export interface SpeakingResult {
   skill: "speaking";
   scaled: number;
   scaledLabel: string;
-  criteria: { name: string; score: number; max: number; feedback: string }[];
+  criteria: ScoredCriterion[];
   modelNote: string;
   weakTypes: string[];
   feedback: string;
@@ -579,23 +656,63 @@ export interface SpeakingResult {
 
 export async function scoreSpeaking(exam: Exam, taskType: string, prompt: string, transcript: string, profileId?: string): Promise<SpeakingResult> {
   const crit = SPEAKING_CRITERIA[exam];
-  const { data } = await generateJson<{ criteria: { name: string; score: number; feedback: string }[]; modelNote: string }>({
-    system: `${YAAR_PRINCIPLES}
-You are a ${exam} speaking examiner. You are scoring from a TRANSCRIPT of the student's spoken answer, so judge Fluency/Language/Topic well, but treat Pronunciation/Delivery as approximate (a transcript cannot fully capture it) and say so in that criterion's feedback.
-Score each criterion out of ${crit[0].max}: ${crit.map((c) => c.name).join(", ")}. Use the real ${exam} descriptors. Give a 1-2 sentence "modelNote" on what a top answer does.
-Return ONLY JSON: { "criteria": [ { "name": string, "score": number, "feedback": string } ], "modelNote": string }`,
-    prompt: `Task: ${taskType}\nPrompt: ${prompt}\n\nStudent's spoken answer (transcribed, ${transcript.split(/\s+/).filter(Boolean).length} words):\n${transcript}\n\nScore it now.`,
-    temperature: 0.3,
-    mock: () => ({
-      criteria: crit.map((c) => ({ name: c.name, score: Math.round(c.max * 0.6 * 2) / 2, feedback: `Reasonable ${c.name.toLowerCase()}. Speak longer and develop ideas with examples to score higher.` })),
-      modelNote: "A top answer is fluent, well-organized, uses a range of accurate language, and fully develops the response with specific examples.",
-    }),
+  const strongThreshold = Math.round(crit[0].max * 0.85);
+  const SYSTEM = `${YAAR_PRINCIPLES}
+You are a strict ${exam} speaking examiner. You score from a TRANSCRIPT of the spoken answer; judge Fluency/Language/Topic well, but treat Pronunciation/Delivery as approximate (the transcript can't fully capture it) and say so in that criterion's feedback.
+
+EVIDENCE RULES (non-negotiable):
+1. For EVERY criterion, evidenceQuote and weakestQuote MUST be exact substrings of the transcript, copied verbatim. 3-20 words each. No paraphrase.
+2. If a criterion is strong (score >= ${strongThreshold}), weakestQuote may be "" and specificFix may say "no fix needed — already at-band".
+3. specificFix MUST be concrete: a rewrite of weakestQuote in the form 'Say "<your replacement>" instead.' Generic advice like "develop further" or "speak longer" is forbidden.
+4. feedback is 1-2 sentences MAX, referencing the quotes you supplied — not restating the rubric.
+5. If the transcript is too short to evidence a criterion, set evidenceQuote = "" and say so in feedback. Do not invent quotes.
+6. modelNote (1-2 sentences): what a top answer does that THIS one does not, citing one of the student's actual phrases when possible.
+
+Score each criterion out of ${crit[0].max}: ${crit.map((c) => c.name).join(", ")}.
+Return ONLY JSON: { "criteria": [ { "name": string, "score": number, "evidenceQuote": string, "weakestQuote": string, "specificFix": string, "feedback": string } ], "modelNote": string }`;
+  const userPrompt = `Task: ${taskType}\nPrompt: ${prompt}\n\nStudent's spoken answer (transcribed, ${transcript.split(/\s+/).filter(Boolean).length} words):\n${transcript}\n\nScore it now. Every quote must be verbatim from the transcript.`;
+  const mock = () => ({
+    criteria: crit.map((c) => ({
+      name: c.name,
+      score: Math.round(c.max * 0.6 * 2) / 2,
+      evidenceQuote: "",
+      weakestQuote: "",
+      specificFix: "no fix needed — already at-band",
+      feedback: "(demo mode) add a Gemini key for evidence-grounded feedback.",
+    })),
+    modelNote: "A top answer is fluent, well-organized, uses a range of accurate language, and fully develops the response with specific examples.",
   });
 
-  const scored = crit.map((c) => {
+  let { data } = await generateJson<{ criteria: RawScoredCriterion[]; modelNote: string }>({ system: SYSTEM, prompt: userPrompt, temperature: 0.3, mock });
+
+  // Verify quotes against the transcript; retry once if any quote isn't real.
+  const check = verifyQuotes(data?.criteria, transcript);
+  if (!check.ok) {
+    const retry = await generateJson<{ criteria: RawScoredCriterion[]; modelNote: string }>({
+      system: SYSTEM,
+      prompt: `${userPrompt}\n\nYour previous response had quotes that are NOT actually in the transcript: ${check.missing.join("; ")}. Re-extract every evidenceQuote and weakestQuote so each is a verbatim substring of the transcript.`,
+      temperature: 0.2,
+      mock,
+    });
+    if (verifyQuotes(retry.data?.criteria, transcript).ok) data = retry.data;
+  }
+
+  const scored: ScoredCriterion[] = crit.map((c) => {
     const found = (data.criteria ?? []).find((x) => x.name?.toLowerCase().includes(c.name.toLowerCase().slice(0, 6)));
     const raw = typeof found?.score === "number" ? found.score : c.max * 0.6;
-    return { name: c.name, score: Math.max(0, Math.min(c.max, raw)), max: c.max, feedback: found?.feedback || "" };
+    const cleanQuote = (q?: string) => {
+      if (!q || q.length < 3) return "";
+      return transcript.toLowerCase().replace(/\s+/g, " ").includes(q.toLowerCase().replace(/\s+/g, " ")) ? q : "";
+    };
+    return {
+      name: c.name,
+      score: Math.max(0, Math.min(c.max, raw)),
+      max: c.max,
+      feedback: found?.feedback || "",
+      evidenceQuote: cleanQuote(found?.evidenceQuote),
+      weakestQuote: cleanQuote(found?.weakestQuote),
+      specificFix: typeof found?.specificFix === "string" ? found.specificFix : "",
+    };
   });
   const avg = scored.reduce((s, c) => s + c.score, 0) / scored.length;
 
