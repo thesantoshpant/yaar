@@ -1,0 +1,12 @@
+{
+  "suite": "counselor",
+  "name": "nepali-student-next-step",
+  "description": "Specific student profile should get a specific next-step suggestion (test prep / TOEFL / IELTS), not vague platitudes.",
+  "input": {
+    "messages": [{ "role": "user", "content": "I'm a Grade 11 student in Nepal aiming for a CS undergrad in the US. What should I do first?" }]
+  },
+  "expect": {
+    "must_include_any": ["TOEFL", "IELTS", "test", "English", "score"],
+    "min_len": 80
+  }
+}

@@ -188,6 +188,36 @@ export default function Progress() {
             <div className="flex items-center gap-2">
               <span className="text-lg">🧭</span>
               <h2 className="text-sm font-semibold text-ink">How you're doing</h2>
+              <button
+                className="btn-ghost ml-auto !py-1 !px-3 !text-xs"
+                onClick={() => {
+                  const topSkill = data.skills[0]
+                    ? { key: data.skills[0].key, latest: data.skills[0].latestLabel, delta: data.skills[0].delta, unit: data.skills[0].unit }
+                    : undefined;
+                  const focus = data.weakAreas[0]?.type;
+                  const payload = {
+                    name: "Your month",
+                    monthLabel: new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" }),
+                    streak: data.totals.streak,
+                    activities: data.totals.activities,
+                    mocks: data.totals.mocks,
+                    factsKnown: data.totals.factsKnown,
+                    topSkill,
+                    focus,
+                    recap: data.recap.split(".")[0],
+                    date: new Date().toISOString(),
+                  };
+                  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))))
+                    .replace(/\+/g, "-")
+                    .replace(/\//g, "_")
+                    .replace(/=+$/, "");
+                  const url = `${window.location.origin}/wrapped#data=${b64}`;
+                  if (navigator.clipboard) void navigator.clipboard.writeText(url);
+                  window.open(url, "_blank", "noopener");
+                }}
+              >
+                Share my month 🪪
+              </button>
             </div>
             <p className="mt-2 text-sm leading-relaxed text-muted">{data.recap}</p>
           </div>

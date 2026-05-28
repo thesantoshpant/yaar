@@ -134,13 +134,27 @@ ${context ? `Extra context: ${context}\n` : ""}Decide what to do now. Propose 1 
 }
 
 // A "company standup": run the always-on employees once. Used by the scheduler.
+// Order is intentional: analyst reads numbers, CEO sets the bet, PM files issues,
+// content drafts the day's article. Anything external is queued by the Action
+// Gateway behind Diya + the safety gate before it can actually go out.
 export async function companyStandup(): Promise<void> {
-  for (const id of ["arjun", "ceo", "aanya"]) {
+  for (const id of ["arjun", "ceo", "kabir", "aanya"]) {
     try {
       await runEmployee(id);
     } catch (err) {
       console.error("[company] standup failed for", id, err);
     }
+  }
+}
+
+// Weekly outreach drafting. Leo proposes personalized DMs to study-abroad
+// micro-influencers; each draft is queued through the Action Gateway (assist
+// mode = pending_approval). Founder sees the queue, approves the good ones.
+export async function weeklyOutreachDraft(): Promise<void> {
+  try {
+    await runEmployee("leo");
+  } catch (err) {
+    console.error("[company] weekly outreach failed:", err);
   }
 }
 

@@ -194,6 +194,13 @@ export const api = {
     post<MockReadingResult>("/api/mock/reading/score", { testId, responses, profileId }),
   mockHistory: (profileId: string) => get<{ attempts: MockAttemptSummary[] }>(`/api/mock/history/${profileId}`),
 
+  // Cohort percentile: "you scored higher than X% of recent attempts." Anonymous;
+  // returns { percentile: null } when there isn't enough cohort data yet.
+  mockCohort: (exam: string, skill: string, score: number) =>
+    get<{ percentile: number | null; cohortSize: number; note?: string }>(
+      `/api/mock/cohort/${encodeURIComponent(exam)}/${encodeURIComponent(skill)}?score=${encodeURIComponent(String(score))}`
+    ),
+
   // Progress + history: trends, comparisons, weak areas, activity timeline, AI recap.
   progress: (profileId: string) => get<ProgressData>(`/api/progress/${profileId}`),
 

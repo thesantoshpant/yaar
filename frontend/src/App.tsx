@@ -21,6 +21,8 @@ import Parent from "./pages/Parent";
 import ParentShared from "./pages/ParentShared";
 import VisaPass from "./pages/VisaPass";
 import Evals from "./pages/Evals";
+import MockCard from "./pages/MockCard";
+import Wrapped from "./pages/Wrapped";
 
 export default function App() {
   return (
@@ -29,6 +31,8 @@ export default function App() {
       <Route path="/parent/:token" element={<ParentShared />} />
       <Route path="/visa-pass" element={<VisaPass />} />
       <Route path="/evals" element={<Evals />} />
+      <Route path="/mock-card" element={<MockCard />} />
+      <Route path="/wrapped" element={<Wrapped />} />
       <Route path="/app" element={<ProfileProvider><AuthGateProvider><Layout /></AuthGateProvider></ProfileProvider>}>
         <Route index element={<Dashboard />} />
         <Route path="updates" element={<Updates />} />

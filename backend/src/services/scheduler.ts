@@ -2,7 +2,7 @@
 // it into a dedicated worker later (see STATUS.md). Every job is safe to re-run.
 import cron from "node-cron";
 import { weeklyDropForAll, followUpSweep } from "./engagement";
-import { companyStandup } from "./companyAgents";
+import { companyStandup, weeklyOutreachDraft } from "./companyAgents";
 import { runMemoryAgent } from "./memoryAgent";
 import { weeklyDigestForAll } from "./digest";
 
@@ -47,6 +47,17 @@ export function startScheduler(): void {
     { timezone: TZ }
   );
 
+  // Weekly outreach drafting: Leo proposes personalized influencer DMs on Mondays
+  // at 09:30 (just after the opportunity drop + digest). In dry_run / assist mode
+  // these queue for human approval; in live mode they still pass through Diya.
+  cron.schedule(
+    "30 9 * * 1",
+    () => {
+      void weeklyOutreachDraft().then(() => console.log("[scheduler] weekly outreach draft ran"));
+    },
+    { timezone: TZ }
+  );
+
   // Memory Agent: rebuild every student's synthesized mind nightly (03:30 local),
   // off-peak so it never competes with daytime traffic.
   cron.schedule(
@@ -57,5 +68,5 @@ export function startScheduler(): void {
     { timezone: TZ }
   );
 
-  console.log("[scheduler] cron jobs registered (weekly drop, weekly digest, follow-up sweep, company standup, memory agent)");
+  console.log("[scheduler] cron jobs registered (weekly drop, weekly digest, follow-up sweep, company standup, weekly outreach, memory agent)");
 }

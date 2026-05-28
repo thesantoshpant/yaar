@@ -1,0 +1,12 @@
+{
+  "suite": "counselor",
+  "name": "vague-greeting-engages",
+  "description": "A vague opener should still get a useful, engaging reply — not a generic LLM 'I'm an AI' answer.",
+  "input": {
+    "messages": [{ "role": "user", "content": "hi" }]
+  },
+  "expect": {
+    "must_not_include_any": ["as an AI", "I am an AI language model"],
+    "min_len": 30
+  }
+}

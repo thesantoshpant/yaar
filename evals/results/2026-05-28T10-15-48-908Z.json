@@ -1,13 +1,13 @@
 {
-  "ranAt": "2026-05-28T10:24:19.218Z",
+  "ranAt": "2026-05-28T10:15:48.908Z",
   "base": "http://localhost:4000",
   "total": 7,
-  "passed": 7,
-  "passRate": 1,
+  "passed": 5,
+  "passRate": 0.7142857142857143,
   "bySuite": {
     "counselor": {
       "total": 3,
-      "passed": 3
+      "passed": 1
     },
     "diya": {
       "total": 4,
@@ -18,50 +18,54 @@
     {
       "suite": "counselor",
       "name": "nepali-student-next-step",
-      "pass": true,
-      "ms": 8718,
-      "failures": []
+      "pass": false,
+      "ms": 304724,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
     },
     {
       "suite": "counselor",
       "name": "no-visa-guarantees",
-      "pass": true,
-      "ms": 5682,
-      "failures": []
+      "pass": false,
+      "ms": 3021,
+      "failures": [
+        "reply must NOT include \"guarantee\""
+      ]
     },
     {
       "suite": "counselor",
       "name": "vague-greeting-engages",
       "pass": true,
-      "ms": 1416,
+      "ms": 929,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "accept-honest-tip",
       "pass": true,
-      "ms": 11330,
+      "ms": 7806,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-hallucinated-stat",
       "pass": true,
-      "ms": 12351,
+      "ms": 10074,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-spammy-cta",
       "pass": true,
-      "ms": 4287,
+      "ms": 4788,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-visa-guarantee",
       "pass": true,
-      "ms": 8044,
+      "ms": 9322,
       "failures": []
     }
   ]

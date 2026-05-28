@@ -1,129 +1,95 @@
 # Yaar
 
-The honest, fully autonomous AI counselor that takes an international student from their hometown to a US
-degree and an approved F-1 visa. No human agents, no school commissions, no bias.
+A free, fully autonomous AI counselor that takes an international student from their hometown to a US degree and an approved F-1 visa. No human agents, no school commissions, no bias.
 
-Built for the Build with Gemini XPRIZE. React frontend + Node.js backend, deep Gemini integration, and graceful
-mock fallbacks so the whole app runs and demos **before any API keys are added**.
+Built solo for the **Build with Gemini XPRIZE**. The interesting part isn't the chat — it's the agentic infrastructure underneath: a multi-agent "Company HQ" with a risk-tiered Action Gateway, a six-dimension evaluator (Diya) that gates every external action, a typed long-horizon memory engine, and a public versioned eval suite that runs on every deploy.
+
+Free forever. If it grows, it grows; if it's acquired, it's acquired; either way the product stays free.
 
 ---
 
-## Quick start (for collaborators)
+## Live artifacts
 
-Prereqs: **Node 18+** (developed on Node 24) and npm. MongoDB and API keys are all optional (see below).
+- **`/evals`** — public yaar-evals dashboard. Every release runs the suite against the live backend and publishes the pass rate, by-suite bars, and per-case failure detail. Honest measurement, not vibe-check.
+- **`/visa-pass`** — share-card endpoint. After a scored mock F-1 interview, students generate a screenshot-worthy verdict card. Payload encoded in the URL hash, so the link carries no server state and never sends PII to a backend.
+- **`/api/ops/org`** — the named AI org (CEO, Arjun, Kabir, Aanya, Ravi, Maya, Leo, Sara, Diya, Memory). Each agent has a sharp single mission and a strict `allowedActions` whitelist.
+- **`/api/ops/safety`** — kill switch + daily $8 Vertex spend cap + per-user $0.50 cap. The single non-negotiable guardrail before deploying autonomous agents to the public internet.
+
+## Architecture, in one breath
+
+```
+ user / inbound -> Counselor / Mock / Visa / etc -> persistent memory (typed facts + timeline)
+                                                                |
+                  +--- agents propose actions ---+              v
+                  |                              |     contextPack used everywhere
+        CEO -> Arjun / Aanya / Ravi / ...        |
+                  |                              v
+                  +-------> Action Gateway (risk tier + Diya 6-dim eval + safety gate)
+                                                |
+                                                +-> dry_run | pending_approval | executed
+                                                                                 |
+                                                +-> Resend / Reddit / Twitter / Mongo
+```
+
+- **Gemini via Vertex AI** for every model call (text, JSON, neural TTS, transcription, multimodal vision on uploaded docs).
+- **MongoDB** for persistent state (graceful in-memory fallback for demos with no DB).
+- **Action Gateway** is the only door to the outside world. Internal actions free; external actions consult the safety gate, then Diya, then the autonomy mode (dry_run / assist / live), then a daily quota.
+- **Safety service** maintains an in-memory rolling daily budget with per-call atomic decrement and a global kill switch flippable from `/api/ops/safety/kill`.
+- **Per-user memory engine** keeps a typed `MemoryFact` store with supersede-by-key plus a `TimelineEvent` log, fed by every interaction via `recordActivity()`.
+
+## What's measurable
+
+| Claim | Verifiable at |
+|---|---|
+| Multi-agent ops with bounded autonomy | `GET /api/ops/org`, `POST /api/ops/boardroom`, `GET /api/ops/actions` |
+| Six-dim brand-safety eval | `POST /api/eval/diya`, public `/evals` page |
+| Versioned eval suite, runs on deploy | `scripts/run-evals.mjs`, `evals/cases/`, `evals/results/`, public `/evals` |
+| Persistent typed memory | `GET /api/memory/:profileId`, `GET /api/progress/:profileId` |
+| Adaptive IELTS/TOEFL grader across all four skills | `POST /api/mock/{reading,writing,listening,speaking}/score`, `/api/mock/history/:profileId` |
+| Neural TTS for listening prep | `POST /api/tts`, `/api/mock/listening/:id/audio` |
+| Safety gate + kill switch | `GET /api/ops/safety`, `POST /api/ops/safety/kill` |
+
+## Quickstart
 
 ```bash
-# 1. clone
-git clone https://github.com/Santoshpant23/yaar.git
-cd yaar
+# backend
+cd backend && npm install && npm run dev
 
-# 2. backend (terminal 1)
-cd backend
-npm install
-cp .env.example .env        # optional: fill in keys to go live; works empty in mock mode
-npm run dev                 # http://localhost:4000
+# frontend (separate terminal)
+cd frontend && npm install && npm run dev
 
-# 3. frontend (terminal 2)
-cd frontend
-npm install
-cp .env.example .env        # optional
-npm run dev                 # http://localhost:5173
+# smoke (separate terminal, backend must be running)
+node scripts/smoke.mjs
+
+# eval suite
+node scripts/run-evals.mjs
 ```
 
-Open http://localhost:5173. Landing page is at `/`, the app at `/app`.
+Works out of the box without any API keys — every AI call has a deterministic mock fallback. To run live: set `GEMINI_USE_VERTEX=1`, `GOOGLE_CLOUD_PROJECT=...`, and `GOOGLE_APPLICATION_CREDENTIALS=./sa.json`.
 
-On Windows PowerShell, replace `cp` with `Copy-Item`.
+## The named AI org
+
+| Agent | Role | Cadence | Allowed actions |
+|---|---|---|---|
+| CEO | Sets the week's one big bet | weekly | `internal_task`, `report` |
+| Arjun | Nightly analyst memo | daily | `report` |
+| Kabir | Weekly roadmap issues | weekly | `internal_task`, `report` |
+| Aanya | One SEO article per day | daily | `draft_content` |
+| Ravi | Reddit answers, where helpful | daily | `draft_content`, `social_post` |
+| Maya | Cuts long content into social | on_demand | `draft_content`, `social_post` |
+| Leo | Personalized outreach DMs | weekly | `email_campaign`, `internal_task` |
+| Sara | Inbound student/parent triage | on_demand | `support_reply`, `internal_task` |
+| Diya | Six-dim evaluator (eval/QA gate) | on_demand | `report` |
+| Memory | Per-user mind synthesis | daily | `internal_task`, `report` |
+
+Every external action proposed by any of them flows through Diya, then the Action Gateway, then the safety gate, before reaching anything real.
+
+## Why this exists
+
+International students from South Asia get bad advice from paid consultants who collect 15-25% commissions from the schools they recommend. The honest version of that workflow runs on Gemini for fractions of a cent per session. Yaar is the proof.
+
+It is also the founder's resume project. If you're hiring AI / agent / founding engineers and want to verify the claims above, the live dashboards exist and the code is here. Start at `/evals`.
 
 ---
 
-## It runs with zero setup (mock / guest mode)
-
-With no keys at all:
-- Gemini calls return deterministic, useful **mock** responses (badged "demo mode" in the UI).
-- School search returns a curated list of real US universities.
-- Data is kept in memory and resets on restart.
-- Auth is disabled (guest mode); payments are unlocked for free.
-
-The sidebar shows the current mode, and every AI result is badged `live` vs `demo`. Check `GET /api/health` for
-the same flags.
-
----
-
-## Environment variables (all optional)
-
-All live in `backend/.env` except the last, which is `frontend/.env`. Copy each `.env.example` and fill what you have.
-
-| Variable | What it unlocks | Where to get it |
-|---|---|---|
-| `GEMINI_API_KEY` | Live AI across every module | https://aistudio.google.com/apikey |
-| `COLLEGE_SCORECARD_API_KEY` | Live US school data in search | https://api.data.gov/signup/ (free, instant) |
-| `MONGODB_URI` | Persistent storage (else in-memory) | local Mongo or free MongoDB Atlas |
-| `GOOGLE_CLIENT_ID` + `JWT_SECRET` | Google sign-in (else guest mode) | Google Cloud Console → OAuth 2.0 Web client |
-| `STRIPE_SECRET_KEY` + `STRIPE_PRICE_USD` | Paid visa risk report (else free) | Stripe dashboard |
-| `PUBLIC_URL` | Stripe redirect target | your frontend URL (default `http://localhost:5173`) |
-| `VITE_GOOGLE_CLIENT_ID` (frontend) | Shows the Google sign-in button | same client ID as the backend |
-
----
-
-## What's inside
-
-Journey modules, each driven by an AI agent:
-- **Dashboard** — the autonomous counselor brain that decides the student's single best next step, and a persona intake.
-- **Updates** — a proactive inbox: weekly personalized opportunity drops and "did you do it?" follow-ups.
-- **Counselor** — an always-on, unbiased chat advisor with per-student memory.
-- **Roadmap** — an honest, realistic plan for tests, schools, finances, and the visa.
-- **School search** — a balanced reach / match / safety list from public College Scorecard data.
-- **Applications** — SOP and Common App essay drafting.
-- **Speaking practice** — TOEFL / IELTS speaking, scored against the official rubric.
-- **Visa simulator** — a document-grounded **risk report** plus a mock F-1 interview, scored honestly.
-
-Personal-intelligence layer: a persona classifier (rural/first-gen vs urban etc.), per-student memory (facts +
-timeline) injected into prompts, an opportunity engine (incl. self-startable "no-club" initiatives), and a
-node-cron proactive engine.
-
-## Tech
-
-- **Frontend:** React + Vite + TypeScript + Tailwind CSS.
-- **Backend:** Node.js + Express + TypeScript (run via `tsx`).
-- **AI:** Google Gemini (text, JSON, a Gemini Live voice relay scaffold).
-- **Data:** MongoDB via Mongoose, with an in-memory fallback.
-- **External data:** US College Scorecard API. **Auth:** Google sign-in (JWT). **Payments:** Stripe.
-
-## Scripts
-
-Backend (`/backend`): `npm run dev` (watch), `npm start`, `npm run typecheck`.
-Frontend (`/frontend`): `npm run dev`, `npm run build`, `npm run preview`.
-
-## API surface (selected)
-
-- `GET  /api/health` — mode flags (gemini, scorecard, db, billing, auth)
-- `POST /api/agent/plan` — autonomous next-best-action (persona + memory aware)
-- `GET  /api/journey/:profileId` — the student's adaptive journey state
-- `POST /api/engine/run-now/:profileId` — generate this week's personalized opportunity drop
-- `GET  /api/engine/inbox/:profileId`, `PATCH /api/engine/action/:id` — inbox + follow-up loop
-- `POST /api/counselor/chat`, `POST /api/roadmap`, `POST /api/schools/search`
-- `POST /api/risk/report` — document-grounded visa risk report (the paid flagship)
-- `POST /api/visa/next`, `POST /api/visa/score`, `POST /api/speaking/score`, `POST /api/applications/draft`
-- `POST /api/auth/google`, `GET /api/auth/me` — Google sign-in
-- `POST /api/billing/checkout`, `POST /api/billing/confirm` — Stripe
-
-## Project structure
-
-```
-yaar/
-  backend/    Express + TS API, agents, engine, models, services
-  frontend/   React + Vite + TS + Tailwind app
-```
-
-## Status / known limitations
-
-This is an active hackathon MVP. Notably: Google auth is wired but **not yet enforced** on routes (no per-user
-data scoping yet); Stripe entitlements are in-memory; the visa report takes pasted document text (binary file
-upload + multimodal extraction is the next step); no privacy policy / consent flow yet. See `STATUS.md` for the
-running list.
-
-## Note on autonomy and safety
-
-Yaar is positioned as fully autonomous and structurally unbiased: the AI does the work and never earns
-commissions from schools. It is a coaching and information tool, **not legal or immigration advice**, and it never
-guarantees admission or visa outcomes.
+> Yaar is a coaching and information tool, not legal or immigration advice. Outcomes are never guaranteed.

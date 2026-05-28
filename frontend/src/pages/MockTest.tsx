@@ -11,8 +11,68 @@ import {
   type MockQuestion,
 } from "../api/client";
 import { getProfileId } from "../lib/progress";
+import { useProfile } from "../lib/profile";
 import { PageHeading, Spinner, ErrorNote, ScoreBar } from "../components/ui";
 import { useRecorder } from "../lib/useRecorder";
+
+// Builds a hash-encoded Mock Card URL: payload lives in the fragment so no
+// server-side record is needed and any link is revocable by deletion.
+async function buildMockCardUrl(opts: {
+  name: string;
+  exam: string;
+  skill: string;
+  scaled: number;
+  scaledLabel: string;
+  highlight?: string;
+}): Promise<string> {
+  let percentile: number | null = null;
+  let cohortSize = 0;
+  try {
+    const r = await api.mockCohort(opts.exam, opts.skill, opts.scaled);
+    percentile = r.percentile;
+    cohortSize = r.cohortSize;
+  } catch {
+    // Cohort lookup is best-effort; the card works without it.
+  }
+  const payload = {
+    name: opts.name.trim() || "A student",
+    exam: opts.exam,
+    skill: opts.skill,
+    scaled: opts.scaled,
+    scaledLabel: opts.scaledLabel,
+    percentile,
+    cohortSize,
+    highlight: opts.highlight,
+    date: new Date().toISOString(),
+  };
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+  return `${window.location.origin}/mock-card#data=${b64}`;
+}
+
+function ShareMockButton({ name, exam, skill, scaled, scaledLabel, highlight }: { name: string; exam: string; skill: string; scaled: number; scaledLabel: string; highlight?: string }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      className="btn-ghost"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          const url = await buildMockCardUrl({ name, exam, skill, scaled, scaledLabel, highlight });
+          if (navigator.clipboard) await navigator.clipboard.writeText(url);
+          window.open(url, "_blank", "noopener");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? "Building…" : "Share my score 🪪"}
+    </button>
+  );
+}
 
 type Section = "reading" | "listening" | "writing" | "speaking";
 type Phase = "intro" | "taking" | "results";
@@ -77,6 +137,8 @@ function GeneratingLoader({ section }: { section: Section }) {
 
 export default function MockTest() {
   const profileId = getProfileId() || undefined;
+  const { profile } = useProfile();
+  const shareName = profile.name || "A student";
   const [exam, setExam] = useState("IELTS");
   const [section, setSection] = useState<Section>("reading");
   const [phase, setPhase] = useState<Phase>("intro");
@@ -468,6 +530,16 @@ export default function MockTest() {
             title={`${objResult.exam} ${objResult.skill} result`} loading={loading} onAgain={onPracticeAgain} onBack={backToIntro}>
             <span className="ml-2 text-sm text-muted">{objResult.rawCorrect}/{objResult.rawTotal} correct</span>
           </ResultHeader>
+          <div className="-mt-2 flex justify-end">
+            <ShareMockButton
+              name={shareName}
+              exam={objResult.exam}
+              skill={objResult.skill}
+              scaled={objResult.scaled}
+              scaledLabel={objResult.scaledLabel}
+              highlight={objResult.feedback.split(".")[0]}
+            />
+          </div>
 
           {section === "listening" && listening && (
             <div className="card">
@@ -501,6 +573,16 @@ export default function MockTest() {
         <>
           <ResultHeader scaledLabel={skillResult.scaledLabel} feedback={skillResult.feedback} weakTypes={skillResult.weakTypes}
             title={`${skillResult.exam} ${skillResult.skill} result`} loading={loading} onAgain={onPracticeAgain} onBack={backToIntro} />
+          <div className="-mt-2 flex justify-end">
+            <ShareMockButton
+              name={shareName}
+              exam={skillResult.exam}
+              skill={skillResult.skill}
+              scaled={skillResult.scaled}
+              scaledLabel={skillResult.scaledLabel}
+              highlight={skillResult.feedback.split(".")[0]}
+            />
+          </div>
 
           <div className="card">
             <h3 className="font-semibold text-ink">Criteria</h3>

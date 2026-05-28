@@ -311,6 +311,16 @@ export const store = {
     return mem.mockAttempts.filter((a) => a.profileId === profileId).slice(-limit).reverse();
   },
 
+  // Cohort lookup: every recent attempt for an exam+skill across ALL students,
+  // for "you scored higher than X% of recent attempts" percentile math.
+  async listMockAttemptsByExamSkill(exam: string, skill: string, limit = 500): Promise<MockAttempt[]> {
+    if (dbConnected()) {
+      const docs = await MockAttemptModel.find({ exam, skill }).sort({ createdAt: -1 }).limit(limit).lean<MockAttempt[]>().exec();
+      return docs.map(clean);
+    }
+    return mem.mockAttempts.filter((a) => a.exam === exam && a.skill === skill).slice(-limit).reverse();
+  },
+
   // ---------- evidence vault ----------
   async addEvidence(input: Omit<EvidenceArtifact, "id" | "createdAt">): Promise<EvidenceArtifact> {
     const item: EvidenceArtifact = { ...input, id: nanoid(10), createdAt: now() };

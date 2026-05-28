@@ -94,3 +94,26 @@ mockRouter.get("/history/:profileId", async (req, res) => {
   await assertOwnership(req, req.params.profileId);
   res.json({ attempts: await store.listMockAttempts(req.params.profileId) });
 });
+
+// Cohort percentile: "you scored higher than X% of the most recent N attempts
+// for this exam+skill." Used by the Mock share card. No auth: the result is a
+// number plus a sample size, both anonymous and harmless to expose.
+mockRouter.get("/cohort/:exam/:skill", async (req, res) => {
+  const exam = examOf(req.params.exam);
+  const skillParam = String(req.params.skill || "").toLowerCase();
+  const skill = (["reading", "listening", "writing", "speaking"] as const).find((s) => s === skillParam);
+  if (!skill) return res.status(400).json({ error: "bad skill" });
+  const score = Number(req.query.score);
+  if (!Number.isFinite(score)) return res.status(400).json({ error: "score required" });
+  const attempts = await store.listMockAttemptsByExamSkill(exam, skill, 500);
+  // Self-attempts are noise; treat the request as anonymous percentile math.
+  const scores = attempts.map((a) => a.scaled).filter((s) => Number.isFinite(s));
+  if (scores.length < 5) {
+    return res.json({ percentile: null, cohortSize: scores.length, note: "not enough data yet" });
+  }
+  const below = scores.filter((s) => s < score).length;
+  const equal = scores.filter((s) => s === score).length;
+  // Standard percentile-rank formula treats half of the ties as below.
+  const percentile = Math.round(((below + equal / 2) / scores.length) * 100);
+  res.json({ percentile, cohortSize: scores.length });
+});

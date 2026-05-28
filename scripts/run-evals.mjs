@@ -42,40 +42,97 @@ async function callDiya(input) {
   return await res.json();
 }
 
-function matches(actual, expect) {
+async function callCounselor(input) {
+  const res = await fetch(`${BASE}/api/counselor/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: input.messages }),
+  });
+  if (!res.ok) throw new Error(`Counselor endpoint returned ${res.status}`);
+  const json = await res.json();
+  // Normalize so the matcher works on a single "reply" string.
+  return { reply: json.reply ?? "", source: json.source };
+}
+
+function lc(s) {
+  return String(s ?? "").toLowerCase();
+}
+
+function matches(actual, expect, suite) {
   const failures = [];
-  if ("approved" in expect && Boolean(actual.approved) !== Boolean(expect.approved)) {
-    failures.push(`approved expected ${expect.approved}, got ${actual.approved}`);
-  }
-  if (Array.isArray(expect.weakest_includes)) {
-    const aw = Array.isArray(actual.weakest) ? actual.weakest : [];
-    for (const dim of expect.weakest_includes) {
-      if (!aw.includes(dim)) failures.push(`weakest expected to include "${dim}", got [${aw.join(", ") || "<none>"}]`);
+
+  if (suite === "diya") {
+    if ("approved" in expect && Boolean(actual.approved) !== Boolean(expect.approved)) {
+      failures.push(`approved expected ${expect.approved}, got ${actual.approved}`);
     }
+    if (Array.isArray(expect.weakest_includes)) {
+      const aw = Array.isArray(actual.weakest) ? actual.weakest : [];
+      for (const dim of expect.weakest_includes) {
+        if (!aw.includes(dim)) failures.push(`weakest expected to include "${dim}", got [${aw.join(", ") || "<none>"}]`);
+      }
+    }
+    return failures;
   }
-  return failures;
+
+  if (suite === "counselor") {
+    const reply = lc(actual.reply);
+    if (Array.isArray(expect.must_include_any) && expect.must_include_any.length) {
+      const ok = expect.must_include_any.some((s) => reply.includes(lc(s)));
+      if (!ok) failures.push(`reply must include any of [${expect.must_include_any.join(", ")}]`);
+    }
+    if (Array.isArray(expect.must_not_include_any) && expect.must_not_include_any.length) {
+      const bad = expect.must_not_include_any.find((s) => reply.includes(lc(s)));
+      if (bad) failures.push(`reply must NOT include "${bad}"`);
+    }
+    if (typeof expect.min_len === "number" && reply.length < expect.min_len) {
+      failures.push(`reply length ${reply.length} < min ${expect.min_len}`);
+    }
+    if (typeof expect.max_len === "number" && reply.length > expect.max_len) {
+      failures.push(`reply length ${reply.length} > max ${expect.max_len}`);
+    }
+    return failures;
+  }
+
+  return [`unknown suite ${suite}`];
+}
+
+async function callSuite(c) {
+  if (c.suite === "diya") return callDiya(c.input);
+  if (c.suite === "counselor") return callCounselor(c.input);
+  throw new Error(`unknown suite: ${c.suite}`);
 }
 
 async function runOne(casePath) {
   const c = await readJson(casePath);
   const start = Date.now();
+  // Retry once on transient fetch failures: tsx-watch reloads briefly drop
+  // connections, and we don't want flakes to register as real regressions.
+  let actual;
   try {
-    let actual;
-    if (c.suite === "diya") actual = await callDiya(c.input);
-    else throw new Error(`unknown suite: ${c.suite}`);
-    const failures = matches(actual, c.expect ?? {});
-    return {
-      suite: c.suite,
-      name: c.name,
-      pass: failures.length === 0,
-      ms: Date.now() - start,
-      failures,
-      actual,
-      expect: c.expect ?? {},
-    };
+    actual = await callSuite(c);
   } catch (err) {
-    return { suite: c.suite, name: c.name, pass: false, ms: Date.now() - start, failures: [String(err)], actual: null, expect: c.expect ?? {} };
+    const msg = String(err);
+    if (/fetch failed|ECONN|ETIMEDOUT|socket hang up/i.test(msg)) {
+      await new Promise((r) => setTimeout(r, 1500));
+      try {
+        actual = await callSuite(c);
+      } catch (err2) {
+        return { suite: c.suite, name: c.name, pass: false, ms: Date.now() - start, failures: [String(err2)], actual: null, expect: c.expect ?? {} };
+      }
+    } else {
+      return { suite: c.suite, name: c.name, pass: false, ms: Date.now() - start, failures: [msg], actual: null, expect: c.expect ?? {} };
+    }
   }
+  const failures = matches(actual, c.expect ?? {}, c.suite);
+  return {
+    suite: c.suite,
+    name: c.name,
+    pass: failures.length === 0,
+    ms: Date.now() - start,
+    failures,
+    actual,
+    expect: c.expect ?? {},
+  };
 }
 
 async function main() {
