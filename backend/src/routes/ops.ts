@@ -9,6 +9,7 @@ import { executeApproved } from "../lib/actionGateway";
 import { store } from "../lib/store";
 import { config } from "../config";
 import { getSafetyStatus, setKillSwitch } from "../services/safety";
+import { getSchedulerHeartbeat } from "../services/scheduler";
 
 export const opsRouter = Router();
 
@@ -33,6 +34,8 @@ opsRouter.get("/pulse", async (_req, res) => {
   const safety = getSafetyStatus();
   const pending = await store.listActions({ status: "pending_approval", limit: 50 });
   const recent = await store.listActions({ limit: 5 });
+  const heartbeatTs = getSchedulerHeartbeat();
+  const heartbeatStaleMs = Date.now() - new Date(heartbeatTs).getTime();
   res.json({
     ok: !safety.killSwitchEngaged,
     autonomyMode: safety.autonomyMode,
@@ -43,6 +46,12 @@ opsRouter.get("/pulse", async (_req, res) => {
       cap: safety.dailyHardCapUsd,
       pct: Math.round((safety.totalSpendUsd / Math.max(safety.dailyHardCapUsd, 0.0001)) * 100),
       calls: safety.callCount,
+    },
+    scheduler: {
+      lastTickAt: heartbeatTs,
+      staleMs: heartbeatStaleMs,
+      // Heartbeat ticks every 5 min; 15 min = three missed ticks = something is wrong.
+      stale: heartbeatStaleMs > 15 * 60 * 1000,
     },
     pendingApprovalCount: pending.length,
     recentActions: recent.map((a) => ({ id: a.id, agentId: a.agentId, type: a.type, status: a.status, title: a.title, createdAt: a.createdAt })),

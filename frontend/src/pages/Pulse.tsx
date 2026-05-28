@@ -12,6 +12,7 @@ interface Pulse {
   killSwitchEngaged: boolean;
   reason: string;
   spend: { today: number; cap: number; pct: number; calls: number };
+  scheduler?: { lastTickAt: string; staleMs: number; stale: boolean };
   pendingApprovalCount: number;
   recentActions: { id: string; agentId: string; type: string; status: string; title: string; createdAt: string }[];
   recentRejections: { ts: string; reason: string }[];
@@ -117,6 +118,14 @@ export default function Pulse() {
             value={String(pulse.pendingApprovalCount)}
             tone={pulse.pendingApprovalCount > 5 ? "amber" : "emerald"}
           />
+          {pulse.scheduler && (
+            <Tile
+              label="Scheduler"
+              value={pulse.scheduler.stale ? "STALE" : "alive"}
+              tone={pulse.scheduler.stale ? "rose" : pulse.scheduler.staleMs > 10 * 60 * 1000 ? "amber" : "emerald"}
+              sub={`last tick ${relTime(pulse.scheduler.lastTickAt)}`}
+            />
+          )}
         </div>
 
         <div className="mt-4">
@@ -190,6 +199,17 @@ function Tile({ label, value, tone, sub }: { label: string; value: string; tone:
       {sub && <div className="text-[11px] text-faint">{sub}</div>}
     </div>
   );
+}
+
+function relTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
 }
 
 function statusBadge(s: string): string {

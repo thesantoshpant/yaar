@@ -67,6 +67,18 @@ node scripts/run-evals.mjs
 
 Works out of the box without any API keys — every AI call has a deterministic mock fallback. To run live: set `GEMINI_USE_VERTEX=1`, `GOOGLE_CLOUD_PROJECT=...`, and `GOOGLE_APPLICATION_CREDENTIALS=./sa.json`.
 
+## Deploying
+
+The council that reviewed Yaar three times converged on a deploy posture that bounds spend, fails closed under load, and stays observable from a phone. Follow this checklist:
+
+1. **Use `npm start`, not `npm run dev`.** `tsx watch` reloads on file save and is not for prod.
+2. **Set `ADMIN_TOKEN`** in the platform service config (not just `.env.example`). Without it, every `/api/ops/*` endpoint returns 503 from non-localhost.
+3. **Set `YAAR_AUTONOMY_MODE=dry_run`** for the first deploy. Move to `assist` after eyeballing a week of queued actions.
+4. **Leave `YAAR_ENABLE_LIVE_VOICE` unset.** Re-enable only after wiring auth + per-minute spend gate on the WebSocket.
+5. **Cap budget at the platform level too** with a GCP Billing alert at $50 (belt-and-suspenders to the in-code daily cap).
+6. **Cloud Run only:** set `--min-instances=1` so scale-to-zero doesn't pause the cron loop. The `/pulse` page surfaces a red "Scheduler STALE" tile if the heartbeat misses three 5-minute ticks.
+7. **Verify with `node scripts/run-evals.mjs`** against the deployed URL (`BASE=https://your.domain node scripts/run-evals.mjs`) before announcing.
+
 ## The named AI org
 
 | Agent | Role | Cadence | Allowed actions |

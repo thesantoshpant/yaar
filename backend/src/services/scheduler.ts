@@ -8,6 +8,16 @@ import { weeklyDigestForAll } from "./digest";
 
 const TZ = "Asia/Kathmandu";
 
+// Heartbeat. A cheap 5-minute tick whose only job is "the cron loop is alive."
+// Surfaced on /api/ops/pulse so the phone dashboard can show a red tile if the
+// scheduler has gone silent (Cloud Run cold-start eviction, unhandled rejection,
+// Mongo disconnect, anything that stops the loop). Set on boot so a freshly
+// deployed instance is immediately considered live.
+let heartbeatTs = new Date().toISOString();
+export function getSchedulerHeartbeat(): string {
+  return heartbeatTs;
+}
+
 export function startScheduler(): void {
   // Weekly personalized opportunity drop: Mondays 09:00 local.
   cron.schedule(
@@ -68,5 +78,10 @@ export function startScheduler(): void {
     { timezone: TZ }
   );
 
-  console.log("[scheduler] cron jobs registered (weekly drop, weekly digest, follow-up sweep, company standup, weekly outreach, memory agent)");
+  // Heartbeat: every 5 minutes, prove the cron loop is alive.
+  cron.schedule("*/5 * * * *", () => {
+    heartbeatTs = new Date().toISOString();
+  });
+
+  console.log("[scheduler] cron jobs registered (weekly drop, weekly digest, follow-up sweep, company standup, weekly outreach, memory agent, 5-min heartbeat)");
 }
