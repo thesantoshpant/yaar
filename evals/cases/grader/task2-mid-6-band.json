@@ -1,0 +1,12 @@
+{
+  "suite": "grader",
+  "name": "task2-mid-6-band",
+  "exam": "IELTS",
+  "skill": "writing",
+  "taskType": "ielts_task2",
+  "published_band": 6.0,
+  "source": "Illustrative starter — replace with Cambridge IELTS published-band sample (see evals/cases/grader/README.md).",
+  "prompt": "In many countries, the proportion of older people is increasing rapidly. What problems does this cause? What can be done to address these problems?",
+  "essay": "In many country today, the number of older people is rising fast. This change is causing some problems for society and the goverment. In this essay, I will look at the main problems and suggest some solutions.\n\nFirstly, when there are more old people, the goverment has to spend a lot of money on health care and pensions. Old people often go to hospital more, and they need special care. This is expensive. Also, there are not enough young workers to pay tax, so the goverment has less money. Another problem is that some old people feel lonely. Their family is busy and there is nobody to talk to them.\n\nTo solve these problems, the goverment can do some things. One idea is to make people work for more years before they get pension, so they pay tax longer. Another idea is to make new jobs in care homes and hospital, so more young people work there. Family should also visit their old parents more often to fight loneliness.\n\nIn conclusion, more older people in society causes money problems and social problems. But if the goverment and family work together, these can be solved.",
+  "runs": 3
+}

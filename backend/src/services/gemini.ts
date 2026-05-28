@@ -99,21 +99,29 @@ export async function generateText(opts: {
   if (!gate.ok) {
     return { text: `I'm temporarily unavailable (${gate.reason}). Try again shortly.`, source: "mock" };
   }
-  try {
-    const res = await ai.models.generateContent({
-      model: config.geminiTextModel,
-      contents: opts.prompt,
-      config: {
-        systemInstruction: opts.system,
-        temperature: opts.temperature ?? 0.7,
-      },
-    });
-    chargeForCall(res, opts.profileId, (opts.prompt?.length ?? 0) + (opts.system?.length ?? 0) + (res.text?.length ?? 0));
-    return { text: res.text ?? "", source: "gemini" };
-  } catch (err) {
-    console.error("[gemini] generateText failed, using fallback:", err);
-    return { text: "I had trouble reaching the AI service just now. Please try again.", source: "mock" };
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await ai.models.generateContent({
+        model: config.geminiTextModel,
+        contents: opts.prompt,
+        config: {
+          systemInstruction: opts.system,
+          temperature: opts.temperature ?? 0.7,
+        },
+      });
+      chargeForCall(res, opts.profileId, (opts.prompt?.length ?? 0) + (opts.system?.length ?? 0) + (res.text?.length ?? 0));
+      return { text: res.text ?? "", source: "gemini" };
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      if (status === 429 && attempt < 3) {
+        await new Promise((r) => setTimeout(r, 1500 * Math.pow(2, attempt)));
+        continue;
+      }
+      console.error("[gemini] generateText failed, using fallback:", err);
+      return { text: "I had trouble reaching the AI service just now. Please try again.", source: "mock" };
+    }
   }
+  return { text: "I had trouble reaching the AI service just now. Please try again.", source: "mock" };
 }
 
 export async function generateJson<T>(opts: {
@@ -131,24 +139,39 @@ export async function generateJson<T>(opts: {
   if (!gate.ok) {
     return { data: opts.mock(), source: "mock" };
   }
-  try {
-    const res = await ai.models.generateContent({
-      model: opts.model ?? config.geminiTextModel,
-      contents: opts.prompt,
-      config: {
-        systemInstruction: opts.system,
-        temperature: opts.temperature ?? 0.6,
-        responseMimeType: "application/json",
-      },
-    });
-    const raw = res.text ?? "";
-    chargeForCall(res, opts.profileId, (opts.prompt?.length ?? 0) + (opts.system?.length ?? 0) + raw.length);
-    const data = JSON.parse(extractJson(raw)) as T;
-    return { data, source: "gemini" };
-  } catch (err) {
-    console.error("[gemini] generateJson failed, using fallback:", err);
-    return { data: opts.mock(), source: "mock" };
+  // Vertex/Gemini RPM caps can produce 429 bursts when the eval suite, a
+  // boardroom, or the grader study runs many calls in seconds. Retry up to
+  // 3 times with exponential backoff so a transient quota hiccup doesn't
+  // silently fall back to the mock (which would silently approve in Diya's
+  // case until we fixed that to fail-closed).
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await ai.models.generateContent({
+        model: opts.model ?? config.geminiTextModel,
+        contents: opts.prompt,
+        config: {
+          systemInstruction: opts.system,
+          temperature: opts.temperature ?? 0.6,
+          responseMimeType: "application/json",
+        },
+      });
+      const raw = res.text ?? "";
+      chargeForCall(res, opts.profileId, (opts.prompt?.length ?? 0) + (opts.system?.length ?? 0) + raw.length);
+      const data = JSON.parse(extractJson(raw)) as T;
+      return { data, source: "gemini" };
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      if (status === 429 && attempt < 3) {
+        // Exponential backoff: 1.5s, 3s, 6s before final retry.
+        await new Promise((r) => setTimeout(r, 1500 * Math.pow(2, attempt)));
+        continue;
+      }
+      console.error("[gemini] generateJson failed, using fallback:", err);
+      return { data: opts.mock(), source: "mock" };
+    }
   }
+  // Unreachable, but TypeScript needs a return.
+  return { data: opts.mock(), source: "mock" };
 }
 
 // Natural text-to-speech via Gemini (neural voices, far better than the browser engine).

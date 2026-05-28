@@ -66,10 +66,14 @@ export async function reviewAction(a: { type: string; channel?: string; title: s
     // the whole point of versioned evals.
     temperature: 0.2,
     prompt: `Action type: ${a.type}, channel: ${a.channel ?? "n/a"}\nTitle: ${a.title}\nContent:\n${a.payload}\n\nScore it now.`,
+    // CRITICAL: fail-CLOSED, not fail-open. If Gemini is rate-limited (429),
+    // unreachable, or the key is missing, we return zero scores so the action
+    // is rejected by the rubric thresholds. The previous default of all-pass
+    // turned every 429 into a silent approve, which an attacker could trigger
+    // by spamming the evaluator. The eval suite caught this in iteration 3.
     mock: () => ({
-      // In dev (no key), default to all-pass so the rest of the pipeline is exercisable.
-      scores: { accuracy: 1, tone: 1, legal_safety: 1, brand_fit: 1, novelty: 0.7, cta_hygiene: 1 },
-      summary: "review skipped (no Gemini key); approved by default in dev",
+      scores: { accuracy: 0, tone: 0, legal_safety: 0, brand_fit: 0, novelty: 0, cta_hygiene: 0 },
+      summary: "evaluator unavailable (no key or rate-limited); failing closed",
     }),
   });
 

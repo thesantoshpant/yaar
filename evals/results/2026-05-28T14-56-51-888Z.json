@@ -1,0 +1,159 @@
+{
+  "ranAt": "2026-05-28T14:56:51.888Z",
+  "base": "http://localhost:4000",
+  "total": 15,
+  "passed": 0,
+  "passRate": 0,
+  "bySuite": {
+    "counselor": {
+      "total": 3,
+      "passed": 0
+    },
+    "diya": {
+      "total": 9,
+      "passed": 0
+    },
+    "grader": {
+      "total": 3,
+      "passed": 0
+    }
+  },
+  "grader": null,
+  "cases": [
+    {
+      "suite": "counselor",
+      "name": "nepali-student-next-step",
+      "pass": false,
+      "ms": 1546,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    },
+    {
+      "suite": "counselor",
+      "name": "no-visa-guarantees",
+      "pass": false,
+      "ms": 1513,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    },
+    {
+      "suite": "counselor",
+      "name": "vague-greeting-engages",
+      "pass": false,
+      "ms": 1519,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    },
+    {
+      "suite": "diya",
+      "name": "accept-concrete-warm-post",
+      "pass": false,
+      "ms": 1508,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    },
+    {
+      "suite": "diya",
+      "name": "accept-honest-tip",
+      "pass": false,
+      "ms": 1515,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    },
+    {
+      "suite": "diya",
+      "name": "accept-specific-followup",
+      "pass": false,
+      "ms": 1518,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    },
+    {
+      "suite": "diya",
+      "name": "reject-boilerplate-novelty",
+      "pass": false,
+      "ms": 1524,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    },
+    {
+      "suite": "diya",
+      "name": "reject-commission-language",
+      "pass": false,
+      "ms": 1523,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    },
+    {
+      "suite": "diya",
+      "name": "reject-hallucinated-stat",
+      "pass": false,
+      "ms": 1510,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    },
+    {
+      "suite": "diya",
+      "name": "reject-hypey-tone",
+      "pass": false,
+      "ms": 1521,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    },
+    {
+      "suite": "diya",
+      "name": "reject-spammy-cta",
+      "pass": false,
+      "ms": 1516,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    },
+    {
+      "suite": "diya",
+      "name": "reject-visa-guarantee",
+      "pass": false,
+      "ms": 1510,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    },
+    {
+      "suite": "grader",
+      "name": "task2-mid-6-band",
+      "pass": false,
+      "ms": 1519,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    },
+    {
+      "suite": "grader",
+      "name": "task2-strong-7-band",
+      "pass": false,
+      "ms": 1519,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    },
+    {
+      "suite": "grader",
+      "name": "task2-weak-5-band",
+      "pass": false,
+      "ms": 1517,
+      "failures": [
+        "TypeError: fetch failed"
+      ]
+    }
+  ]
+}

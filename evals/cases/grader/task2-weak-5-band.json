@@ -1,0 +1,12 @@
+{
+  "suite": "grader",
+  "name": "task2-weak-5-band",
+  "exam": "IELTS",
+  "skill": "writing",
+  "taskType": "ielts_task2",
+  "published_band": 5.0,
+  "source": "Illustrative starter — replace with Cambridge IELTS published-band sample (see evals/cases/grader/README.md).",
+  "prompt": "Some people believe that children should be allowed to use mobile phones at school. Others think that mobile phones should be banned. Discuss both views and give your opinion.",
+  "essay": "Some peoples think childrens should use mobile phone in the school. But other peoples think it is bad and must be ban. I will write about both side and my own view.\n\nFirst, mobile phone is good because childrens can search information when teacher say something. Also if there is emergency, they can call parents quickly. This is very important.\n\nIn other side, mobile phone is very bad in school. Childrens do not pay attention to the lesson. They play game and chat with friend. The marks become low. Also some childrens use phone to copy in exam which is cheating.\n\nIn my opinion, I think mobile phone should be ban in school. Because childrens cannot control them self. Better the teacher use computer for show information.\n\nIn conclusion, mobile phone has good and bad side but I think it must be ban for childrens in school.",
+  "runs": 3
+}

@@ -94,21 +94,40 @@ app.use(errorHandler);
 const server = http.createServer(app);
 
 // Gemini Live voice relay. Connect to ws://host/ws/live?mode=visa|speaking|counselor
-const wss = new WebSocketServer({ server, path: "/ws/live" });
-wss.on("connection", (ws, req) => {
-  const url = new URL(req.url ?? "", "http://localhost");
-  const mode = (url.searchParams.get("mode") ?? "counselor") as LiveParams["mode"];
-  const systemByMode: Record<LiveParams["mode"], string> = {
-    visa: "You are a US consular officer conducting an F-1 visa interview. Ask one realistic question at a time.",
-    speaking: "You are an IELTS/TOEFL speaking examiner. Ask a prompt, listen, then probe with follow-ups.",
-    counselor: "You are Yaar, an honest study-abroad counselor. Be warm, concise, and practical.",
-  };
-  void handleLiveConnection(ws, { mode, systemInstruction: systemByMode[mode] });
-});
+//
+// SAFETY: this endpoint is OFF by default. Live audio bills per minute of
+// streaming, has no per-connection auth here, and bypasses the daily Vertex
+// spend cap (which only intercepts the REST surface in services/gemini.ts).
+// 50 idle sockets could drain the $300 credit overnight. Re-enable only
+// after wiring (a) signed token auth in verifyClient, (b) per-profile single
+// concurrent session, (c) checkSpendOk on connect + recordSpend on a 30s
+// interval while streaming. Until then keep YAAR_ENABLE_LIVE_VOICE unset.
+const enableLiveVoice = /^(1|true|yes)$/i.test(process.env.YAAR_ENABLE_LIVE_VOICE ?? "");
+if (enableLiveVoice) {
+  const wss = new WebSocketServer({ server, path: "/ws/live" });
+  wss.on("connection", (ws, req) => {
+    const url = new URL(req.url ?? "", "http://localhost");
+    const mode = (url.searchParams.get("mode") ?? "counselor") as LiveParams["mode"];
+    const systemByMode: Record<LiveParams["mode"], string> = {
+      visa: "You are a US consular officer conducting an F-1 visa interview. Ask one realistic question at a time.",
+      speaking: "You are an IELTS/TOEFL speaking examiner. Ask a prompt, listen, then probe with follow-ups.",
+      counselor: "You are Yaar, an honest study-abroad counselor. Be warm, concise, and practical.",
+    };
+    void handleLiveConnection(ws, { mode, systemInstruction: systemByMode[mode] });
+  });
+  console.log("[ws] /ws/live enabled (YAAR_ENABLE_LIVE_VOICE=1) — auth + per-minute spend gate NOT yet wired");
+} else {
+  console.log("[ws] /ws/live disabled (set YAAR_ENABLE_LIVE_VOICE=1 to enable; auth + spend gate required first)");
+}
 
 async function main() {
   installProcessGuards();
   await connectDb();
+  // Hydrate the kill switch + today's spend counters from Mongo BEFORE any
+  // cron job, request, or external action can run. Otherwise the first ~50ms
+  // after boot would race the hydrate, briefly using default state.
+  const { initSafety } = await import("./services/safety");
+  await initSafety();
   startScheduler();
   server.listen(config.port, () => {
     console.log(`[yaar] backend listening on http://localhost:${config.port}`);

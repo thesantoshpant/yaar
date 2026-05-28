@@ -54,6 +54,39 @@ async function callCounselor(input) {
   return { reply: json.reply ?? "", source: json.source };
 }
 
+// Grader study: score the same essay N times against /api/mock/writing/score,
+// then return mean band, test-retest SD, and absolute error vs published band.
+async function callGrader(c) {
+  const runs = Math.max(1, Number(c.runs ?? 3));
+  const bands = [];
+  for (let i = 0; i < runs; i++) {
+    if (i > 0) {
+      // Pace the test-retest runs so Vertex's RPM cap doesn't push some calls
+      // into the mock fallback (which would silently corrupt the MAE result).
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    const res = await fetch(`${BASE}/api/mock/writing/score`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        exam: c.exam,
+        taskType: c.taskType,
+        prompt: c.prompt,
+        essay: c.essay,
+      }),
+    });
+    if (!res.ok) throw new Error(`Writing score endpoint returned ${res.status}`);
+    const json = await res.json();
+    if (typeof json.scaled === "number") bands.push(json.scaled);
+  }
+  if (bands.length === 0) throw new Error("no successful runs");
+  const mean = bands.reduce((s, b) => s + b, 0) / bands.length;
+  const variance = bands.reduce((s, b) => s + (b - mean) ** 2, 0) / bands.length;
+  const stdDev = Math.sqrt(variance);
+  const absError = Math.abs(mean - c.published_band);
+  return { bands, mean, stdDev, absError, published: c.published_band };
+}
+
 function lc(s) {
   return String(s ?? "").toLowerCase();
 }
@@ -70,6 +103,14 @@ function matches(actual, expect, suite) {
       for (const dim of expect.weakest_includes) {
         if (!aw.includes(dim)) failures.push(`weakest expected to include "${dim}", got [${aw.join(", ") || "<none>"}]`);
       }
+    }
+    return failures;
+  }
+
+  if (suite === "grader") {
+    const maxErr = typeof expect.max_abs_error === "number" ? expect.max_abs_error : 1.0;
+    if (actual.absError > maxErr) {
+      failures.push(`abs error ${actual.absError.toFixed(2)} > max ${maxErr.toFixed(2)} (mean=${actual.mean.toFixed(2)}, published=${actual.published})`);
     }
     return failures;
   }
@@ -99,6 +140,7 @@ function matches(actual, expect, suite) {
 async function callSuite(c) {
   if (c.suite === "diya") return callDiya(c.input);
   if (c.suite === "counselor") return callCounselor(c.input);
+  if (c.suite === "grader") return callGrader(c);
   throw new Error(`unknown suite: ${c.suite}`);
 }
 
@@ -149,6 +191,9 @@ async function main() {
     const r = await runOne(f);
     cases.push(r);
     process.stdout.write(r.pass ? "PASS\n" : `FAIL (${r.failures.join("; ")})\n`);
+    // Be polite to Vertex's RPM cap; 600ms between cases keeps us under most
+    // free / low-tier quotas without dragging the whole run out.
+    await new Promise((r) => setTimeout(r, 600));
   }
 
   const bySuite = {};
@@ -159,6 +204,29 @@ async function main() {
   }
   const total = cases.length;
   const passed = cases.filter((c) => c.pass).length;
+  // Grader-suite aggregate: MAE, within-1-band, mean test-retest SD.
+  const graderRuns = cases.filter((c) => c.suite === "grader" && c.actual);
+  let graderSummary = null;
+  if (graderRuns.length > 0) {
+    const errs = graderRuns.map((r) => r.actual.absError);
+    const sds = graderRuns.map((r) => r.actual.stdDev);
+    const within1 = errs.filter((e) => e <= 1.0).length;
+    graderSummary = {
+      n: graderRuns.length,
+      mae: errs.reduce((s, e) => s + e, 0) / errs.length,
+      within1BandRate: within1 / errs.length,
+      meanTestRetestSd: sds.reduce((s, x) => s + x, 0) / sds.length,
+      perCase: graderRuns.map((r) => ({
+        name: r.name,
+        published: r.actual.published,
+        mean: r.actual.mean,
+        stdDev: r.actual.stdDev,
+        absError: r.actual.absError,
+        bands: r.actual.bands,
+      })),
+    };
+  }
+
   const summary = {
     ranAt: new Date().toISOString(),
     base: BASE,
@@ -166,6 +234,7 @@ async function main() {
     passed,
     passRate: total === 0 ? 0 : passed / total,
     bySuite,
+    grader: graderSummary,
     cases: cases.map((c) => ({
       suite: c.suite,
       name: c.name,

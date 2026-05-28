@@ -1,0 +1,12 @@
+{
+  "suite": "grader",
+  "name": "task2-strong-7-band",
+  "exam": "IELTS",
+  "skill": "writing",
+  "taskType": "ielts_task2",
+  "published_band": 7.0,
+  "source": "Illustrative starter — replace with Cambridge IELTS published-band sample (see evals/cases/grader/README.md).",
+  "prompt": "Some people think that universities should provide graduates with the knowledge and skills needed in the workplace. Others think that the true function of a university should be to give access to knowledge for its own sake. To what extent do you agree or disagree with these views? Give reasons and examples from your own experience.",
+  "essay": "Universities have long been a subject of debate regarding their fundamental purpose. While some argue they should focus on equipping students with practical skills for employment, others believe their true value lies in pursuing knowledge for its own sake. In my view, a balance between these two goals is both possible and desirable.\n\nOn one hand, there is a strong argument that universities should prepare students for the workplace. Modern economies demand specific competencies, and graduates who lack practical skills often struggle to find meaningful employment. For example, engineering students benefit from hands-on lab work and internships that mirror real industry challenges, and many universities now offer programs designed in partnership with employers. This alignment helps graduates transition smoothly into careers and contributes to overall economic productivity.\n\nOn the other hand, restricting universities to vocational training risks losing something essential. Higher education traditionally fosters critical thinking, intellectual curiosity, and a broader understanding of the world. Studying philosophy, literature, or pure mathematics may not lead directly to a job, but it cultivates the kind of reasoning that benefits any career and any society. History shows that scientific breakthroughs often originate from research with no immediate practical application.\n\nIn conclusion, the choice between practical training and knowledge for its own sake is a false dichotomy. The best universities offer both: career-relevant skills for those who need them, and the freedom to explore ideas for those drawn to do so. Both purposes serve students and society well.",
+  "runs": 3
+}

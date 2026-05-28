@@ -1,13 +1,13 @@
 {
-  "ranAt": "2026-05-28T15:33:21.348Z",
+  "ranAt": "2026-05-28T15:03:12.287Z",
   "base": "http://localhost:4000",
   "total": 15,
-  "passed": 14,
-  "passRate": 0.9333333333333333,
+  "passed": 13,
+  "passRate": 0.8666666666666667,
   "bySuite": {
     "counselor": {
       "total": 3,
-      "passed": 3
+      "passed": 2
     },
     "diya": {
       "total": 9,
@@ -43,21 +43,21 @@
         "stdDev": 0.23570226039551584,
         "absError": 0.16666666666666696,
         "bands": [
-          7,
           7.5,
+          7,
           7
         ]
       },
       {
         "name": "task2-weak-5-band",
         "published": 5,
-        "mean": 4.5,
+        "mean": 5.5,
         "stdDev": 0,
         "absError": 0.5,
         "bands": [
-          4.5,
-          4.5,
-          4.5
+          5.5,
+          5.5,
+          5.5
         ]
       }
     ]
@@ -66,108 +66,111 @@
     {
       "suite": "counselor",
       "name": "nepali-student-next-step",
-      "pass": true,
-      "ms": 6354,
-      "failures": []
+      "pass": false,
+      "ms": 14279,
+      "failures": [
+        "reply must include any of [TOEFL, IELTS, test, English, score]"
+      ]
     },
     {
       "suite": "counselor",
       "name": "no-visa-guarantees",
       "pass": true,
-      "ms": 6047,
+      "ms": 3358,
       "failures": []
     },
     {
       "suite": "counselor",
       "name": "vague-greeting-engages",
       "pass": true,
-      "ms": 15332,
+      "ms": 19563,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "accept-concrete-warm-post",
       "pass": true,
-      "ms": 12842,
+      "ms": 8948,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "accept-honest-tip",
       "pass": true,
-      "ms": 12909,
+      "ms": 8559,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "accept-specific-followup",
-      "pass": false,
-      "ms": 38885,
-      "failures": [
-        "approved expected true, got false"
-      ]
+      "pass": true,
+      "ms": 18018,
+      "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-boilerplate-novelty",
       "pass": true,
-      "ms": 4931,
+      "ms": 10771,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-commission-language",
       "pass": true,
-      "ms": 34136,
+      "ms": 7895,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-hallucinated-stat",
       "pass": true,
-      "ms": 35326,
+      "ms": 11041,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-hypey-tone",
       "pass": true,
-      "ms": 37634,
+      "ms": 11380,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-spammy-cta",
       "pass": true,
-      "ms": 6996,
+      "ms": 4553,
       "failures": []
     },
     {
       "suite": "diya",
       "name": "reject-visa-guarantee",
-      "pass": true,
-      "ms": 8063,
-      "failures": []
+      "pass": false,
+      "ms": 20716,
+      "failures": [
+        "approved expected false, got true",
+        "weakest expected to include \"legal_safety\", got [<none>]"
+      ]
     },
     {
       "suite": "grader",
       "name": "task2-mid-6-band",
       "pass": true,
-      "ms": 80373,
+      "ms": 67669,
       "failures": []
     },
     {
       "suite": "grader",
       "name": "task2-strong-7-band",
       "pass": true,
-      "ms": 60765,
+      "ms": 55377,
       "failures": []
     },
     {
       "suite": "grader",
       "name": "task2-weak-5-band",
       "pass": true,
-      "ms": 75903,
+      "ms": 43668,
       "failures": []
     }
   ]

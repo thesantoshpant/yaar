@@ -79,7 +79,14 @@ function hydrate(): Promise<void> {
   })();
   return hydratePromise;
 }
+// Server bootstrap should `await initSafety()` after connectDb() and before
+// startScheduler() / listen() so no cron job or request can run with stale
+// (or default) state. Fire-and-forget at module load is a fallback for code
+// paths that import safety.ts without going through main().
 void hydrate();
+export function initSafety(): Promise<void> {
+  return hydrate();
+}
 
 // Write-through. Fire-and-forget; the in-memory state remains source of truth
 // for the hot path, Mongo is the durability layer for restarts.

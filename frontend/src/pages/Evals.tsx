@@ -14,6 +14,14 @@ interface EvalCase {
   failures: string[];
 }
 
+interface GraderSummary {
+  n: number;
+  mae: number;
+  within1BandRate: number;
+  meanTestRetestSd: number;
+  perCase: { name: string; published: number; mean: number; stdDev: number; absError: number; bands: number[] }[];
+}
+
 interface EvalResults {
   ranAt: string;
   base: string;
@@ -21,6 +29,7 @@ interface EvalResults {
   passed: number;
   passRate: number;
   bySuite: Record<string, { total: number; passed: number }>;
+  grader?: GraderSummary | null;
   cases: EvalCase[];
 }
 
@@ -99,6 +108,41 @@ export default function Evals() {
                 })}
               </div>
             </div>
+
+            {data.grader && data.grader.n > 0 && (
+              <div className="card mt-6">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">Grader vs human raters</h2>
+                <p className="mt-1 text-xs text-muted">
+                  IELTS/TOEFL writing grader run N times per essay, compared to published human bands.
+                  Lower MAE + higher within-1-band-rate + lower test-retest SD is better.
+                </p>
+                <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+                  <div className="rounded-xl border border-line bg-surface-2/40 p-3">
+                    <div className="text-2xl font-bold text-ink">{data.grader.mae.toFixed(2)}</div>
+                    <div className="text-[11px] text-muted">MAE (bands)</div>
+                  </div>
+                  <div className="rounded-xl border border-line bg-surface-2/40 p-3">
+                    <div className="text-2xl font-bold text-ink">{Math.round(data.grader.within1BandRate * 100)}%</div>
+                    <div className="text-[11px] text-muted">within 1 band</div>
+                  </div>
+                  <div className="rounded-xl border border-line bg-surface-2/40 p-3">
+                    <div className="text-2xl font-bold text-ink">{data.grader.meanTestRetestSd.toFixed(2)}</div>
+                    <div className="text-[11px] text-muted">test-retest SD</div>
+                  </div>
+                </div>
+                <div className="mt-3 space-y-1.5">
+                  {data.grader.perCase.map((c, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="truncate text-ink">{c.name}</span>
+                      <span className="text-faint">published {c.published.toFixed(1)} · grader {c.mean.toFixed(2)} (SD {c.stdDev.toFixed(2)}) · |Δ| {c.absError.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-[11px] text-faint">
+                  Current sample set is illustrative; replace with Cambridge IELTS / ETS published-band scripts to make this a real held-out study (see <code>evals/cases/grader/README.md</code>).
+                </p>
+              </div>
+            )}
 
             <div className="card mt-6">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">Cases</h2>
