@@ -8,8 +8,23 @@ import { runBoardroom, getLastBoardroom } from "../services/agentBoardroom";
 import { executeApproved } from "../lib/actionGateway";
 import { store } from "../lib/store";
 import { config } from "../config";
+import { getSafetyStatus, setKillSwitch } from "../services/safety";
 
 export const opsRouter = Router();
+
+// Safety: the kill switch + daily-spend status. GET shows where we are; POST
+// engages or disengages the global gate (every external action is rejected
+// when the switch is on, until a human flips it back).
+opsRouter.get("/safety", (_req, res) => {
+  res.json(getSafetyStatus());
+});
+
+opsRouter.post("/safety/kill", (req, res) => {
+  const engaged = Boolean(req.body?.engaged);
+  const reason = typeof req.body?.reason === "string" ? req.body.reason : "";
+  setKillSwitch(engaged, reason);
+  res.json(getSafetyStatus());
+});
 
 opsRouter.get("/org", (_req, res) => {
   res.json({

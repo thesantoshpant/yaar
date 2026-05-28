@@ -49,10 +49,15 @@ export default function ParentShared() {
             </div>
             <ParentReportView report={report} />
             <div className="card text-center">
-              <p className="text-sm text-muted">Want to support your child's journey?</p>
-              <Link to="/" className="btn-primary mt-3 inline-flex">See how Yaar helps</Link>
+              <p className="text-sm text-muted">Yaar is free for every student. If this was helpful, your child's friends can use it too.</p>
+              <Link to="/?utm_source=parent_share&utm_medium=cta&utm_campaign=parent_report" className="btn-primary mt-3 inline-flex">
+                Help your child's journey with Yaar
+              </Link>
             </div>
-            <p className="text-center text-xs text-faint">Yaar is a coaching and information tool, not legal or immigration advice. Outcomes are never guaranteed.</p>
+            <p className="text-center text-xs text-faint">
+              Made with <span className="font-semibold text-ink">Yaar</span>, a free AI counselor.
+              This is a coaching and information tool, not legal or immigration advice. Outcomes are never guaranteed.
+            </p>
           </div>
         )}
       </main>

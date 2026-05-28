@@ -9,6 +9,7 @@ import { config } from "../config";
 import { store } from "./store";
 import { sendEmail } from "./email";
 import { reviewAction } from "../services/evalAgent";
+import { checkSpendOk } from "../services/safety";
 import type { AgentAction } from "./types";
 
 const EXTERNAL_TYPES = new Set(["social_post", "email_campaign", "whatsapp_message", "support_reply"]);
@@ -35,6 +36,15 @@ function consumeExternalQuota(): boolean {
 
 export async function dispatch(p: ProposedAction): Promise<AgentAction> {
   const external = EXTERNAL_TYPES.has(p.type);
+
+  // Global kill switch + daily spend cap. Engaged from /api/ops/safety/kill;
+  // when on, every external action is hard-rejected with a clear audit trail.
+  if (external) {
+    const gate = checkSpendOk(undefined, 0.01);
+    if (!gate.ok) {
+      return store.addAction({ ...p, external, status: "rejected", result: `safety gate: ${gate.reason}` });
+    }
+  }
 
   // Internal actions (drafts, tasks, reports) are always safe to record.
   if (!external) {
@@ -71,6 +81,10 @@ export async function dispatch(p: ProposedAction): Promise<AgentAction> {
 
 // Called when a human approves a queued action (assist mode).
 export async function executeApproved(action: AgentAction): Promise<AgentAction | null> {
+  const gate = checkSpendOk(undefined, 0.01);
+  if (!gate.ok) {
+    return store.setActionStatus(action.id, "failed", `safety gate: ${gate.reason}`);
+  }
   if (!consumeExternalQuota()) {
     return store.setActionStatus(action.id, "failed", "daily external-action cap reached");
   }

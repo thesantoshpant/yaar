@@ -22,7 +22,9 @@ export default function Parent() {
     try {
       const res = await api.generateParentReport(profileId, language);
       setReport(res.report);
-      setShareUrl(res.shareUrl);
+      // Attach a UTM so we can see which shares actually bring families back.
+      const u = res.shareUrl.includes("?") ? "&" : "?";
+      setShareUrl(`${res.shareUrl}${u}utm_source=parent_share&utm_medium=link&utm_campaign=parent_report`);
     } catch {
       setError(true);
     } finally {

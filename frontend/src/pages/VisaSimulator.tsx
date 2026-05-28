@@ -447,9 +447,49 @@ export default function VisaSimulator() {
             </ul>
           </div>
 
-          <button className="btn-ghost mt-5" onClick={() => { setStarted(false); setHistory([]); setScore(null); }}>
-            Practice again
-          </button>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <button
+              className="btn-primary"
+              onClick={() => {
+                // Build a shareable Visa Pass. Payload lives in the URL hash (never
+                // hits the server), so we can share without storing PII.
+                const top = [...score.dimensions]
+                  .sort((a, b) => b.score - a.score)
+                  .slice(0, 2)
+                  .map((d) => ({ name: d.name, score: d.score }));
+                const highlights: { officer: string; student: string }[] = [];
+                for (let i = 0; i < history.length - 1; i++) {
+                  if (history[i].role === "officer" && history[i + 1]?.role === "student") {
+                    highlights.push({ officer: history[i].text.slice(0, 220), student: history[i + 1].text.slice(0, 320) });
+                  }
+                }
+                const verdict: "passed" | "needs work" | "not yet ready" =
+                  score.overall >= 75 ? "passed" : score.overall >= 55 ? "needs work" : "not yet ready";
+                const pass = {
+                  name: (profile.name || "A student").trim(),
+                  consulate: country || "your consulate",
+                  overall: score.overall,
+                  verdict,
+                  top,
+                  highlights: highlights.slice(-2),
+                  date: new Date().toISOString(),
+                };
+                const json = JSON.stringify(pass);
+                const b64 = btoa(unescape(encodeURIComponent(json)))
+                  .replace(/\+/g, "-")
+                  .replace(/\//g, "_")
+                  .replace(/=+$/, "");
+                const url = `${window.location.origin}/visa-pass#data=${b64}`;
+                if (navigator.clipboard) void navigator.clipboard.writeText(url);
+                window.open(url, "_blank", "noopener");
+              }}
+            >
+              Generate Visa Pass 🪪
+            </button>
+            <button className="btn-ghost" onClick={() => { setStarted(false); setHistory([]); setScore(null); }}>
+              Practice again
+            </button>
+          </div>
         </div>
       )}
     </div>

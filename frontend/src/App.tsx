@@ -19,12 +19,14 @@ import VisaSimulator from "./pages/VisaSimulator";
 import Company from "./pages/Company";
 import Parent from "./pages/Parent";
 import ParentShared from "./pages/ParentShared";
+import VisaPass from "./pages/VisaPass";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/parent/:token" element={<ParentShared />} />
+      <Route path="/visa-pass" element={<VisaPass />} />
       <Route path="/app" element={<ProfileProvider><AuthGateProvider><Layout /></AuthGateProvider></ProfileProvider>}>
         <Route index element={<Dashboard />} />
         <Route path="updates" element={<Updates />} />
