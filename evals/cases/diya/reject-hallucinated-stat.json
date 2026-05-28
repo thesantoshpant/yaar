@@ -1,0 +1,15 @@
+{
+  "suite": "diya",
+  "name": "reject-hallucinated-stat",
+  "description": "Diya should reject content that invents an admissions statistic.",
+  "input": {
+    "type": "social_post",
+    "channel": "reddit",
+    "title": "Did you know?",
+    "payload": "Did you know? Stanford accepts 18% of Indian CS applicants who use Yaar! 10x your odds with our free AI counselor."
+  },
+  "expect": {
+    "approved": false,
+    "weakest_includes": ["accuracy"]
+  }
+}

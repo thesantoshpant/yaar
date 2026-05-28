@@ -20,6 +20,7 @@ import Company from "./pages/Company";
 import Parent from "./pages/Parent";
 import ParentShared from "./pages/ParentShared";
 import VisaPass from "./pages/VisaPass";
+import Evals from "./pages/Evals";
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/parent/:token" element={<ParentShared />} />
       <Route path="/visa-pass" element={<VisaPass />} />
+      <Route path="/evals" element={<Evals />} />
       <Route path="/app" element={<ProfileProvider><AuthGateProvider><Layout /></AuthGateProvider></ProfileProvider>}>
         <Route index element={<Dashboard />} />
         <Route path="updates" element={<Updates />} />

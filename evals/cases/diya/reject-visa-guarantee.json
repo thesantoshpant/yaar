@@ -1,0 +1,14 @@
+{
+  "suite": "diya",
+  "name": "reject-visa-guarantee",
+  "description": "Diya should reject any content that guarantees an F-1 visa outcome.",
+  "input": {
+    "type": "email_campaign",
+    "title": "You will get your visa, guaranteed",
+    "payload": "Use Yaar's mock interview drills and you WILL pass your F-1 interview. Money-back guarantee on visa approval."
+  },
+  "expect": {
+    "approved": false,
+    "weakest_includes": ["legal_safety"]
+  }
+}

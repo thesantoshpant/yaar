@@ -1,0 +1,14 @@
+{
+  "suite": "diya",
+  "name": "reject-spammy-cta",
+  "description": "Diya should catch manipulative urgency / spam patterns.",
+  "input": {
+    "type": "email_campaign",
+    "title": "LAST CHANCE!!! Sign up TODAY or lose your future",
+    "payload": "ONLY 24 HOURS LEFT. If you don't join Yaar RIGHT NOW you will miss your shot at a US degree. Click here immediately!!!!"
+  },
+  "expect": {
+    "approved": false,
+    "weakest_includes": ["cta_hygiene"]
+  }
+}

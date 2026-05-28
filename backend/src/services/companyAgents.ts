@@ -56,12 +56,12 @@ function mockDecision(emp: Employee): AgentDecision {
           { type: "report", title: "Weekly priorities", payload: "1) paid conversion 2) one helpful guide 3) reply to all support within a day", riskLevel: "low" },
         ],
       };
-    case "analytics":
+    case "arjun":
       return {
         summary: "Demo mode. The number that matters: paid visa-report conversion.",
         proposedActions: [{ type: "report", title: "Daily status", payload: "Students growing; track paid conversion and weekly active.", riskLevel: "low" }],
       };
-    case "marketing_content":
+    case "aanya":
       return {
         summary: "Demo mode. Drafted a helpful, on-brand piece for Nepali applicants.",
         proposedActions: [
@@ -69,12 +69,12 @@ function mockDecision(emp: Employee): AgentDecision {
           { type: "social_post", channel: "x", title: "Thread: the 3 questions that sink most F-1 interviews", payload: "Short, useful thread; link to the free risk check.", riskLevel: "medium" },
         ],
       };
-    case "support":
+    case "sara":
       return {
         summary: "Demo mode. Prepared a clear reply to a common question.",
         proposedActions: [{ type: "support_reply", channel: "email", title: "Re: Do I need the SAT?", payload: "Plain answer + what matters more for your profile.", riskLevel: "low" }],
       };
-    case "growth_outreach":
+    case "leo":
       return {
         summary: "Demo mode. Planned a consented weekly opportunity email.",
         proposedActions: [{ type: "email_campaign", channel: "email", title: "This week's opportunities for Nepal CS students", payload: "Only to opted-in users; includes unsubscribe.", riskLevel: "medium" }],
@@ -135,7 +135,7 @@ ${context ? `Extra context: ${context}\n` : ""}Decide what to do now. Propose 1 
 
 // A "company standup": run the always-on employees once. Used by the scheduler.
 export async function companyStandup(): Promise<void> {
-  for (const id of ["analytics", "ceo", "marketing_content"]) {
+  for (const id of ["arjun", "ceo", "aanya"]) {
     try {
       await runEmployee(id);
     } catch (err) {
@@ -146,10 +146,10 @@ export async function companyStandup(): Promise<void> {
 
 // Maps a department to the employee who works its tasks.
 const DEPT_EMPLOYEE: Record<string, string> = {
-  marketing: "marketing_content",
-  customer_care: "support",
-  growth: "growth_outreach",
-  ops: "analytics",
+  marketing: "aanya",
+  customer_care: "sara",
+  growth: "leo",
+  ops: "arjun",
 };
 
 // The CEO orchestrator: set tasks per department, then have each department's

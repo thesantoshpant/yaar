@@ -33,7 +33,7 @@ export interface BoardroomResult {
 }
 
 // Who speaks, in order, between the CEO's opening and closing.
-const CONTRIBUTORS = ["analytics", "memory", "marketing_content", "growth_outreach", "support"];
+const CONTRIBUTORS = ["arjun", "memory", "aanya", "leo", "sara"];
 
 let lastBoardroom: BoardroomResult | null = null;
 export function getLastBoardroom(): BoardroomResult | null {
@@ -111,11 +111,11 @@ export async function runBoardroom(topicArg?: string): Promise<BoardroomResult> 
     const emp = getEmployee(id);
     if (!emp) continue;
     const mockByRole: Record<string, string> = {
-      analytics: "The one number that matters is risk-report completion to account creation. It's our leakiest step, so let's make finishing a report feel like a win, not a paywall.",
+      arjun: "The one number that matters is risk-report completion to account creation. It's our leakiest step, so let's make finishing a report feel like a win, not a paywall.",
       memory: "I can already tell who's serious: students who upload an I-20 and ask follow-ups. I'll surface those to support and tailor each plan to what I know about them.",
-      marketing_content: "Building on analytics, I'll publish an honest 'why F-1 visas get refused' guide that ends in a free risk check. No hype, just help, exactly the families we want find us.",
-      growth_outreach: "Agreed with marketing. I'll line up a consented weekly opportunity email for opted-in students only, with a clear unsubscribe. Welcome, never spam.",
-      support: "I'll clear the question queue within a day and flag anything legal to a human. Fast, honest answers are the cheapest trust we can buy.",
+      aanya: "Building on Arjun, I'll publish an honest 'why F-1 visas get refused' guide that ends in a free risk check. No hype, just help, exactly the families we want find us.",
+      leo: "Agreed with marketing. I'll line up a consented weekly opportunity email for opted-in students only, with a clear unsubscribe. Welcome, never spam.",
+      sara: "I'll clear the question queue within a day and flag anything legal to a human. Fast, honest answers are the cheapest trust we can buy.",
     };
     const c = await speak(emp, topic, kpis, turns, "Add YOUR department's perspective, building on or respectfully challenging what colleagues just said. Be concrete.", mockByRole[id] ?? "Here's my take.");
     push(emp, c.message);

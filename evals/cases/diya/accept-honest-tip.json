@@ -1,0 +1,14 @@
+{
+  "suite": "diya",
+  "name": "accept-honest-tip",
+  "description": "Diya should approve specific, honest, on-brand tips with no fake stats and no guarantees.",
+  "input": {
+    "type": "social_post",
+    "channel": "reddit",
+    "title": "One thing that helps your DS-160",
+    "payload": "If you're filling the DS-160 from Nepal: the address you list as 'current' must match what you say verbally at the consulate. Many refusals come from inconsistencies the officer can verify on paper. Take a screenshot before you submit. Yaar is a free practice tool if you want a mock run. Not legal advice; consult your DSO and an immigration attorney for anything specific."
+  },
+  "expect": {
+    "approved": true
+  }
+}

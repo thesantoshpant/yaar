@@ -1,0 +1,43 @@
+{
+  "ranAt": "2026-05-28T09:36:32.704Z",
+  "base": "http://localhost:4000",
+  "total": 4,
+  "passed": 4,
+  "passRate": 1,
+  "bySuite": {
+    "diya": {
+      "total": 4,
+      "passed": 4
+    }
+  },
+  "cases": [
+    {
+      "suite": "diya",
+      "name": "accept-honest-tip",
+      "pass": true,
+      "ms": 6900,
+      "failures": []
+    },
+    {
+      "suite": "diya",
+      "name": "reject-hallucinated-stat",
+      "pass": true,
+      "ms": 5657,
+      "failures": []
+    },
+    {
+      "suite": "diya",
+      "name": "reject-spammy-cta",
+      "pass": true,
+      "ms": 5562,
+      "failures": []
+    },
+    {
+      "suite": "diya",
+      "name": "reject-visa-guarantee",
+      "pass": true,
+      "ms": 7275,
+      "failures": []
+    }
+  ]
+}

@@ -27,6 +27,7 @@ import { digestRouter } from "./routes/digest";
 import { transcribeRouter } from "./routes/transcribe";
 import { mockRouter } from "./routes/mock";
 import { progressRouter } from "./routes/progress";
+import { evalsRouter } from "./routes/evals";
 import { ttsRouter } from "./routes/tts";
 import { opsRouter } from "./routes/ops";
 import { requireAdmin } from "./lib/adminAuth";
@@ -82,6 +83,7 @@ app.use("/api/digest", digestRouter);
 app.use("/api/transcribe", transcribeRouter);
 app.use("/api/mock", mockRouter);
 app.use("/api/progress", progressRouter);
+app.use("/api/eval", evalsRouter);
 app.use("/api/tts", ttsRouter);
 app.use("/api/ops", requireAdmin, opsRouter);
 
