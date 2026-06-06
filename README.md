@@ -62,6 +62,10 @@ node scripts/smoke.mjs
 
 # eval suite
 node scripts/run-evals.mjs
+
+# keyless mechanics suite (rate limits, error handling, delete-my-data;
+# see the header of the script for the test-server boot flags)
+node scripts/test-mechanics.mjs
 ```
 
 Works out of the box without any API keys: every AI call has a deterministic mock fallback, so you can explore the whole product first. To run live, copy `backend/.env.example` to `backend/.env` and either set `GEMINI_API_KEY`, or use Vertex AI with `GEMINI_USE_VERTEX=1`, `GOOGLE_CLOUD_PROJECT=...`, and `GOOGLE_APPLICATION_CREDENTIALS=./credentials/sa.json`.
