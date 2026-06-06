@@ -29,8 +29,6 @@ export const config = {
     .map((s) => s.trim())
     .filter(Boolean),
   publicUrl: process.env.PUBLIC_URL ?? "http://localhost:5173",
-  stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
-  stripePriceUsd: Number(process.env.STRIPE_PRICE_USD ?? 19),
   googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
   jwtSecret: process.env.JWT_SECRET ?? "",
   // How autonomously the company agents may act on the real world.
@@ -51,6 +49,5 @@ export const config = {
 export const hasGemini = config.geminiApiKey.length > 0 || config.useVertex;
 export const hasScorecard = config.collegeScorecardApiKey.length > 0;
 export const hasMongo = config.mongodbUri.length > 0;
-export const hasStripe = config.stripeSecretKey.length > 0;
 export const hasGoogleAuth = config.googleClientId.length > 0 && config.jwtSecret.length > 0;
 export const hasEmail = config.resendApiKey.length > 0 && config.resendFrom.length > 0;

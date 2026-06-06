@@ -28,8 +28,6 @@ export default function VisaSimulator() {
   const [riskLoading, setRiskLoading] = useState(false);
   const [riskError, setRiskError] = useState(false);
   const [interviewError, setInterviewError] = useState(false);
-  const [reportPaid, setReportPaid] = useState(true);
-  const [needsPayment, setNeedsPayment] = useState(false);
   const [needsAccount, setNeedsAccount] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -57,28 +55,6 @@ export default function VisaSimulator() {
     }
   }
 
-  // Return from Stripe checkout: confirm the session, then unlock.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get("session_id");
-    if (sessionId) {
-      api
-        .billingConfirm(sessionId)
-        .then(async (r) => {
-          if (!r.paid) return;
-          setReportPaid(true);
-          setNeedsPayment(false);
-          const pid = getProfileId();
-          if (pid) {
-            const latest = await api.riskLatest(pid); // fetch the now-unlocked full report
-            if (latest.report) setReport(latest.report);
-          }
-        })
-        .catch(() => {});
-      window.history.replaceState({}, "", "/app/visa");
-    }
-  }, []);
-
   async function analyzeDocs() {
     if (!documents.trim()) return;
     setRiskLoading(true);
@@ -86,8 +62,6 @@ export default function VisaSimulator() {
     try {
       const res = await api.riskReport([{ kind: "i20", text: documents }], getProfileId() || undefined);
       setReport(res.report);
-      setReportPaid(res.paid);
-      setNeedsPayment(!!res.needsPayment);
       setNeedsAccount(!!res.needsAccount);
       // Note: the visa milestone is marked complete only after the mock interview is
       // scored (see finish()), not just for generating a document report.
@@ -96,17 +70,6 @@ export default function VisaSimulator() {
       setRiskError(true);
     } finally {
       setRiskLoading(false);
-    }
-  }
-
-  async function unlock() {
-    const pid = getProfileId();
-    if (!pid) return;
-    const res = await api.billingCheckout(pid);
-    if (res.url) window.location.href = res.url;
-    else {
-      setReportPaid(true);
-      setNeedsPayment(false);
     }
   }
 
@@ -193,7 +156,6 @@ export default function VisaSimulator() {
               <h3 className="text-base font-bold text-ink">
                 Readiness: <span className="text-brand-500">{report.overall}</span>/100
               </h3>
-              {report.locked && <span className="badge bg-amber-500/12 text-amber-600 dark:text-amber-400">preview</span>}
             </div>
             <p className="mt-1 text-sm text-muted">Here's an honest look. Every point below is fixable before your interview.</p>
             {report.summary && <Markdown className="mt-1 text-sm text-muted">{report.summary}</Markdown>}
@@ -240,19 +202,7 @@ export default function VisaSimulator() {
 
             {needsAccount && (
               <div className="mt-4 rounded-xl border border-brand-500/30 bg-brand-500/10 p-4 text-sm text-ink">
-                You're seeing a free preview. Make a quick profile on the Dashboard and Yaar saves your full report so you can come back to it anytime.
-              </div>
-            )}
-
-            {needsPayment && !reportPaid && (
-              <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-                <p className="text-sm text-amber-700 dark:text-amber-200">
-                  You've seen the highlights. The full report shows every gap an officer might catch and exactly how to
-                  fix each one before you walk in.
-                </p>
-                <button className="btn-gold mt-2" onClick={unlock}>
-                  Unlock full report
-                </button>
+                This report isn't saved anywhere yet. Make a quick profile on the Dashboard and Yaar keeps your reports so you can come back to them anytime.
               </div>
             )}
           </div>

@@ -12,7 +12,6 @@ import type {
   RiskReport,
   AppUser,
   EvidenceArtifact,
-  Entitlement,
   AgentAction,
   CompanyTask,
   MockAttempt,
@@ -151,16 +150,6 @@ const evidenceSchema = new Schema(
   { collection: "evidence" }
 );
 
-const entitlementSchema = new Schema(
-  {
-    id: { type: String, required: true, unique: true, index: true },
-    profileId: { type: String, required: true, index: true },
-    product: { type: String, required: true },
-    createdAt: { type: String, required: true },
-  },
-  { collection: "entitlements" }
-);
-
 const agentActionSchema = new Schema(
   {
     id: { type: String, required: true, unique: true, index: true },
@@ -243,7 +232,6 @@ export const DocumentModel = model<StudentDocument>("Document", documentSchema);
 export const RiskReportModel = model<RiskReport>("RiskReport", riskReportSchema);
 export const UserModel = model<AppUser>("User", userSchema);
 export const EvidenceModel = model<EvidenceArtifact>("Evidence", evidenceSchema);
-export const EntitlementModel = model<Entitlement>("Entitlement", entitlementSchema);
 export const AgentActionModel = model<AgentAction>("AgentAction", agentActionSchema);
 export const CompanyTaskModel = model<CompanyTask>("CompanyTask", companyTaskSchema);
 export const MockAttemptModel = model<MockAttempt>("MockAttempt", mockAttemptSchema);

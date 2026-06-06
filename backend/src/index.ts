@@ -3,7 +3,7 @@ import express from "express";
 import "express-async-errors"; // makes async route errors flow to the error handler
 import cors from "cors";
 import { WebSocketServer } from "ws";
-import { config, hasGemini, hasScorecard, hasStripe, hasGoogleAuth } from "./config";
+import { config, hasGemini, hasScorecard, hasGoogleAuth } from "./config";
 import { connectDb, dbConnected } from "./db";
 import { profileRouter } from "./routes/profile";
 import { counselorRouter } from "./routes/counselor";
@@ -16,7 +16,6 @@ import { applicationsRouter } from "./routes/applications";
 import { journeyRouter } from "./routes/journey";
 import { engineRouter } from "./routes/engine";
 import { riskRouter } from "./routes/risk";
-import { billingRouter } from "./routes/billing";
 import { authRouter } from "./routes/auth";
 import { coachRouter } from "./routes/coach";
 import { evidenceRouter } from "./routes/evidence";
@@ -54,7 +53,6 @@ app.get("/api/health", (_req, res) => {
       gemini: hasGemini ? "live" : "mock",
       collegeScorecard: hasScorecard ? "live" : "mock",
       db: dbConnected() ? "mongodb" : "in-memory",
-      billing: hasStripe ? "stripe" : "off",
       auth: hasGoogleAuth ? "google" : "off",
       autonomy: config.autonomyMode,
     },
@@ -72,7 +70,6 @@ app.use("/api/applications", applicationsRouter);
 app.use("/api/journey", journeyRouter);
 app.use("/api/engine", engineRouter);
 app.use("/api/risk", riskRouter);
-app.use("/api/billing", billingRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/coach", coachRouter);
 app.use("/api/evidence", evidenceRouter);

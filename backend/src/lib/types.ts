@@ -255,13 +255,6 @@ export interface EvidenceArtifact {
   createdAt: string;
 }
 
-export interface Entitlement {
-  id: string;
-  profileId: string;
-  product: string; // e.g. "visa_risk_report"
-  createdAt: string;
-}
-
 // A task the CEO agent assigns to a department; worked by that department's agent.
 export interface CompanyTask {
   id: string;

@@ -1,9 +1,7 @@
 import { Router, json } from "express";
 import { z } from "zod";
 import { generateRiskReport, analyzeDocuments, extractFieldsFromFiles } from "../services/riskReport";
-import { isEntitled } from "../services/billing";
 import { store } from "../lib/store";
-import { hasStripe } from "../config";
 import { assertOwnership } from "../lib/userAuth";
 import type { RiskReport } from "../lib/types";
 
@@ -57,41 +55,26 @@ const schema = z.object({
     .min(1),
 });
 
-// When the report is locked (Stripe configured + not yet paid), return only a teaser.
-function preview(r: RiskReport) {
-  return {
-    ...r,
-    extracted: [],
-    inconsistencies: r.inconsistencies.slice(0, 1),
-    weakPoints: r.weakPoints.slice(0, 1),
-    dimensions: [],
-    locked: true,
-  };
-}
-
+// The full report is free for everyone. Anonymous students get the complete analysis
+// too; it just isn't saved anywhere, so we nudge them to make a profile to keep it.
 riskRouter.post("/report", async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { profileId, documents } = parsed.data;
 
-  // Anonymous (no profile): only a locked teaser. A full report requires an account
-  // (and payment when billing is on) so the paywall cannot be bypassed by clearing storage.
   if (!profileId) {
     const core = await analyzeDocuments(documents);
-    const full: RiskReport = { id: "preview", profileId: "", createdAt: new Date().toISOString(), ...core };
-    return res.json({ report: preview(full), paid: false, needsAccount: true });
+    const full: RiskReport = { id: "transient", profileId: "", createdAt: new Date().toISOString(), ...core };
+    return res.json({ report: full, needsAccount: true });
   }
 
   await assertOwnership(req, profileId);
   const report = await generateRiskReport(profileId, documents);
-  if (await isEntitled(profileId)) return res.json({ report, paid: true });
-  return res.json({ report: preview(report), paid: false, needsPayment: hasStripe });
+  res.json({ report });
 });
 
 riskRouter.get("/latest/:profileId", async (req, res) => {
   await assertOwnership(req, req.params.profileId);
   const report = await store.getLatestRiskReport(req.params.profileId);
-  const entitled = await isEntitled(req.params.profileId);
-  // Apply the same preview lock as /report so the full report never leaks unpaid.
-  res.json({ report: report && !entitled ? preview(report) : report, entitled });
+  res.json({ report });
 });

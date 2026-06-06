@@ -127,7 +127,7 @@ export const api = {
     ),
 
   riskReport: (documents: { kind: string; text: string }[], profileId?: string) =>
-    post<{ report: RiskReport; paid: boolean; needsPayment?: boolean; needsAccount?: boolean }>("/api/risk/report", {
+    post<{ report: RiskReport; needsAccount?: boolean }>("/api/risk/report", {
       documents,
       profileId,
     }),
@@ -140,16 +140,7 @@ export const api = {
     ),
 
   riskLatest: (profileId: string) =>
-    get<{ report: RiskReport | null; entitled: boolean }>(`/api/risk/latest/${profileId}`),
-
-  billingStatus: (profileId: string) =>
-    get<{ billingEnabled: boolean; entitled: boolean }>(`/api/billing/status/${profileId}`),
-
-  billingCheckout: (profileId: string) =>
-    post<{ url: string | null; free?: boolean }>("/api/billing/checkout", { profileId }),
-
-  billingConfirm: (sessionId: string) =>
-    post<{ paid: boolean; profileId?: string }>("/api/billing/confirm", { sessionId }),
+    get<{ report: RiskReport | null }>(`/api/risk/latest/${profileId}`),
 
   authConfig: () => get<{ googleAuthEnabled: boolean }>("/api/auth/config"),
 

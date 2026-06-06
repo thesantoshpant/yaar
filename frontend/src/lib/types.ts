@@ -86,7 +86,6 @@ export interface RiskReport {
   dimensions: { name: string; score: number; note: string }[];
   recommendation: string;
   createdAt: string;
-  locked?: boolean;
 }
 
 export interface EvidenceArtifact {

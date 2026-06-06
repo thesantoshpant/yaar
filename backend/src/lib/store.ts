@@ -12,7 +12,6 @@ import type {
   RiskReport,
   AppUser,
   EvidenceArtifact,
-  Entitlement,
   AgentAction,
   CompanyTask,
   MockAttempt,
@@ -29,7 +28,6 @@ import {
   RiskReportModel,
   UserModel,
   EvidenceModel,
-  EntitlementModel,
   AgentActionModel,
   CompanyTaskModel,
   MockAttemptModel,
@@ -47,7 +45,6 @@ const mem = {
   riskReports: [] as RiskReport[],
   users: new Map<string, AppUser>(), // keyed by id
   evidence: [] as EvidenceArtifact[],
-  entitlements: new Set<string>(), // `${profileId}:${product}`
   agentActions: [] as AgentAction[],
   companyTasks: [] as CompanyTask[],
   mockAttempts: [] as MockAttempt[],
@@ -413,24 +410,6 @@ export const store = {
     if (!t) return null;
     Object.assign(t, patch);
     return t;
-  },
-
-  // ---------- entitlements (paid access) ----------
-  async grantEntitlement(profileId: string, product: string): Promise<void> {
-    if (dbConnected()) {
-      const exists = await EntitlementModel.findOne({ profileId, product }).lean().exec();
-      if (!exists) await EntitlementModel.create({ id: nanoid(12), profileId, product, createdAt: now() });
-    } else {
-      mem.entitlements.add(`${profileId}:${product}`);
-    }
-  },
-
-  async hasEntitlement(profileId: string, product: string): Promise<boolean> {
-    if (dbConnected()) {
-      const doc = await EntitlementModel.findOne({ profileId, product }).lean().exec();
-      return Boolean(doc);
-    }
-    return mem.entitlements.has(`${profileId}:${product}`);
   },
 
   // ---------- users (auth) ----------
