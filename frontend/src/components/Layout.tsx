@@ -39,6 +39,15 @@ export default function Layout() {
   const location = useLocation();
   const reduce = useReducedMotion();
 
+  // Company HQ is the founder's ops console: its API is admin-gated in
+  // production, so showing it to students would just be a locked door in their
+  // nav. Visible in local dev (the backend trusts localhost) or once an admin
+  // token is stored; the direct /app/company URL always works.
+  const isAdminish =
+    ["localhost", "127.0.0.1"].includes(window.location.hostname) ||
+    Boolean(localStorage.getItem("yaar.adminToken"));
+  const nav = NAV.filter((n) => n.to !== "/app/company" || isAdminish);
+
   useEffect(() => {
     api.health().then((h) => setMode(h.mode)).catch(() => setMode(null));
     const id = getProfileId();
@@ -63,7 +72,7 @@ export default function Layout() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 px-3">
-        {NAV.map((n) => (
+        {nav.map((n) => (
           <NavLink
             key={n.to}
             to={n.to}
