@@ -92,7 +92,7 @@ async function routeActions(emp: Employee, c: Contribution): Promise<AgentAction
 }
 
 export async function runBoardroom(topicArg?: string): Promise<BoardroomResult> {
-  const topic = topicArg?.trim() || "Grow trust and paid conversion this week without ever being pushy or spammy.";
+  const topic = topicArg?.trim() || "Grow trust and help more students this week without ever being pushy or spammy.";
   const kpis = await gatherKpis();
   const turns: BoardroomTurn[] = [];
   const actions: AgentAction[] = [];
@@ -103,7 +103,7 @@ export async function runBoardroom(topicArg?: string): Promise<BoardroomResult> 
   const ceo = getEmployee("ceo")!;
 
   // 1. CEO opens (aware of what the company already decided).
-  const open = await speak(ceo, topic, kpis, turns, `Open the meeting: state the situation in one line and the single priority you want the team to rally around, then invite their input. Recent decisions on record (build on them, don't repeat):\n${recentDecisions()}`, "Team, the priority is simple: turn our free visa-risk users into trusting paying families, and do it by being more helpful, never pushier. What's our highest-leverage move?");
+  const open = await speak(ceo, topic, kpis, turns, `Open the meeting: state the situation in one line and the single priority you want the team to rally around, then invite their input. Recent decisions on record (build on them, don't repeat):\n${recentDecisions()}`, "Team, the priority is simple: earn more students' trust by being more helpful, never pushier. What's our highest-leverage move?");
   push(ceo, open.message);
 
   // 2. Each department head contributes, reading the discussion so far.
@@ -111,7 +111,7 @@ export async function runBoardroom(topicArg?: string): Promise<BoardroomResult> 
     const emp = getEmployee(id);
     if (!emp) continue;
     const mockByRole: Record<string, string> = {
-      arjun: "The one number that matters is risk-report completion to account creation. It's our leakiest step, so let's make finishing a report feel like a win, not a paywall.",
+      arjun: "The one number that matters is risk-report completion to account creation. It's our leakiest step, so let's make finishing a report feel like a win worth saving.",
       memory: "I can already tell who's serious: students who upload an I-20 and ask follow-ups. I'll surface those to support and tailor each plan to what I know about them.",
       aanya: "Building on Arjun, I'll publish an honest 'why F-1 visas get refused' guide that ends in a free risk check. No hype, just help, exactly the families we want find us.",
       leo: "Agreed with marketing. I'll line up a consented weekly opportunity email for opted-in students only, with a clear unsubscribe. Welcome, never spam.",
@@ -132,10 +132,10 @@ You are the agentic CEO closing the meeting. Read the whole discussion and synth
 Return ONLY JSON: { "message": string, "tasks": [ { "title": string, "detail": string, "department": string } ] }`,
     prompt: `Topic: "${topic}"\nKPIs: ${kpis}\nFull discussion:\n${transcriptText(turns)}\n\nClose the meeting now.`,
     mock: () => ({
-      message: "Decision: lead with helpfulness. Ship the honest refusal-reasons guide, make finishing a risk report feel like a win, and only email opted-in students. Memory tailors every touch. I'll review conversion next week.",
+      message: "Decision: lead with helpfulness. Ship the honest refusal-reasons guide, make finishing a risk report feel like a win, and only email opted-in students. Memory tailors every touch. I'll review the numbers next week.",
       tasks: [
         { title: "Publish the honest 'why F-1 visas get refused' guide", detail: "End with a free risk check. No hype.", department: "marketing" },
-        { title: "Tighten risk-report to account-creation flow", detail: "Make finishing feel like a win, not a paywall.", department: "ops" },
+        { title: "Tighten risk-report to account-creation flow", detail: "Make finishing feel like a win worth saving.", department: "ops" },
       ],
     }),
   });

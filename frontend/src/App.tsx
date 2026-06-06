@@ -20,6 +20,7 @@ import Company from "./pages/Company";
 import Parent from "./pages/Parent";
 import ParentShared from "./pages/ParentShared";
 import VisaPass from "./pages/VisaPass";
+import Privacy from "./pages/Privacy";
 import Evals from "./pages/Evals";
 import MockCard from "./pages/MockCard";
 import Wrapped from "./pages/Wrapped";
@@ -31,6 +32,7 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/parent/:token" element={<ParentShared />} />
       <Route path="/visa-pass" element={<VisaPass />} />
+      <Route path="/privacy" element={<Privacy />} />
       <Route path="/evals" element={<Evals />} />
       <Route path="/mock-card" element={<MockCard />} />
       <Route path="/wrapped" element={<Wrapped />} />

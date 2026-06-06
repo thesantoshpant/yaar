@@ -45,7 +45,8 @@ non-zero if anything fails, so run it right before a demo.
    extracted. Hit "Refresh my mind" to show the Memory agent re-synthesize live.
 4. **Document-grounded visa report (35s).** Open **Visa simulator**, upload an I-20
    (PDF/photo). Gemini extracts the fields and the report flags real issues (cost vs.
-   funds, missing sponsor, wrong I-20 type). This is the paid flagship.
+   funds, missing sponsor, wrong I-20 type). This is the flagship feature, free like
+   everything else.
 5. **What-if (20s).** On the Dashboard, "Play out a what-if" -> "raise my budget to $30k".
    Watch the plan and school options shift, grounded in this student's memory.
 6. **Parent mode (25s).** Open **For parents**, pick a language (try Nepali), generate the

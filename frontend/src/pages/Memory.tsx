@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { PageHeading, Spinner, SourceBadge, ErrorNote } from "../components/ui";
 import { Skeleton, SkeletonCard } from "../components/Skeleton";
-import { getProfileId } from "../lib/progress";
+import { clearStudent, getProfileId } from "../lib/progress";
 import { api } from "../api/client";
 
 type Fact = { key: string; type: string; value: string; confidence: number; source: string };
@@ -22,11 +22,14 @@ const TYPE_META: { type: string; label: string; emoji: string; badge: string }[]
 
 export default function Memory() {
   const profileId = getProfileId();
+  const navigate = useNavigate();
   const [memory, setMemory] = useState<Memory | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(false);
 
   const load = useCallback(async () => {
     if (!profileId) return;
@@ -56,6 +59,25 @@ export default function Memory() {
       setRefreshError(true);
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  async function deleteEverything() {
+    if (!profileId) return;
+    const sure = window.confirm(
+      "This permanently deletes everything Yaar knows about you: your profile, memory, practice history, reports, and progress. It cannot be undone. Delete everything?"
+    );
+    if (!sure) return;
+    setDeleting(true);
+    setDeleteError(false);
+    try {
+      await api.deleteProfile(profileId);
+      clearStudent();
+      navigate("/app");
+    } catch {
+      setDeleteError(true);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -159,6 +181,23 @@ export default function Memory() {
               important details here.
             </div>
           )}
+
+          {/* Your data, your call. The privacy page points here. */}
+          <div className="card border-rose-500/20">
+            <h2 className="text-base font-semibold text-ink">Your data, your call</h2>
+            <p className="mt-1 text-sm text-muted">
+              Everything on this page belongs to you. If you want it gone, this erases your profile, memory, practice
+              history, reports, and progress from Yaar permanently.
+            </p>
+            {deleteError && <div className="mt-3"><ErrorNote onRetry={deleteEverything}>Couldn't delete just now. Try again.</ErrorNote></div>}
+            <button
+              className="btn-ghost mt-3 border-rose-500/40 text-rose-600 hover:bg-rose-500/10 dark:text-rose-400"
+              onClick={deleteEverything}
+              disabled={deleting}
+            >
+              {deleting ? <Spinner label="Deleting everything..." /> : "Delete everything Yaar knows about me"}
+            </button>
+          </div>
         </>
       )}
     </div>

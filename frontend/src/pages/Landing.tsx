@@ -579,6 +579,17 @@ export default function Landing() {
           </p>
         </Reveal>
       </section>
+
+      {/* Footer */}
+      <footer className="border-t border-line px-6 py-8">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 text-xs text-faint sm:flex-row">
+          <span>Yaar · free and open source, built for students</span>
+          <div className="flex items-center gap-4">
+            <Link to="/privacy" className="hover:text-ink">Privacy</Link>
+            <Link to="/evals" className="hover:text-ink">Evals</Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -589,7 +600,7 @@ function Compare() {
     ["Same quality for every student", true, false],
     ["Unbiased, no school commissions", true, false],
     ["Unlimited practice and revisions", true, false],
-    ["Costs a fraction of agency fees", true, false],
+    ["Completely free, forever", true, false],
     ["Handles your whole journey", true, "partly"],
   ];
   return (

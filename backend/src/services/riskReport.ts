@@ -1,6 +1,6 @@
 // Document-grounded F-1 visa Risk Report. Parses the student's documents, detects
 // inconsistencies a consular officer would catch, scores readiness, and surfaces
-// the exact weak points to drill in the mock interview. This is the paid flagship.
+// the exact weak points to drill in the mock interview. This is the flagship feature.
 import { generateJson, generateJsonFromMedia, type MediaPart } from "./gemini";
 import { config } from "../config";
 import { store } from "../lib/store";
@@ -103,7 +103,7 @@ export async function analyzeDocuments(docs: DocInput[]): Promise<ReportCore> {
   const combined = docs.map((d) => `[${d.kind}] ${d.text}`).join("\n\n");
   const { data } = await generateJson<ReportCore>({
     system: SYSTEM,
-    model: config.geminiProModel, // flagship: use the stronger model for the paid report
+    model: config.geminiProModel, // flagship: use the stronger model for this report
     prompt: `Student documents:\n${combined || "(none provided)"}\n\nProduce the risk report now.`,
     mock: () => mockReport(combined),
   });

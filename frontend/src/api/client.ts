@@ -78,6 +78,13 @@ export const api = {
   getProfile: (id: string) =>
     get<{ profile: Record<string, unknown> }>(`/api/profile/${id}`),
 
+  // Delete my data: permanently erases everything Yaar knows about this student.
+  deleteProfile: async (id: string) => {
+    const res = await fetch(`${BASE}/api/profile/${id}`, { method: "DELETE", headers: { ...authHeaders() } });
+    if (!res.ok) throw new Error(`delete failed: ${res.status}`);
+    return res.json() as Promise<{ ok: boolean }>;
+  },
+
   // Sample students for instant demos / showing Yaar adapts to different journeys.
   listPersonas: () => get<{ personas: { key: string; label: string; blurb: string }[] }>("/api/profile/personas"),
   seedPersona: (persona: string) => post<{ profile: { id: string } }>("/api/profile/seed-persona", { persona }),

@@ -259,21 +259,10 @@ export const store = {
     }
   },
 
-  // ---------- documents ----------
-  async addDocument(input: Omit<StudentDocument, "id" | "createdAt">): Promise<StudentDocument> {
-    const doc: StudentDocument = { ...input, id: nanoid(10), createdAt: now() };
-    if (dbConnected()) await DocumentModel.create(doc);
-    else mem.documents.push(doc);
-    return doc;
-  },
-
-  async getDocuments(profileId: string): Promise<StudentDocument[]> {
-    if (dbConnected()) {
-      const docs = await DocumentModel.find({ profileId }).sort({ createdAt: -1 }).lean<StudentDocument[]>().exec();
-      return docs.map(clean);
-    }
-    return mem.documents.filter((d) => d.profileId === profileId);
-  },
+  // NOTE: there are deliberately no addDocument/getDocuments methods. Raw document
+  // text (I-20s, bank letters) is never persisted; only the derived risk report is.
+  // That's the privacy-page promise. DocumentModel survives only so deleteProfileData
+  // can clear any stale rows from older versions.
 
   // ---------- risk reports ----------
   async saveRiskReport(input: Omit<RiskReport, "id" | "createdAt">): Promise<RiskReport> {
@@ -433,6 +422,39 @@ export const store = {
       return doc ? clean(doc) : null;
     }
     return mem.users.get(id) ?? null;
+  },
+
+  // ---------- delete my data ----------
+  // Permanently erase everything Yaar knows about one student: profile, journey,
+  // memory facts, timeline, action items, inbox, documents, risk reports, evidence,
+  // and mock attempts. The student's promise on the privacy page depends on this
+  // being complete, so every collection that is keyed by profileId is covered.
+  async deleteProfileData(profileId: string): Promise<void> {
+    if (dbConnected()) {
+      await Promise.all([
+        ProfileModel.deleteMany({ id: profileId }).exec(),
+        JourneyModel.deleteMany({ profileId }).exec(),
+        MemoryFactModel.deleteMany({ profileId }).exec(),
+        EventModel.deleteMany({ profileId }).exec(),
+        ActionItemModel.deleteMany({ profileId }).exec(),
+        InboxItemModel.deleteMany({ profileId }).exec(),
+        DocumentModel.deleteMany({ profileId }).exec(),
+        RiskReportModel.deleteMany({ profileId }).exec(),
+        EvidenceModel.deleteMany({ profileId }).exec(),
+        MockAttemptModel.deleteMany({ profileId }).exec(),
+      ]);
+      return;
+    }
+    mem.profiles.delete(profileId);
+    mem.journeys.delete(profileId);
+    mem.facts = mem.facts.filter((f) => f.profileId !== profileId);
+    mem.events = mem.events.filter((e) => e.profileId !== profileId);
+    for (const [id, a] of mem.actions) if (a.profileId === profileId) mem.actions.delete(id);
+    mem.inbox = mem.inbox.filter((i) => i.profileId !== profileId);
+    mem.documents = mem.documents.filter((d) => d.profileId !== profileId);
+    mem.riskReports = mem.riskReports.filter((r) => r.profileId !== profileId);
+    mem.evidence = mem.evidence.filter((e) => e.profileId !== profileId);
+    mem.mockAttempts = mem.mockAttempts.filter((a) => a.profileId !== profileId);
   },
 
   // list all profile ids (used by scheduled jobs)

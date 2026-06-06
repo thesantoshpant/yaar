@@ -1,19 +1,21 @@
 # Yaar
 
-A free, fully autonomous AI counselor that takes an international student from their hometown to a US degree and an approved F-1 visa. No human agents, no school commissions, no bias.
+A free, open-source AI counselor that takes an international student from their hometown to a US degree and an F-1 visa interview they're actually ready for. No human agents, no school commissions, no bias, and nothing to pay.
 
-Built solo for the **Build with Gemini XPRIZE**. The interesting part isn't the chat — it's the agentic infrastructure underneath: a multi-agent "Company HQ" with a risk-tiered Action Gateway, a six-dimension evaluator (Diya) that gates every external action, a typed long-horizon memory engine, and a public versioned eval suite that runs on every deploy.
+Most students in South Asia get their study-abroad advice from paid consultants who collect 15-25% commissions from the schools they recommend. Yaar exists so that advice is free, honest, and works only for the student.
 
-Free forever. If it grows, it grows; if it's acquired, it's acquired; either way the product stays free.
+**Free forever. There is no payment system in this codebase, on purpose.**
 
----
+## What a student gets
 
-## Live artifacts
-
-- **`/evals`** — public yaar-evals dashboard. Every release runs the suite against the live backend and publishes the pass rate, by-suite bars, and per-case failure detail. Honest measurement, not vibe-check.
-- **`/visa-pass`** — share-card endpoint. After a scored mock F-1 interview, students generate a screenshot-worthy verdict card. Payload encoded in the URL hash, so the link carries no server state and never sends PII to a backend.
-- **`/api/ops/org`** — the named AI org (CEO, Arjun, Kabir, Aanya, Ravi, Maya, Leo, Sara, Diya, Memory). Each agent has a sharp single mission and a strict `allowedActions` whitelist.
-- **`/api/ops/safety`** — kill switch + daily $8 Vertex spend cap + per-user $0.50 cap. The single non-negotiable guardrail before deploying autonomous agents to the public internet.
+- **A counselor that remembers you.** Every chat, practice score, and document feeds a persistent per-student memory, so advice compounds instead of resetting.
+- **An autonomous next-step brain.** Yaar decides the single best next action for where you are: roadmap, test prep, school list, applications, finances, visa.
+- **Full IELTS/TOEFL mock tests.** All four skills, adaptive to your weak areas, with evidence-quoted feedback and score history.
+- **A document-grounded visa risk report.** Upload your I-20 / funding proof (photo or PDF); Yaar reads them the way a consular officer would and flags every gap before you walk in. Free, like everything else.
+- **A mock F-1 interview** with an AI officer that cross-checks your answers against your documents.
+- **Balanced school lists** built from US Dept of Education data, ranked on outcomes. Never pay-to-rank.
+- **Parent updates** in your parents' own language, shareable with one no-login link.
+- **Your data, your call.** A privacy page in plain words and a one-click "delete everything Yaar knows about me."
 
 ## Architecture, in one breath
 
@@ -27,27 +29,24 @@ Free forever. If it grows, it grows; if it's acquired, it's acquired; either way
                   +-------> Action Gateway (risk tier + Diya 6-dim eval + safety gate)
                                                 |
                                                 +-> dry_run | pending_approval | executed
-                                                                                 |
-                                                +-> Resend / Reddit / Twitter / Mongo
 ```
 
-- **Gemini via Vertex AI** for every model call (text, JSON, neural TTS, transcription, multimodal vision on uploaded docs).
-- **MongoDB** for persistent state (graceful in-memory fallback for demos with no DB).
-- **Action Gateway** is the only door to the outside world. Internal actions free; external actions consult the safety gate, then Diya, then the autonomy mode (dry_run / assist / live), then a daily quota.
-- **Safety service** maintains an in-memory rolling daily budget with per-call atomic decrement and a global kill switch flippable from `/api/ops/safety/kill`.
-- **Per-user memory engine** keeps a typed `MemoryFact` store with supersede-by-key plus a `TimelineEvent` log, fed by every interaction via `recordActivity()`.
+- **Gemini via Vertex AI (or an AI Studio key)** for every model call: text, JSON, neural TTS, transcription, multimodal vision on uploaded docs.
+- **MongoDB** for persistent state, with a full in-memory fallback so the app runs with zero infrastructure.
+- **A multi-agent "company"** (CEO, analyst, content, growth, support, evaluator, memory) that proposes work through a single Action Gateway. Every external action passes a six-dimension brand-safety eval (Diya) and a safety gate before touching the world. Default autonomy is `dry_run`: log only.
+- **A safety layer** with a kill switch, a daily dollar cap, and per-user caps, charged on every model call.
+- **A public eval suite** (`/evals`) that runs against the live backend and publishes pass rates. Honest measurement, not vibe-check.
 
-## What's measurable
+## Cost protection (read this before deploying)
 
-| Claim | Verifiable at |
-|---|---|
-| Multi-agent ops with bounded autonomy | `GET /api/ops/org`, `POST /api/ops/boardroom`, `GET /api/ops/actions` |
-| Six-dim brand-safety eval | `POST /api/eval/diya`, public `/evals` page |
-| Versioned eval suite, runs on deploy | `scripts/run-evals.mjs`, `evals/cases/`, `evals/results/`, public `/evals` |
-| Persistent typed memory | `GET /api/memory/:profileId`, `GET /api/progress/:profileId` |
-| Adaptive IELTS/TOEFL grader across all four skills | `POST /api/mock/{reading,writing,listening,speaking}/score`, `/api/mock/history/:profileId` |
-| Neural TTS for listening prep | `POST /api/tts`, `/api/mock/listening/:id/audio` |
-| Safety gate + kill switch | `GET /api/ops/safety`, `POST /api/ops/safety/kill` |
+Yaar is free for students, which means the person deploying it pays for the AI calls. The protections are layered so a surprise bill is very hard to produce:
+
+1. **Daily hard cap** (`DAILY_HARD_CAP_USD`, default $8/day): every Gemini call checks and charges an in-memory, Mongo-persisted budget. At the cap, AI calls degrade to friendly fallbacks. Spend $0 more.
+2. **Per-user daily cap** (`PER_USER_DAILY_CAP_USD`, default $0.50/day per profile).
+3. **Strict per-IP rate tiers**: AI endpoints (20/min, 150/hr, 500/day), heavy document/voice endpoints (8/min, 50/hr, 150/day), profile creation (5/min, 30/day). All env-tunable.
+4. **Cron fan-out caps** (`MAX_CRON_FANOUT`, default 300) so scheduled jobs can't scale costs with a pile of scripted profiles.
+5. **Kill switch**: `POST /api/ops/safety/kill` (or the `/pulse` page) stops all external actions and AI spend instantly.
+6. Set a **GCP Billing alert** (e.g. $50) as belt-and-suspenders.
 
 ## Quickstart
 
@@ -58,26 +57,27 @@ cd backend && npm install && npm run dev
 # frontend (separate terminal)
 cd frontend && npm install && npm run dev
 
-# smoke (separate terminal, backend must be running)
+# smoke check (separate terminal, backend must be running)
 node scripts/smoke.mjs
 
 # eval suite
 node scripts/run-evals.mjs
 ```
 
-Works out of the box without any API keys — every AI call has a deterministic mock fallback. To run live: set `GEMINI_USE_VERTEX=1`, `GOOGLE_CLOUD_PROJECT=...`, and `GOOGLE_APPLICATION_CREDENTIALS=./sa.json`.
+Works out of the box without any API keys: every AI call has a deterministic mock fallback, so you can explore the whole product first. To run live, copy `backend/.env.example` to `backend/.env` and either set `GEMINI_API_KEY`, or use Vertex AI with `GEMINI_USE_VERTEX=1`, `GOOGLE_CLOUD_PROJECT=...`, and `GOOGLE_APPLICATION_CREDENTIALS=./credentials/sa.json`.
+
+Optional extras: `MONGODB_URI` (persistence), `COLLEGE_SCORECARD_API_KEY` (live school data, free key), `GOOGLE_CLIENT_ID` + `JWT_SECRET` (sign-in and data ownership), `RESEND_API_KEY` + `RESEND_FROM` (real email digests).
 
 ## Deploying
 
-The council that reviewed Yaar three times converged on a deploy posture that bounds spend, fails closed under load, and stays observable from a phone. Follow this checklist:
-
 1. **Use `npm start`, not `npm run dev`.** `tsx watch` reloads on file save and is not for prod.
-2. **Set `ADMIN_TOKEN`** in the platform service config (not just `.env.example`). Without it, every `/api/ops/*` endpoint returns 503 from non-localhost.
-3. **Set `YAAR_AUTONOMY_MODE=dry_run`** for the first deploy. Move to `assist` after eyeballing a week of queued actions.
-4. **Leave `YAAR_ENABLE_LIVE_VOICE` unset.** Re-enable only after wiring auth + per-minute spend gate on the WebSocket.
-5. **Cap budget at the platform level too** with a GCP Billing alert at $50 (belt-and-suspenders to the in-code daily cap).
-6. **Cloud Run only:** set `--min-instances=1` so scale-to-zero doesn't pause the cron loop. The `/pulse` page surfaces a red "Scheduler STALE" tile if the heartbeat misses three 5-minute ticks.
-7. **Verify with `node scripts/run-evals.mjs`** against the deployed URL (`BASE=https://your.domain node scripts/run-evals.mjs`) before announcing.
+2. **Set `ADMIN_TOKEN`.** Without it, every `/api/ops/*` endpoint returns 503 from non-localhost.
+3. **Set `JWT_SECRET` and `GOOGLE_CLIENT_ID`.** This turns on real data ownership: profiles get bound to accounts and cross-user access is blocked.
+4. **Keep `YAAR_AUTONOMY_MODE=dry_run`** until you've eyeballed a week of queued agent actions. Then `assist` (human approves outbound), and only then consider `live`.
+5. **Leave `YAAR_ENABLE_LIVE_VOICE` unset.** The live-audio websocket bypasses the spend gate and has no per-connection auth yet.
+6. **Set a GCP Billing alert** in addition to the in-code daily cap.
+7. **Cloud Run:** set `--min-instances=1` so scale-to-zero doesn't pause the cron loop. The `/pulse` page shows a red "Scheduler STALE" tile if the heartbeat misses three 5-minute ticks.
+8. **Verify with `BASE=https://your.domain node scripts/run-evals.mjs`** before announcing.
 
 ## The named AI org
 
@@ -86,7 +86,7 @@ The council that reviewed Yaar three times converged on a deploy posture that bo
 | CEO | Sets the week's one big bet | weekly | `internal_task`, `report` |
 | Arjun | Nightly analyst memo | daily | `report` |
 | Kabir | Weekly roadmap issues | weekly | `internal_task`, `report` |
-| Aanya | One SEO article per day | daily | `draft_content` |
+| Aanya | One honest article per day | daily | `draft_content` |
 | Ravi | Reddit answers, where helpful | daily | `draft_content`, `social_post` |
 | Maya | Cuts long content into social | on_demand | `draft_content`, `social_post` |
 | Leo | Personalized outreach DMs | weekly | `email_campaign`, `internal_task` |
@@ -96,11 +96,17 @@ The council that reviewed Yaar three times converged on a deploy posture that bo
 
 Every external action proposed by any of them flows through Diya, then the Action Gateway, then the safety gate, before reaching anything real.
 
-## Why this exists
+## Privacy
 
-International students from South Asia get bad advice from paid consultants who collect 15-25% commissions from the schools they recommend. The honest version of that workflow runs on Gemini for fractions of a cent per session. Yaar is the proof.
+The plain-words version lives at `/privacy` in the app. The short version: profiles, learned facts, and practice history are stored (so Yaar can remember you); uploaded documents and voice recordings are processed transiently and never persisted; nothing is sold or shared; and "Delete everything Yaar knows about me" on the Mind page wipes it all, permanently.
 
-It is also the founder's resume project. If you're hiring AI / agent / founding engineers and want to verify the claims above, the live dashboards exist and the code is here. Start at `/evals`.
+## Contributing
+
+Issues and PRs welcome. The bar for anything student-facing: honest, specific, never hypey, and never guarantees outcomes. Run `npm run typecheck` (backend), `npm run build` (frontend), and `node scripts/smoke.mjs` before opening a PR.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
 
 ---
 

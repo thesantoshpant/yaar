@@ -83,3 +83,13 @@ profileRouter.patch("/:id", async (req, res) => {
   await seedProfileFacts(profile); // keep memory in sync with the latest profile
   res.json({ profile });
 });
+
+// Delete my data: permanently erase everything Yaar knows about this student.
+// This is the promise on the privacy page, so it covers every collection.
+profileRouter.delete("/:id", async (req, res) => {
+  await assertOwnership(req, req.params.id);
+  const profile = await store.getProfile(req.params.id);
+  if (!profile) return res.status(404).json({ error: "Not found" });
+  await store.deleteProfileData(req.params.id);
+  res.json({ ok: true, deleted: req.params.id });
+});

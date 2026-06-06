@@ -50,16 +50,16 @@ function mockDecision(emp: Employee): AgentDecision {
   switch (emp.id) {
     case "ceo":
       return {
-        summary: "Demo mode. Focus this week: convert visa-risk-report users to paid, and ship one honest Nepal guide.",
+        summary: "Demo mode. Focus this week: help more students finish their visa risk report, and ship one honest Nepal guide.",
         proposedActions: [
           { type: "internal_task", title: "Marketing: publish 'Why Nepali F-1 visas get refused' guide", payload: "Assign to content marketer", riskLevel: "low" },
-          { type: "report", title: "Weekly priorities", payload: "1) paid conversion 2) one helpful guide 3) reply to all support within a day", riskLevel: "low" },
+          { type: "report", title: "Weekly priorities", payload: "1) more students finishing reports 2) one helpful guide 3) reply to all support within a day", riskLevel: "low" },
         ],
       };
     case "arjun":
       return {
-        summary: "Demo mode. The number that matters: paid visa-report conversion.",
-        proposedActions: [{ type: "report", title: "Daily status", payload: "Students growing; track paid conversion and weekly active.", riskLevel: "low" }],
+        summary: "Demo mode. The number that matters: weekly active students.",
+        proposedActions: [{ type: "report", title: "Daily status", payload: "Students growing; track weekly active students and report completion.", riskLevel: "low" }],
       };
     case "aanya":
       return {
@@ -177,7 +177,7 @@ You are the agentic CEO / chief of staff. Based on the KPIs, set 2 to 4 concrete
 Return ONLY JSON: { "summary": string, "tasks": [ { "title": string, "detail": string, "department": "marketing"|"customer_care"|"growth"|"ops" } ] }`,
     prompt: `Company KPIs: ${kpis}.\nRecent company decisions (build on these, don't repeat):\n${recentDecisions()}\nDecide this cycle's tasks now.`,
     mock: () => ({
-      summary: "Demo mode. Priority: convert visa-risk-report users to paid, and ship one honest Nepal guide.",
+      summary: "Demo mode. Priority: help more students finish their visa risk report, and ship one honest Nepal guide.",
       tasks: [
         { title: "Publish an honest F-1 visa guide for Nepal", detail: "Cover the top refusal reasons and how to prepare. End with the free risk check.", department: "marketing" },
         { title: "Answer all open student questions within a day", detail: "Clear the support queue; escalate anything risky.", department: "customer_care" },

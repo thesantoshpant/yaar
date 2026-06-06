@@ -1,5 +1,9 @@
 # Yaar build status
 
+> **Note (June 2026):** Yaar is now fully free and open source. The Stripe billing,
+> entitlements, and locked-report mechanics described below were removed; this file is
+> kept as the historical build log.
+
 Autonomous build session, May 25, 2026. Stack: React + Vite + TS + Tailwind (frontend), Node + Express + TS
 via tsx (backend), Gemini for AI, MongoDB (with in-memory fallback), College Scorecard (with mock fallback).
 
