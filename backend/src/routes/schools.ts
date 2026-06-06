@@ -4,18 +4,19 @@ import { searchSchools } from "../services/collegeScorecard";
 import { generateText } from "../services/gemini";
 import { hasGemini } from "../config";
 import { recordActivity } from "../services/activity";
+import { assertOwnership } from "../lib/userAuth";
 import type { School } from "../lib/types";
 
 export const schoolsRouter = Router();
 
 const bodySchema = z.object({
-  search: z.string().optional(),
-  state: z.string().optional(),
-  maxNetPriceUsd: z.number().optional(),
-  minAdmitRate: z.number().optional(),
-  intendedMajor: z.string().optional(),
-  country: z.string().optional(),
-  profileId: z.string().optional(),
+  search: z.string().max(200).optional(),
+  state: z.string().max(40).optional(),
+  maxNetPriceUsd: z.number().finite().nonnegative().max(1_000_000).optional(),
+  minAdmitRate: z.number().finite().min(0).max(1).optional(),
+  intendedMajor: z.string().max(120).optional(),
+  country: z.string().max(60).optional(),
+  profileId: z.string().max(40).optional(),
 });
 
 function categorize(s: School): School {
@@ -33,6 +34,7 @@ schoolsRouter.post("/search", async (req, res) => {
   const parsed = bodySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const b = parsed.data;
+  await assertOwnership(req, b.profileId);
 
   const { schools, source } = await searchSchools({
     search: b.search,

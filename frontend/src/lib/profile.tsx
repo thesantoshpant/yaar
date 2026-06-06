@@ -20,6 +20,7 @@ export interface ProfileForm {
   schoolHasCounselor: string;
   schoolHasClubs: string;
   familiarWithProcess: string;
+  emailOptIn: string; // weekly email digest consent; "" means no
 }
 
 export const DEFAULT_PROFILE: ProfileForm = {
@@ -37,6 +38,7 @@ export const DEFAULT_PROFILE: ProfileForm = {
   schoolHasCounselor: "",
   schoolHasClubs: "",
   familiarWithProcess: "",
+  emailOptIn: "",
 };
 
 const FORM_KEY = "yaar.profile.form";
@@ -70,6 +72,7 @@ function fromServer(p: Record<string, unknown>): Partial<ProfileForm> {
   out.schoolHasCounselor = ynStr(p.schoolHasCounselor as boolean | undefined);
   out.schoolHasClubs = ynStr(p.schoolHasClubs as boolean | undefined);
   out.familiarWithProcess = ynStr(p.familiarWithProcess as boolean | undefined);
+  out.emailOptIn = ynStr(p.emailOptIn as boolean | undefined);
   return out;
 }
 
@@ -89,6 +92,7 @@ export function toPayload(f: ProfileForm): Record<string, unknown> {
     schoolHasCounselor: yn(f.schoolHasCounselor),
     schoolHasClubs: yn(f.schoolHasClubs),
     familiarWithProcess: yn(f.familiarWithProcess),
+    emailOptIn: yn(f.emailOptIn),
   };
 }
 

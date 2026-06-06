@@ -21,6 +21,9 @@ export interface StudentProfile {
   schoolHasClubs?: boolean;
   familiarWithProcess?: boolean; // does the student/family understand US admissions
   wontGoWithoutAid?: boolean;
+  // Consent: the weekly email digest only goes to students who explicitly turned
+  // it on. Default off; unset means "never email me".
+  emailOptIn?: boolean;
   createdAt: string;
 }
 

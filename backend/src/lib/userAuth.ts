@@ -36,11 +36,19 @@ export function requireUser(req: Request, _res: Response, next: NextFunction): v
 }
 
 // Ensure the requester owns this profile. No-op when auth is unconfigured.
-// If the profile has no owner yet and the requester is signed in, claim it.
-export async function assertOwnership(req: Request, profileId: string | undefined): Promise<void> {
+//
+// Claiming (binding an unowned guest profile to the signed-in user) only happens
+// when explicitly requested via opts.claim. The deliberate claim point is
+// GET /api/profile/:id, which the frontend calls right after sign-in. Everywhere
+// else is check-only, so merely touching a profile id never transfers ownership.
+export async function assertOwnership(
+  req: Request,
+  profileId: string | undefined,
+  opts: { claim?: boolean } = {}
+): Promise<void> {
   if (!hasGoogleAuth || !profileId) return;
   const profile = await store.getProfile(profileId);
   if (!profile) throw new HttpError(404, "Profile not found");
   if (profile.userId && profile.userId !== req.userId) throw new HttpError(403, "You do not have access to this profile.");
-  if (!profile.userId && req.userId) await store.updateProfile(profileId, { userId: req.userId });
+  if (opts.claim && !profile.userId && req.userId) await store.updateProfile(profileId, { userId: req.userId });
 }

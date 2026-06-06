@@ -24,15 +24,21 @@ engineRouter.post("/followups", requireAdmin, async (_req, res) => {
   res.json(result);
 });
 
-// Inbox feed for a student.
+// Inbox feed for a student. The unread count is computed independently of the
+// 50-item display window so older unread items still count toward the badge.
 engineRouter.get("/inbox/:profileId", async (req, res) => {
   await assertOwnership(req, req.params.profileId);
-  const items = await store.getInbox(req.params.profileId);
-  res.json({ items, unread: items.filter((i) => !i.read).length });
+  const [items, unread] = await Promise.all([
+    store.getInbox(req.params.profileId),
+    store.countUnread(req.params.profileId),
+  ]);
+  res.json({ items, unread });
 });
 
 engineRouter.patch("/inbox/:id/read", async (req, res) => {
-  // TODO: ownership check needs a store.getInboxItem(id)
+  const item = await store.getInboxItem(req.params.id);
+  if (!item) return res.status(404).json({ error: "Not found" });
+  await assertOwnership(req, item.profileId);
   await store.markInboxRead(req.params.id);
   res.json({ ok: true });
 });

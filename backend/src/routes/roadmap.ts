@@ -3,19 +3,20 @@ import { z } from "zod";
 import { generateJson } from "../services/gemini";
 import { buildContextPack } from "../services/contextPack";
 import { recordActivity } from "../services/activity";
+import { assertOwnership } from "../lib/userAuth";
 import type { Roadmap } from "../lib/types";
 
 export const roadmapRouter = Router();
 
 const bodySchema = z.object({
-  country: z.string().default("Nepal"),
+  country: z.string().max(60).default("Nepal"),
   intendedLevel: z.enum(["undergraduate", "graduate"]).default("undergraduate"),
-  intendedMajor: z.string().optional(),
-  budgetUsdPerYear: z.number().optional(),
-  testStatus: z.string().optional(),
-  careerGoal: z.string().optional(),
-  targetIntake: z.string().optional(),
-  profileId: z.string().optional(),
+  intendedMajor: z.string().max(120).optional(),
+  budgetUsdPerYear: z.number().finite().nonnegative().max(1_000_000).optional(),
+  testStatus: z.string().max(120).optional(),
+  careerGoal: z.string().max(300).optional(),
+  targetIntake: z.string().max(40).optional(),
+  profileId: z.string().max(40).optional(),
 });
 
 type Body = z.infer<typeof bodySchema>;
@@ -74,6 +75,7 @@ roadmapRouter.post("/", async (req, res) => {
   const parsed = bodySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const b = parsed.data;
+  await assertOwnership(req, b.profileId);
   const ctx = b.profileId ? await buildContextPack(b.profileId) : "";
 
   const baseSystem = `You are Yaar, an honest AI counselor. Produce a realistic, specific study-abroad roadmap.

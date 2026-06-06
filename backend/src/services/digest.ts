@@ -58,7 +58,10 @@ Return ONLY JSON: { "subject": string (under 60 chars, specific to this student)
 export async function sendDigest(profileId: string): Promise<{ subject: string; result: string } | null> {
   const d = await buildDigest(profileId);
   if (!d) return null;
-  const result = await sendEmail({ to: d.to ?? undefined, subject: d.subject, text: d.body });
+  // Always include a way out. Consent to receive is checked by the caller (the
+  // cron only emails opted-in students; the manual send is student-initiated).
+  const body = `${d.body}\n\n--\nYou get this weekly note because you turned it on in Yaar. To stop it, turn off "Weekly email" in your Yaar profile, or reply STOP.`;
+  const result = await sendEmail({ to: d.to ?? undefined, subject: d.subject, text: body });
   await store
     .addEvent({ profileId, kind: "note", summary: `Weekly digest ${result.startsWith("sent") ? "emailed" : "prepared (simulated, no email key)"}` })
     .catch(() => {});
@@ -76,13 +79,22 @@ export async function weeklyDigestForAll(): Promise<{ students: number; sent: nu
     console.warn(`[digest] weekly digest capped at ${ids.length} of ${allIds.length} profiles (MAX_CRON_FANOUT)`);
   }
   let sent = 0;
+  let skipped = 0;
   for (const id of ids) {
     try {
+      // Consent gate: the scheduled digest only ever goes to students who
+      // explicitly opted in. No opt-in, no email. Ever.
+      const profile = await store.getProfile(id);
+      if (!profile?.emailOptIn) {
+        skipped++;
+        continue;
+      }
       const r = await sendDigest(id);
       if (r?.result.startsWith("sent")) sent++;
     } catch (err) {
       console.error("[digest] failed for", id, err);
     }
   }
-  return { students: ids.length, sent };
+  if (skipped) console.log(`[digest] skipped ${skipped} students without email opt-in`);
+  return { students: ids.length - skipped, sent };
 }

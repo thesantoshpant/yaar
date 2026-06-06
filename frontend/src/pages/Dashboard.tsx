@@ -269,6 +269,7 @@ export default function Dashboard() {
                   <YesNo label="School has a counselor?" value={profile.schoolHasCounselor} onChange={(v) => setField({ schoolHasCounselor: v })} />
                   <YesNo label="School has clubs?" value={profile.schoolHasClubs} onChange={(v) => setField({ schoolHasClubs: v })} />
                   <YesNo label="Family knows the US process?" value={profile.familiarWithProcess} onChange={(v) => setField({ familiarWithProcess: v })} />
+                  <YesNo label="Weekly email from Yaar? (off by default)" value={profile.emailOptIn} onChange={(v) => setField({ emailOptIn: v })} />
                 </div>
               </>
             )}

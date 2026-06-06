@@ -4,17 +4,18 @@ import { generateText } from "../services/gemini";
 import { hasGemini } from "../config";
 import { buildContextPack } from "../services/contextPack";
 import { recordActivity } from "../services/activity";
+import { assertOwnership } from "../lib/userAuth";
 
 export const applicationsRouter = Router();
 
 const bodySchema = z.object({
   type: z.enum(["sop", "common_app"]).default("sop"),
-  profileSummary: z.string().optional(),
-  school: z.string().optional(),
-  major: z.string().optional(),
-  promptText: z.string().optional(),
-  notes: z.string().optional(),
-  profileId: z.string().optional(),
+  profileSummary: z.string().max(2000).optional(),
+  school: z.string().max(200).optional(),
+  major: z.string().max(120).optional(),
+  promptText: z.string().max(4000).optional(),
+  notes: z.string().max(8000).optional(),
+  profileId: z.string().max(40).optional(),
 });
 
 type Body = z.infer<typeof bodySchema>;
@@ -44,6 +45,7 @@ applicationsRouter.post("/draft", async (req, res) => {
   const parsed = bodySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const b = parsed.data;
+  await assertOwnership(req, b.profileId);
 
   // Whichever path we take, remember they're working on this essay and mine the real
   // details they shared (their notes are some of the most valuable, true facts we get).

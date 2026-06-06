@@ -12,14 +12,14 @@ import { assertOwnership } from "../lib/userAuth";
 export const evidenceRouter = Router();
 
 const createSchema = z.object({
-  profileId: z.string().min(1),
-  title: z.string().min(1),
-  whatYouDid: z.string().min(1),
-  whoBenefited: z.string().optional(),
-  proofUrl: z.string().optional(),
-  skills: z.array(z.string()).default([]),
-  reflection: z.string().optional(),
-  linkedActionItemId: z.string().optional(),
+  profileId: z.string().min(1).max(40),
+  title: z.string().min(1).max(200),
+  whatYouDid: z.string().min(1).max(4000),
+  whoBenefited: z.string().max(300).optional(),
+  proofUrl: z.string().max(500).optional(),
+  skills: z.array(z.string().max(60)).max(20).default([]),
+  reflection: z.string().max(4000).optional(),
+  linkedActionItemId: z.string().max(40).optional(),
 });
 
 evidenceRouter.post("/", async (req, res) => {
@@ -35,8 +35,13 @@ evidenceRouter.post("/", async (req, res) => {
   });
   // Closing the loop: evidence linked to a suggested action completes it. Because
   // gaps are computed from completed action tags, this also advances gap state.
+  // The linked action must belong to the SAME profile; otherwise a crafted link
+  // could mark another student's action item done.
   if (item.linkedActionItemId) {
-    await store.updateActionItem(item.linkedActionItemId, { status: "done", resolvedAt: new Date().toISOString() });
+    const linked = await store.getActionItem(item.linkedActionItemId);
+    if (linked && linked.profileId === item.profileId) {
+      await store.updateActionItem(item.linkedActionItemId, { status: "done", resolvedAt: new Date().toISOString() });
+    }
   }
   // Remember the skills and achievement this activity proves.
   await rememberEvidence(item);

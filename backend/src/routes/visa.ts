@@ -7,22 +7,23 @@ import { VISA_DIMENSIONS } from "../data/rubrics";
 import { VISA_OFFICER_SYSTEM, visaScoreSystem } from "../lib/prompts";
 import { buildContextPack } from "../services/contextPack";
 import { recordActivity } from "../services/activity";
+import { assertOwnership } from "../lib/userAuth";
 import type { VisaScore, VisaTurn } from "../lib/types";
 
 export const visaRouter = Router();
 
 const turnSchema = z.object({
   role: z.enum(["officer", "student"]),
-  text: z.string(),
+  text: z.string().max(4000),
 });
 
 // `documents` is the differentiator: the student pastes their real I-20 / funding
 // details so the officer can probe inconsistencies the way a real consular officer would.
 const nextSchema = z.object({
-  country: z.string().default("Nepal"),
-  history: z.array(turnSchema).default([]),
-  documents: z.string().optional(),
-  profileId: z.string().optional(),
+  country: z.string().max(60).default("Nepal"),
+  history: z.array(turnSchema).max(40).default([]),
+  documents: z.string().max(12000).optional(),
+  profileId: z.string().max(40).optional(),
 });
 
 function docBlock(documents?: string): string {
@@ -33,6 +34,7 @@ visaRouter.post("/next", async (req, res) => {
   const parsed = nextSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { country, history, documents, profileId } = parsed.data;
+  await assertOwnership(req, profileId);
 
   if (!hasGemini) {
     const bank = visaQuestionsFor(country);
@@ -54,10 +56,10 @@ visaRouter.post("/next", async (req, res) => {
 });
 
 const scoreSchema = z.object({
-  country: z.string().default("Nepal"),
-  history: z.array(turnSchema).min(1),
-  documents: z.string().optional(),
-  profileId: z.string().optional(),
+  country: z.string().max(60).default("Nepal"),
+  history: z.array(turnSchema).min(1).max(40),
+  documents: z.string().max(12000).optional(),
+  profileId: z.string().max(40).optional(),
 });
 
 function mockScore(history: VisaTurn[]): VisaScore {
@@ -91,6 +93,7 @@ visaRouter.post("/score", async (req, res) => {
   const parsed = scoreSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { country, history, documents, profileId } = parsed.data;
+  await assertOwnership(req, profileId);
   const ctx = profileId ? await buildContextPack(profileId) : "";
 
   const baseSystem = `${visaScoreSystem(VISA_DIMENSIONS.map((d) => d.name).join(", "))}

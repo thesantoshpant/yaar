@@ -4,15 +4,16 @@ import { generateText } from "../services/gemini";
 import { hasGemini } from "../config";
 import { buildContextPack } from "../services/contextPack";
 import { extractMemory } from "../services/memoryUpdate";
+import { assertOwnership } from "../lib/userAuth";
 import { COUNSELOR_SYSTEM } from "../lib/prompts";
 import type { ChatMessage } from "../lib/types";
 
 export const counselorRouter = Router();
 
 const bodySchema = z.object({
-  messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).min(1),
-  profileSummary: z.string().optional(),
-  profileId: z.string().optional(),
+  messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(4000) })).min(1).max(40),
+  profileSummary: z.string().max(2000).optional(),
+  profileId: z.string().max(40).optional(),
 });
 
 function transcript(messages: ChatMessage[]): string {
@@ -34,6 +35,9 @@ counselorRouter.post("/chat", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
   const { messages, profileSummary, profileId } = parsed.data;
+  // The context pack contains this student's private memory; never build it for
+  // a profile the requester doesn't own.
+  await assertOwnership(req, profileId);
   const pack = profileId ? await buildContextPack(profileId) : "";
 
   if (!hasGemini) {

@@ -7,14 +7,15 @@ import { z } from "zod";
 import { generateJson } from "../services/gemini";
 import { buildContextPack } from "../services/contextPack";
 import { recordActivity } from "../services/activity";
+import { assertOwnership } from "../lib/userAuth";
 import { YAAR_PRINCIPLES } from "../lib/prompts";
 
 export const whatifRouter = Router();
 
 const schema = z.object({
-  scenario: z.string().min(1),
-  profileId: z.string().optional(),
-  profileSummary: z.string().optional(),
+  scenario: z.string().min(1).max(2000),
+  profileId: z.string().max(40).optional(),
+  profileSummary: z.string().max(2000).optional(),
 });
 
 interface WhatIf {
@@ -28,6 +29,7 @@ whatifRouter.post("/", async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { scenario, profileId, profileSummary } = parsed.data;
+  await assertOwnership(req, profileId);
 
   const ctx = profileId ? await buildContextPack(profileId) : "";
   const who = ctx || profileSummary || "an international student applying to the US";

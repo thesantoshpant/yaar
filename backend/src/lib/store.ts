@@ -250,6 +250,23 @@ export const store = {
     return mem.inbox.filter((i) => i.profileId === profileId).slice(-limit).reverse();
   },
 
+  async getInboxItem(id: string): Promise<InboxItem | null> {
+    if (dbConnected()) {
+      const doc = await InboxItemModel.findOne({ id }).lean<InboxItem>().exec();
+      return doc ? clean(doc) : null;
+    }
+    return mem.inbox.find((i) => i.id === id) ?? null;
+  },
+
+  // Unread badge count, independent of the 50-item display window so an active
+  // student's older unread items still count.
+  async countUnread(profileId: string): Promise<number> {
+    if (dbConnected()) {
+      return InboxItemModel.countDocuments({ profileId, read: false }).exec();
+    }
+    return mem.inbox.filter((i) => i.profileId === profileId && !i.read).length;
+  },
+
   async markInboxRead(id: string): Promise<void> {
     if (dbConnected()) {
       await InboxItemModel.updateOne({ id }, { $set: { read: true } }).exec();

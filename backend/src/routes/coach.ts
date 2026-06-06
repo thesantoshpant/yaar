@@ -6,6 +6,7 @@ import { z } from "zod";
 import { generateJson } from "../services/gemini";
 import { buildContextPack } from "../services/contextPack";
 import { recordActivity } from "../services/activity";
+import { assertOwnership } from "../lib/userAuth";
 import {
   RECOMMENDER_COACH_SYSTEM,
   FUNDING_COACH_SYSTEM,
@@ -26,15 +27,16 @@ async function context(profileId?: string): Promise<string> {
 
 // ---------- Recommender coach ----------
 const recommenderSchema = z.object({
-  profileId: z.string().optional(),
-  recommenderRole: z.string().optional(), // e.g. "math teacher"
-  achievements: z.string().optional(),
+  profileId: z.string().max(40).optional(),
+  recommenderRole: z.string().max(120).optional(), // e.g. "math teacher"
+  achievements: z.string().max(8000).optional(),
 });
 
 coachRouter.post("/recommender", async (req, res) => {
   const parsed = recommenderSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const b = parsed.data;
+  await assertOwnership(req, b.profileId);
   const ctx = await context(b.profileId);
 
   const { data, source } = await generateJson<{
@@ -76,17 +78,18 @@ Write the recommender package now.`,
 
 // ---------- Family + funding coach ----------
 const fundingSchema = z.object({
-  profileId: z.string().optional(),
-  i20CostUsd: z.number().optional(),
-  fundsUsd: z.number().optional(),
-  sponsor: z.string().optional(),
-  notes: z.string().optional(),
+  profileId: z.string().max(40).optional(),
+  i20CostUsd: z.number().finite().nonnegative().max(10_000_000).optional(),
+  fundsUsd: z.number().finite().nonnegative().max(100_000_000).optional(),
+  sponsor: z.string().max(300).optional(),
+  notes: z.string().max(8000).optional(),
 });
 
 coachRouter.post("/funding", async (req, res) => {
   const parsed = fundingSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const b = parsed.data;
+  await assertOwnership(req, b.profileId);
   const ctx = await context(b.profileId);
   const gap =
     b.i20CostUsd != null && b.fundsUsd != null ? b.i20CostUsd - b.fundsUsd : null;
@@ -149,17 +152,18 @@ Return ONLY JSON: { "costExplanation": string, "sponsorStory": string, "gapAnaly
 
 // ---------- Grade 9-12 milestone plan (parent-program product) ----------
 const milestoneSchema = z.object({
-  profileId: z.string().optional(),
-  gradeLevel: z.string().default("9"),
-  intendedMajor: z.string().optional(),
-  country: z.string().default("Nepal"),
-  constraints: z.string().optional(),
+  profileId: z.string().max(40).optional(),
+  gradeLevel: z.string().max(20).default("9"),
+  intendedMajor: z.string().max(120).optional(),
+  country: z.string().max(60).default("Nepal"),
+  constraints: z.string().max(4000).optional(),
 });
 
 coachRouter.post("/milestones", async (req, res) => {
   const parsed = milestoneSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const b = parsed.data;
+  await assertOwnership(req, b.profileId);
   const ctx = await context(b.profileId);
 
   const { data, source } = await generateJson<{
@@ -221,14 +225,15 @@ Build a term-by-term milestone plan from grade ${b.gradeLevel} through grade 12.
 
 // ---------- F-1 status guard (informational) ----------
 const f1Schema = z.object({
-  profileId: z.string().optional(),
-  question: z.string().min(1),
+  profileId: z.string().max(40).optional(),
+  question: z.string().min(1).max(2000),
 });
 
 coachRouter.post("/f1-status", async (req, res) => {
   const parsed = f1Schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const b = parsed.data;
+  await assertOwnership(req, b.profileId);
   const ctx = await context(b.profileId);
 
   const { data, source } = await generateJson<{

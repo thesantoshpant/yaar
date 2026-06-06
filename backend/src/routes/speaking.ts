@@ -4,6 +4,7 @@ import { generateJson } from "../services/gemini";
 import { buildContextPack } from "../services/contextPack";
 import { recordActivity } from "../services/activity";
 import { store } from "../lib/store";
+import { assertOwnership } from "../lib/userAuth";
 import { SPEAKING_PROMPTS } from "../data/questionBanks";
 import { examCriteria } from "../data/rubrics";
 import type { SpeakingScore } from "../lib/types";
@@ -22,10 +23,10 @@ speakingRouter.get("/prompt", (req, res) => {
 });
 
 const scoreSchema = z.object({
-  exam: z.string().default("IELTS"),
-  prompt: z.string().min(1),
-  answer: z.string().min(1),
-  profileId: z.string().optional(),
+  exam: z.string().max(20).default("IELTS"),
+  prompt: z.string().min(1).max(2000),
+  answer: z.string().min(1).max(12000),
+  profileId: z.string().max(40).optional(),
 });
 
 function mockSpeakingScore(exam: string, answer: string): SpeakingScore {
@@ -55,6 +56,7 @@ speakingRouter.post("/score", async (req, res) => {
   const parsed = scoreSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { exam, prompt, answer, profileId } = parsed.data;
+  await assertOwnership(req, profileId);
   const { exam: examName, scale, criteria } = examCriteria(exam);
   const ctx = profileId ? await buildContextPack(profileId) : "";
 

@@ -21,6 +21,7 @@ const profileSchema = new Schema<StudentProfile>(
     schoolHasClubs: Boolean,
     familiarWithProcess: Boolean,
     wontGoWithoutAid: Boolean,
+    emailOptIn: Boolean,
     createdAt: { type: String, required: true },
   },
   { collection: "profiles" }

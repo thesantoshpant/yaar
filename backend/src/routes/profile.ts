@@ -28,15 +28,15 @@ profileRouter.post("/seed-persona", ...createLimit, async (req, res) => {
 });
 
 const profileSchema = z.object({
-  name: z.string().min(1),
-  country: z.string().min(1),
-  gpa: z.string().optional(),
+  name: z.string().min(1).max(80),
+  country: z.string().min(1).max(60),
+  gpa: z.string().max(40).optional(),
   intendedLevel: z.enum(["undergraduate", "graduate"]).default("undergraduate"),
-  intendedMajor: z.string().optional(),
-  budgetUsdPerYear: z.number().optional(),
-  testStatus: z.string().optional(),
-  careerGoal: z.string().optional(),
-  targetIntake: z.string().optional(),
+  intendedMajor: z.string().max(120).optional(),
+  budgetUsdPerYear: z.number().finite().nonnegative().max(1_000_000).optional(),
+  testStatus: z.string().max(120).optional(),
+  careerGoal: z.string().max(300).optional(),
+  targetIntake: z.string().max(40).optional(),
   // persona signals
   gradeLevel: z.enum(["9", "10", "11", "12", "gap", "bachelors"]).optional(),
   isRural: z.boolean().optional(),
@@ -45,6 +45,8 @@ const profileSchema = z.object({
   schoolHasClubs: z.boolean().optional(),
   familiarWithProcess: z.boolean().optional(),
   wontGoWithoutAid: z.boolean().optional(),
+  // consent for the weekly email digest (default: never email)
+  emailOptIn: z.boolean().optional(),
 });
 
 const updateSchema = profileSchema.partial();
@@ -67,7 +69,10 @@ profileRouter.post("/", ...createLimit, async (req, res) => {
 });
 
 profileRouter.get("/:id", async (req, res) => {
-  await assertOwnership(req, req.params.id);
+  // claim: a guest who just signed in binds their device's profile to the new
+  // account here (the frontend calls this right after sign-in). This is the ONLY
+  // claim point; every other route is check-only.
+  await assertOwnership(req, req.params.id, { claim: true });
   const profile = await store.getProfile(req.params.id);
   if (!profile) return res.status(404).json({ error: "Not found" });
   res.json({ profile });

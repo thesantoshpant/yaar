@@ -5,8 +5,11 @@ import type { Request, Response, NextFunction } from "express";
 import { config } from "../config";
 
 function isLocalhost(req: Request): boolean {
-  const ip = req.ip || req.socket?.remoteAddress || "";
-  return ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1" || ip.endsWith("127.0.0.1");
+  // Use the real TCP peer address, NEVER req.ip: with trust-proxy enabled,
+  // req.ip honors X-Forwarded-For, which a direct client can spoof to
+  // "127.0.0.1" and walk straight into the admin console.
+  const ip = req.socket?.remoteAddress || "";
+  return ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
 }
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {

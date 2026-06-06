@@ -8,6 +8,7 @@ import { generateJson } from "../services/gemini";
 import { getOrCreateJourney } from "../services/journey";
 import { buildContextPack } from "../services/contextPack";
 import { personaPreamble } from "../lib/personaPreamble";
+import { assertOwnership } from "../lib/userAuth";
 import { AGENT_BRAIN_SYSTEM } from "../lib/prompts";
 
 export const agentRouter = Router();
@@ -29,10 +30,10 @@ interface AgentPlan {
 }
 
 const bodySchema = z.object({
-  profileSummary: z.string().optional(),
-  completed: z.array(z.string()).default([]),
-  notes: z.string().optional(),
-  profileId: z.string().optional(),
+  profileSummary: z.string().max(2000).optional(),
+  completed: z.array(z.string().max(40)).max(20).default([]),
+  notes: z.string().max(2000).optional(),
+  profileId: z.string().max(40).optional(),
 });
 
 // Default unbiased ordering of the journey, used by the mock and as a guardrail.
@@ -66,6 +67,7 @@ agentRouter.post("/plan", async (req, res) => {
   const parsed = bodySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { profileSummary, completed, notes, profileId } = parsed.data;
+  await assertOwnership(req, profileId);
 
   // Persona + memory make the plan adapt to who the student actually is.
   let preamble = "";
