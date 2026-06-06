@@ -15,11 +15,16 @@ export function setProfileId(id: string): void {
   localStorage.setItem(PROFILE_ID_KEY, id);
 }
 
-// Reset to a clean slate so a new student (or a demo of a different persona) starts fresh.
+// Reset to a clean slate so a new student (or a demo of a different persona) starts
+// fresh. Clears EVERYTHING student-shaped on this device, including the profile form
+// and the saved counselor chat; "delete my data" relies on this leaving no ghost
+// that could silently recreate a profile from the erased details.
 export function clearStudent(): void {
   localStorage.removeItem(PROFILE_ID_KEY);
   localStorage.removeItem(DONE_KEY);
   localStorage.removeItem(PROFILE_KEY);
+  localStorage.removeItem("yaar.profile.form");
+  localStorage.removeItem("yaar.counselor");
 }
 
 const TOKEN_KEY = "yaar.token";

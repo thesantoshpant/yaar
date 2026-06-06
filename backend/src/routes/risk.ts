@@ -44,16 +44,19 @@ riskRouter.post("/extract", uploadBody, async (req, res) => {
 });
 
 const schema = z.object({
-  profileId: z.string().optional(),
+  profileId: z.string().max(40).optional(),
   documents: z
     .array(
       z.object({
         kind: z.enum(["i20", "admit", "funding", "ds160", "other"]).default("other"),
-        text: z.string().min(1),
-        filename: z.string().optional(),
+        // Same cap as the visa interview's documents field: the UI feeds one
+        // shared textarea into both, so the two must accept identical input.
+        text: z.string().min(1).max(12000),
+        filename: z.string().max(200).optional(),
       })
     )
-    .min(1),
+    .min(1)
+    .max(6),
 });
 
 // The full report is free for everyone. Anonymous students get the complete analysis

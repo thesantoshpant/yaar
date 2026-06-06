@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api/client";
+import { api, errText } from "../api/client";
 import type { SpeakingScore } from "../lib/types";
 import { markCompleted, getProfileId } from "../lib/progress";
 import { useAuthGate } from "../lib/authGate";
@@ -29,8 +29,8 @@ export default function SpeakingPractice() {
   const [source, setSource] = useState<string>();
   const [loading, setLoading] = useState(false);
   const [promptLoading, setPromptLoading] = useState(false);
-  const [promptError, setPromptError] = useState(false);
-  const [scoreError, setScoreError] = useState(false);
+  const [promptError, setPromptError] = useState("");
+  const [scoreError, setScoreError] = useState("");
 
   // Voice answers: record with the mic and transcribe with Gemini (reliable across
   // browsers, unlike the old Web Speech API). The typed box always works as a fallback.
@@ -94,14 +94,14 @@ export default function SpeakingPractice() {
 
   async function getPrompt() {
     setPromptLoading(true);
-    setPromptError(false);
+    setPromptError("");
     try {
       const res = await api.speakingPrompt(exam);
       setPrompt(res.prompt);
       setScore(null);
       setAnswer("");
-    } catch {
-      setPromptError(true);
+    } catch (e) {
+      setPromptError(errText(e, "Couldn't load a prompt just now. Check your connection and try again."));
     } finally {
       setPromptLoading(false);
     }
@@ -110,14 +110,14 @@ export default function SpeakingPractice() {
   async function submit() {
     if (!prompt || !answer.trim()) return;
     setLoading(true);
-    setScoreError(false);
+    setScoreError("");
     try {
       const res = await api.speakingScore(exam, prompt, answer, getProfileId() || undefined);
       setScore(res.score);
       setSource(res.source);
       markCompleted("test_prep");
-    } catch {
-      setScoreError(true);
+    } catch (e) {
+      setScoreError(errText(e, "Couldn't score that just now. Your answer is still here — try again."));
     } finally {
       setLoading(false);
     }
@@ -145,7 +145,7 @@ export default function SpeakingPractice() {
             {promptLoading ? <Spinner label="Finding a prompt..." /> : "Get a prompt"}
           </button>
         </div>
-        {promptError && <div className="mt-3"><ErrorNote onRetry={getPrompt}>Couldn't load a prompt just now. Check your connection and try again.</ErrorNote></div>}
+        {promptError && <div className="mt-3"><ErrorNote onRetry={getPrompt}>{promptError}</ErrorNote></div>}
 
         {prompt && (
           <div className="mt-5">
@@ -243,7 +243,7 @@ export default function SpeakingPractice() {
                   </button>
                 )}
               </div>
-              {scoreError && <ErrorNote onRetry={() => submit()}>Couldn't score that just now. Check your connection and try again.</ErrorNote>}
+              {scoreError && <ErrorNote onRetry={() => submit()}>{scoreError}</ErrorNote>}
             </div>
           </div>
         )}

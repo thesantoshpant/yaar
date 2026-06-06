@@ -43,7 +43,7 @@ Yaar is free for students, which means the person deploying it pays for the AI c
 
 1. **Daily hard cap** (`DAILY_HARD_CAP_USD`, default $8/day): every Gemini call checks and charges an in-memory, Mongo-persisted budget. At the cap, AI calls degrade to friendly fallbacks. Spend $0 more.
 2. **Per-user daily cap** (`PER_USER_DAILY_CAP_USD`, default $0.50/day per profile).
-3. **Strict per-IP rate tiers**: AI endpoints (20/min, 150/hr, 500/day), heavy document/voice endpoints (8/min, 50/hr, 150/day), profile creation (5/min, 30/day). All env-tunable.
+3. **Strict per-IP rate tiers**: AI endpoints (30/min, 150/hr, 500/day), heavy document/voice endpoints (8/min, 50/hr, 150/day), profile creation (5/min, 30/day). All env-tunable.
 4. **Cron fan-out caps** (`MAX_CRON_FANOUT`, default 300) so scheduled jobs can't scale costs with a pile of scripted profiles.
 5. **Kill switch**: `POST /api/ops/safety/kill` (or the `/pulse` page) stops all external actions and AI spend instantly.
 6. Set a **GCP Billing alert** (e.g. $50) as belt-and-suspenders.
@@ -80,7 +80,7 @@ Optional extras: `MONGODB_URI` (persistence), `COLLEGE_SCORECARD_API_KEY` (live 
 4. **Keep `YAAR_AUTONOMY_MODE=dry_run`** until you've eyeballed a week of queued agent actions. Then `assist` (human approves outbound), and only then consider `live`.
 5. **Leave `YAAR_ENABLE_LIVE_VOICE` unset.** The live-audio websocket bypasses the spend gate and has no per-connection auth yet.
 6. **Set a GCP Billing alert** in addition to the in-code daily cap.
-7. **Cloud Run:** set `--min-instances=1` so scale-to-zero doesn't pause the cron loop. The `/pulse` page shows a red "Scheduler STALE" tile if the heartbeat misses three 5-minute ticks.
+7. **Run exactly ONE instance** (`--min-instances=1 --max-instances=1` on Cloud Run). The spend caps, rate-limit buckets, and cron jobs are in-memory and assume a single instance: N instances would mean N times the daily cap and duplicate Monday digests. One instance also keeps the cron loop alive (the `/pulse` page shows a red "Scheduler STALE" tile if the heartbeat misses three 5-minute ticks). Move the counters to Redis/Mongo before scaling out.
 8. **Verify with `BASE=https://your.domain node scripts/run-evals.mjs`** before announcing.
 
 ## The named AI org

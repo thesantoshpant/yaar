@@ -178,6 +178,14 @@ export function recordSpend(profileId: string | undefined, costUsd: number): voi
   persist();
 }
 
+// Delete-my-data support: drop a student's per-user spend/call counters so no
+// per-student residue survives in ops_state after they erase everything.
+export function forgetActor(profileId: string): void {
+  delete state.perUserSpendUsd[profileId];
+  delete state.perUserCallCount[profileId];
+  persist();
+}
+
 // Hard stop. Toggled from the ops console. When engaged, every external
 // action and Gemini call is rejected until a human flips it back. Persisted
 // so a restart doesn't silently re-open the door.

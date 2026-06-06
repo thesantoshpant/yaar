@@ -13,6 +13,7 @@ import {
 import { getProfileId } from "../lib/progress";
 import { useProfile } from "../lib/profile";
 import { PageHeading, Spinner, ErrorNote, ScoreBar } from "../components/ui";
+import { errText } from "../api/client";
 import { useRecorder } from "../lib/useRecorder";
 
 // Builds a hash-encoded Mock Card URL: payload lives in the fragment so no
@@ -161,7 +162,9 @@ export default function MockTest() {
   const [skillResult, setSkillResult] = useState<MockSkillResult | null>(null);
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  // Holds the user-facing error message ("" = no error). The backend sends warm,
+  // specific copy for rate limits and honest-fail 503s; show it, don't mask it.
+  const [error, setError] = useState("");
   const [timeLeft, setTimeLeft] = useState(0);
   const [timerOn, setTimerOn] = useState(false);
   const [history, setHistory] = useState<MockAttemptSummary[]>([]);
@@ -187,7 +190,7 @@ export default function MockTest() {
   useEffect(() => loadHistory(), [loadHistory]);
 
   function resetState() {
-    setError(false);
+    setError("");
     setObjResult(null);
     setSkillResult(null);
     setResponses({});
@@ -246,11 +249,9 @@ export default function MockTest() {
         const cached = prefetch.current.get(key);
         prefetch.current.delete(key); // consume; "Practice again" then regenerates fresh
         let t = await (cached ?? genPromise(sec, exam));
-        if (!t) t = await genPromise(sec, exam).catch(() => null); // prefetch failed -> retry fresh
-        if (!t) {
-          setError(true);
-          return;
-        }
+        // Prefetch failures are swallowed into null; retry fresh WITHOUT catching,
+        // so the server's real message (rate limit, honest 503) reaches the catch.
+        if (!t) t = await genPromise(sec, exam);
         if (sec === "reading") {
           const r = t as MockReadingTest;
           setReading(r);
@@ -273,8 +274,8 @@ export default function MockTest() {
           setTimerOn(false);
         }
         setPhase("taking");
-      } catch {
-        setError(true);
+      } catch (e) {
+        setError(errText(e, "Couldn't build the test just now. Try again."));
       } finally {
         setLoading(false);
       }
@@ -294,13 +295,14 @@ export default function MockTest() {
     submittingRef.current = true;
     setTimerOn(false);
     setLoading(true);
+    setError("");
     try {
       const r = await api.mockScoreReading(reading.testId, responses, profileIdAtStartRef.current ?? profileId);
       setObjResult(r);
       setPhase("results");
       loadHistory();
-    } catch {
-      setError(true);
+    } catch (e) {
+      setError(errText(e, "Couldn't score that just now. Your answers are still here — try again."));
     } finally {
       setLoading(false);
       submittingRef.current = false;
@@ -312,13 +314,14 @@ export default function MockTest() {
     submittingRef.current = true;
     setTimerOn(false);
     setLoading(true);
+    setError("");
     try {
       const r = await api.mockScoreListening(listening.testId, responses, profileIdAtStartRef.current ?? profileId);
       setObjResult(r);
       setPhase("results");
       loadHistory();
-    } catch {
-      setError(true);
+    } catch (e) {
+      setError(errText(e, "Couldn't score that just now. Your answers are still here — try again."));
     } finally {
       setLoading(false);
       submittingRef.current = false;
@@ -330,13 +333,14 @@ export default function MockTest() {
     submittingRef.current = true;
     setTimerOn(false);
     setLoading(true);
+    setError("");
     try {
       const r = await api.mockScoreWriting(exam, writing.taskType, writing.prompt, writing.context, essay, profileIdAtStartRef.current ?? profileId);
       setSkillResult(r);
       setPhase("results");
       loadHistory();
-    } catch {
-      setError(true);
+    } catch (e) {
+      setError(errText(e, "Couldn't score your essay just now. It's still here — try again."));
     } finally {
       setLoading(false);
       submittingRef.current = false;
@@ -347,13 +351,14 @@ export default function MockTest() {
     if (!speaking || submittingRef.current) return;
     submittingRef.current = true;
     setLoading(true);
+    setError("");
     try {
       const r = await api.mockScoreSpeaking(exam, speaking.taskType, speaking.prompt, transcript, profileIdAtStartRef.current ?? profileId);
       setSkillResult(r);
       setPhase("results");
       loadHistory();
-    } catch {
-      setError(true);
+    } catch (e) {
+      setError(errText(e, "Couldn't score your answer just now. Your recording's transcript is safe — try again."));
     } finally {
       setLoading(false);
       submittingRef.current = false;
@@ -404,6 +409,11 @@ export default function MockTest() {
         subtitle="A real IELTS or TOEFL section, generated fresh, scored honestly, and saved. Yaar learns where you slip and makes your next test target exactly that."
       />
 
+      {/* A submit/score failure during the test must be visible (the intro card's
+          error slot isn't rendered in the taking phase). The student's work stays
+          on the page; this tells them what happened and what to do. */}
+      {phase !== "intro" && error && <ErrorNote>{error}</ErrorNote>}
+
       {/* Generating a section (shown over the intro while we build the test). */}
       {phase === "intro" && loading && <GeneratingLoader section={section} />}
 
@@ -452,7 +462,7 @@ export default function MockTest() {
               </button>
             </div>
 
-            {error && <div className="mt-3"><ErrorNote onRetry={() => void start(section)}>Couldn't build the test just now. Try again.</ErrorNote></div>}
+            {error && <div className="mt-3"><ErrorNote onRetry={() => void start(section)}>{error}</ErrorNote></div>}
             {!profileId && <p className="mt-3 text-xs text-faint">Tip: set up your profile on the Dashboard so Yaar saves your history and adapts to you.</p>}
           </div>
 

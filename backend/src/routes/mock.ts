@@ -41,8 +41,13 @@ mockRouter.post("/listening/generate", async (req, res) => {
   await assertOwnership(req, parsed.data.profileId);
   res.json(await generateListening(examOf(parsed.data.exam), parsed.data.profileId, spendActor(req, parsed.data.profileId)));
 });
-// Poll for the pre-generated natural-voice audio (generated in the background at /generate).
-mockRouter.get("/listening/:testId/audio", (req, res) => {
+
+// Poll for the pre-generated natural-voice audio (generated in the background at
+// /generate). NO model call happens here (pure cache read), and the client polls
+// it every few seconds, so it lives on its own router OFF the AI rate tier —
+// otherwise the polling alone would eat the student's AI budget.
+export const mockAudioRouter = Router();
+mockAudioRouter.get("/listening/:testId/audio", (req, res) => {
   res.json(getListeningAudio(req.params.testId));
 });
 mockRouter.post("/listening/score", async (req, res) => {

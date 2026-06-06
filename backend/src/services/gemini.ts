@@ -211,7 +211,11 @@ export async function generateSpeech(
     });
     const part = res?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
     const data = part?.inlineData?.data;
-    chargeForCall(res, opts?.profileId, text.length + (data?.length ?? 0), config.geminiTtsModel);
+    // Fallback chars for the charge are based on the INPUT text only. Never use
+    // the base64 audio length: a minute of audio is millions of base64 chars,
+    // and chars/4 of that would falsely record several dollars for one call and
+    // trip the daily cap for everyone.
+    chargeForCall(res, opts?.profileId, text.length * 3, config.geminiTtsModel);
     if (!data) return { audioBase64: "", mimeType: "", source: "mock" };
     return { audioBase64: data, mimeType: part?.inlineData?.mimeType || "audio/L16;rate=24000", source: "gemini" };
   } catch (err) {

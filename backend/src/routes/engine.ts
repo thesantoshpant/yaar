@@ -5,11 +5,18 @@ import { runWeeklyDrop } from "../services/opportunityEngine";
 import { followUpSweep } from "../services/engagement";
 import { assertOwnership } from "../lib/userAuth";
 import { requireAdmin } from "../lib/adminAuth";
+import { aiTier } from "../lib/rateLimit";
 
 export const engineRouter = Router();
 
+// Only run-now triggers a model call, so only it carries the AI rate tier. The
+// inbox/action endpoints below are cheap store reads/writes the UI hits on every
+// page view and tab focus; putting them on the AI tier would silently drain the
+// student's AI budget with zero-cost requests.
+const dropLimit = aiTier();
+
 // The "magic" button: generate this student's personalized opportunity drop now.
-engineRouter.post("/run-now/:profileId", async (req, res) => {
+engineRouter.post("/run-now/:profileId", ...dropLimit, async (req, res) => {
   await assertOwnership(req, req.params.profileId);
   const result = await runWeeklyDrop(req.params.profileId);
   if (!result) return res.status(404).json({ error: "Profile not found" });

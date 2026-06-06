@@ -24,7 +24,7 @@ import { parentRouter } from "./routes/parent";
 import { whatifRouter } from "./routes/whatif";
 import { digestRouter } from "./routes/digest";
 import { transcribeRouter } from "./routes/transcribe";
-import { mockRouter } from "./routes/mock";
+import { mockRouter, mockAudioRouter } from "./routes/mock";
 import { progressRouter } from "./routes/progress";
 import { evalsRouter } from "./routes/evals";
 import { ttsRouter } from "./routes/tts";
@@ -82,7 +82,9 @@ app.use("/api/speaking", ai, speakingRouter);
 app.use("/api/agent", ai, agentRouter);
 app.use("/api/applications", ai, applicationsRouter);
 app.use("/api/journey", journeyRouter);
-app.use("/api/engine", ai, engineRouter);
+// engine applies the AI tier internally on run-now only; its inbox/action
+// endpoints are cheap reads the UI polls and must not consume AI budget.
+app.use("/api/engine", engineRouter);
 app.use("/api/risk", heavy, riskRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/coach", ai, coachRouter);
@@ -92,6 +94,9 @@ app.use("/api/parent", ai, parentRouter);
 app.use("/api/whatif", ai, whatifRouter);
 app.use("/api/digest", ai, digestRouter);
 app.use("/api/transcribe", heavy, transcribeRouter);
+// The audio poll endpoint is a pure cache read the client polls while TTS
+// generates; it must come BEFORE the AI-tier mock mount and skip that tier.
+app.use("/api/mock", mockAudioRouter);
 app.use("/api/mock", ai, mockRouter);
 app.use("/api/progress", progressRouter);
 app.use("/api/eval", ai, evalsRouter);

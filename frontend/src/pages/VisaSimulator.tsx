@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { api } from "../api/client";
+import { api, errText } from "../api/client";
 import type { RiskReport, VisaScore, VisaTurn } from "../lib/types";
 import { markCompleted, getProfileId } from "../lib/progress";
 import { useProfile } from "../lib/profile";
@@ -26,8 +26,8 @@ export default function VisaSimulator() {
   const [source, setSource] = useState<string>();
   const [report, setReport] = useState<RiskReport | null>(null);
   const [riskLoading, setRiskLoading] = useState(false);
-  const [riskError, setRiskError] = useState(false);
-  const [interviewError, setInterviewError] = useState(false);
+  const [riskError, setRiskError] = useState("");
+  const [interviewError, setInterviewError] = useState("");
   const [needsAccount, setNeedsAccount] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -58,16 +58,16 @@ export default function VisaSimulator() {
   async function analyzeDocs() {
     if (!documents.trim()) return;
     setRiskLoading(true);
-    setRiskError(false);
+    setRiskError("");
     try {
-      const res = await api.riskReport([{ kind: "i20", text: documents }], getProfileId() || undefined);
+      const res = await api.riskReport([{ kind: "i20", text: documents.slice(0, 12000) }], getProfileId() || undefined);
       setReport(res.report);
       setNeedsAccount(!!res.needsAccount);
       // Note: the visa milestone is marked complete only after the mock interview is
       // scored (see finish()), not just for generating a document report.
       setTimeout(() => reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-    } catch {
-      setRiskError(true);
+    } catch (e) {
+      setRiskError(errText(e, "Yaar couldn't build your report just now. Give it a moment and try again."));
     } finally {
       setRiskLoading(false);
     }
@@ -77,13 +77,13 @@ export default function VisaSimulator() {
     setLoading(true);
     setScore(null);
     setDone(false);
-    setInterviewError(false);
+    setInterviewError("");
     try {
-      const res = await api.visaNext(country, [], documents || undefined, getProfileId() || undefined);
+      const res = await api.visaNext(country, [], documents.slice(0, 12000) || undefined, getProfileId() || undefined);
       setHistory([{ role: "officer", text: res.question }]);
       setStarted(true);
-    } catch {
-      setInterviewError(true);
+    } catch (e) {
+      setInterviewError(errText(e, "Couldn't start the interview. Check your internet and try again."));
     } finally {
       setLoading(false);
     }
@@ -96,13 +96,13 @@ export default function VisaSimulator() {
     setHistory(withAnswer);
     setInput("");
     setLoading(true);
-    setInterviewError(false);
+    setInterviewError("");
     try {
-      const res = await api.visaNext(country, withAnswer, documents || undefined, getProfileId() || undefined);
+      const res = await api.visaNext(country, withAnswer, documents.slice(0, 12000) || undefined, getProfileId() || undefined);
       setHistory([...withAnswer, { role: "officer", text: res.question }]);
       if (res.done) setDone(true);
-    } catch {
-      setInterviewError(true);
+    } catch (e) {
+      setInterviewError(errText(e, "That answer didn't go through. Try sending it again."));
     } finally {
       setLoading(false);
     }
@@ -110,14 +110,14 @@ export default function VisaSimulator() {
 
   async function finish() {
     setLoading(true);
-    setInterviewError(false);
+    setInterviewError("");
     try {
-      const res = await api.visaScore(country, history, documents || undefined, getProfileId() || undefined);
+      const res = await api.visaScore(country, history, documents.slice(0, 12000) || undefined, getProfileId() || undefined);
       setScore(res.score);
       setSource(res.source);
       markCompleted("visa");
-    } catch {
-      setInterviewError(true);
+    } catch (e) {
+      setInterviewError(errText(e, "Couldn't score the interview just now. Your answers are safe — try again."));
     } finally {
       setLoading(false);
     }
@@ -144,7 +144,7 @@ export default function VisaSimulator() {
           <DocumentUpload value={documents} onChange={setDocuments} />
         </div>
 
-        {riskError && <div className="mt-3"><ErrorNote onRetry={analyzeDocs}>Yaar couldn't build your report just now. Give it a moment and try again.</ErrorNote></div>}
+        {riskError && <div className="mt-3"><ErrorNote onRetry={analyzeDocs}>{riskError}</ErrorNote></div>}
 
         <button className="btn-primary mt-4" onClick={analyzeDocs} disabled={riskLoading || !documents.trim()}>
           {riskLoading ? <Spinner label="Checking your documents..." /> : "Build my risk report"}
@@ -225,7 +225,7 @@ export default function VisaSimulator() {
             interview would. {!documents.trim() && "You can also start without documents."}
           </p>
 
-          {interviewError && <div className="mt-3"><ErrorNote onRetry={start}>Couldn't start the interview. Check your internet and try again.</ErrorNote></div>}
+          {interviewError && <div className="mt-3"><ErrorNote onRetry={start}>{interviewError}</ErrorNote></div>}
 
           <button className="btn-primary mt-4" onClick={() => gate("visaInterview", () => start())} disabled={loading}>
             {loading ? <Spinner label="Getting the officer ready..." /> : "Start the interview"}
@@ -294,7 +294,7 @@ export default function VisaSimulator() {
           {/* Composer */}
           {!score && (
             <div className="border-t border-line bg-surface px-5 py-4">
-              {interviewError && <div className="mb-3"><ErrorNote onRetry={() => (history[history.length - 1]?.role === "student" ? answer() : start())}>That answer didn't go through. Try sending it again.</ErrorNote></div>}
+              {interviewError && <div className="mb-3"><ErrorNote onRetry={() => (history[history.length - 1]?.role === "student" ? answer() : start())}>{interviewError}</ErrorNote></div>}
               <div className="flex gap-2">
                 <textarea
                   className="input min-h-[44px] resize-none"

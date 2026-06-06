@@ -444,8 +444,16 @@ export const store = {
   // ---------- delete my data ----------
   // Permanently erase everything Yaar knows about one student: profile, journey,
   // memory facts, timeline, action items, inbox, documents, risk reports, evidence,
-  // and mock attempts. The student's promise on the privacy page depends on this
-  // being complete, so every collection that is keyed by profileId is covered.
+  // mock attempts, and (if linked) the Google account record. The privacy page
+  // promises "no retention after that", so this must be complete.
+  async deleteUser(userId: string): Promise<void> {
+    if (dbConnected()) {
+      await UserModel.deleteMany({ id: userId }).exec();
+      return;
+    }
+    mem.users.delete(userId);
+  },
+
   async deleteProfileData(profileId: string): Promise<void> {
     if (dbConnected()) {
       await Promise.all([

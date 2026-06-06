@@ -41,6 +41,14 @@ async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promi
   return res.json() as Promise<T>;
 }
 
+// Human text from a thrown API error: the server's friendly message when present
+// (rate limits and honest-fail 503s send warm, specific copy), else the caller's
+// fallback. Raw "path failed: 503" strings are never shown to students.
+export function errText(e: unknown, fallback: string): string {
+  const m = e instanceof Error ? e.message : "";
+  return m && !/failed: \d+$/.test(m) ? m : fallback;
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { headers: { ...authHeaders() } });
   if (!res.ok) throw new Error(`${path} failed: ${res.status}`);

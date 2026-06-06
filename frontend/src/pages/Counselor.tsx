@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { api } from "../api/client";
+import { api, errText } from "../api/client";
 import { getProfileSummary, getProfileId } from "../lib/progress";
 import { useAuthGate } from "../lib/authGate";
 import { SourceBadge, PageHeading } from "../components/ui";
@@ -143,8 +143,10 @@ export default function Counselor() {
       const res = await api.chat(next, getProfileSummary() || undefined, getProfileId() || undefined);
       setMessages([...next, { role: "assistant", content: res.reply }]);
       setSource(res.source);
-    } catch {
-      setMessages([...next, { role: "assistant", content: "Sorry yaar, I couldn't reach you just now. Check your internet and try again in a sec." }]);
+    } catch (e) {
+      // Show the server's friendly message when it sent one (rate limit, busy):
+      // telling a capped student "check your internet" would just invite retries.
+      setMessages([...next, { role: "assistant", content: errText(e, "Sorry yaar, I couldn't reach you just now. Check your internet and try again in a sec.") }]);
     } finally {
       setLoading(false);
       setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
