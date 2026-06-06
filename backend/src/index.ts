@@ -32,7 +32,7 @@ import { opsRouter } from "./routes/ops";
 import { requireAdmin } from "./lib/adminAuth";
 import { attachUser } from "./lib/userAuth";
 import { startScheduler } from "./services/scheduler";
-import { rateLimit } from "./lib/rateLimit";
+import { rateLimit, aiTier, heavyTier } from "./lib/rateLimit";
 import { notFoundHandler, errorHandler, installProcessGuards } from "./lib/errors";
 import { handleLiveConnection, type LiveParams } from "./services/geminiLive";
 
@@ -40,10 +40,17 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(cors({ origin: config.corsOrigins }));
 app.use(express.json({ limit: "1mb" }));
-// Basic abuse protection. AI endpoints are the costly ones, so cap a bit tighter.
+// Basic abuse protection. Layered: this global per-IP limit catches raw request
+// floods; the aiTier/heavyTier stacks below strictly cap the endpoints that cost
+// real money per call; and services/safety.ts holds the daily dollar cap as the
+// final backstop. Yaar is free, so these limits are what keeps it free.
 app.use("/api/", rateLimit({ windowMs: 60_000, max: 120 }));
 // Attach the signed-in user (if any) to every API request for ownership checks.
 app.use("/api", attachUser);
+
+// Strict per-IP tiers for everything that triggers a model call.
+const ai = aiTier();
+const heavy = heavyTier();
 
 app.get("/api/health", (_req, res) => {
   res.json({
@@ -60,28 +67,28 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/profile", profileRouter);
-app.use("/api/counselor", counselorRouter);
-app.use("/api/roadmap", roadmapRouter);
-app.use("/api/schools", schoolsRouter);
-app.use("/api/visa", visaRouter);
-app.use("/api/speaking", speakingRouter);
-app.use("/api/agent", agentRouter);
-app.use("/api/applications", applicationsRouter);
+app.use("/api/counselor", ai, counselorRouter);
+app.use("/api/roadmap", ai, roadmapRouter);
+app.use("/api/schools", ai, schoolsRouter);
+app.use("/api/visa", ai, visaRouter);
+app.use("/api/speaking", ai, speakingRouter);
+app.use("/api/agent", ai, agentRouter);
+app.use("/api/applications", ai, applicationsRouter);
 app.use("/api/journey", journeyRouter);
-app.use("/api/engine", engineRouter);
-app.use("/api/risk", riskRouter);
+app.use("/api/engine", ai, engineRouter);
+app.use("/api/risk", heavy, riskRouter);
 app.use("/api/auth", authRouter);
-app.use("/api/coach", coachRouter);
-app.use("/api/evidence", evidenceRouter);
-app.use("/api/memory", memoryRouter);
-app.use("/api/parent", parentRouter);
-app.use("/api/whatif", whatifRouter);
-app.use("/api/digest", digestRouter);
-app.use("/api/transcribe", transcribeRouter);
-app.use("/api/mock", mockRouter);
+app.use("/api/coach", ai, coachRouter);
+app.use("/api/evidence", ai, evidenceRouter);
+app.use("/api/memory", ai, memoryRouter);
+app.use("/api/parent", ai, parentRouter);
+app.use("/api/whatif", ai, whatifRouter);
+app.use("/api/digest", ai, digestRouter);
+app.use("/api/transcribe", heavy, transcribeRouter);
+app.use("/api/mock", ai, mockRouter);
 app.use("/api/progress", progressRouter);
-app.use("/api/eval", evalsRouter);
-app.use("/api/tts", ttsRouter);
+app.use("/api/eval", ai, evalsRouter);
+app.use("/api/tts", heavy, ttsRouter);
 app.use("/api/ops", requireAdmin, opsRouter);
 
 // Unmatched API routes -> clean 404; everything else -> centralized error handler.

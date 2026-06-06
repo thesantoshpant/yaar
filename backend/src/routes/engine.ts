@@ -4,6 +4,7 @@ import { store } from "../lib/store";
 import { runWeeklyDrop } from "../services/opportunityEngine";
 import { followUpSweep } from "../services/engagement";
 import { assertOwnership } from "../lib/userAuth";
+import { requireAdmin } from "../lib/adminAuth";
 
 export const engineRouter = Router();
 
@@ -15,8 +16,10 @@ engineRouter.post("/run-now/:profileId", async (req, res) => {
   res.json(result);
 });
 
-// Manual trigger of the follow-up sweep (also runs on a cron).
-engineRouter.post("/followups", async (_req, res) => {
+// Manual trigger of the follow-up sweep (also runs on a cron). Admin-only: it
+// sweeps EVERY student's due follow-ups (one model call each), so it must not be
+// callable by the public.
+engineRouter.post("/followups", requireAdmin, async (_req, res) => {
   const result = await followUpSweep();
   res.json(result);
 });

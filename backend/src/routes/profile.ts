@@ -6,8 +6,13 @@ import { recomputeJourney } from "../services/journey";
 import { seedProfileFacts } from "../services/memoryUpdate";
 import { listPersonas, seedPersona } from "../services/personaSeeds";
 import { assertOwnership } from "../lib/userAuth";
+import { createTier } from "../lib/rateLimit";
 
 export const profileRouter = Router();
+
+// Creating a profile (or seeding a sample student) creates durable state and adds
+// to the nightly cron fan-out, so scripted creation is rate limited per IP.
+const createLimit = createTier();
 
 // Sample students for instant demos and to show Yaar adapts to different journeys.
 // Registered before "/:id" so "personas" isn't mistaken for a profile id.
@@ -15,7 +20,7 @@ profileRouter.get("/personas", (_req, res) => {
   res.json({ personas: listPersonas() });
 });
 
-profileRouter.post("/seed-persona", async (req, res) => {
+profileRouter.post("/seed-persona", ...createLimit, async (req, res) => {
   const key = typeof req.body?.persona === "string" ? req.body.persona : "";
   const profile = await seedPersona(key);
   if (!profile) return res.status(404).json({ error: "Unknown persona" });
@@ -47,7 +52,7 @@ const updateSchema = profileSchema.partial();
 // Guests can create a profile too (we want top-of-funnel to be frictionless). If the
 // request carries a token, the profile is owned by that user; otherwise it stays
 // unowned until the student signs in, at which point assertOwnership claims it.
-profileRouter.post("/", async (req, res) => {
+profileRouter.post("/", ...createLimit, async (req, res) => {
   const parsed = profileSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });

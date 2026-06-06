@@ -38,14 +38,22 @@ export async function followUpSweep(): Promise<{ checked: number; sent: number }
   return { checked: due.length, sent };
 }
 
+// Each drop is one Gemini call, so the cron fan-out is bounded: a runaway pile of
+// scripted profiles must never turn the Monday drop into a four-figure bill.
+const MAX_DROP_FANOUT = Number(process.env.MAX_CRON_FANOUT ?? 300);
+
 export async function weeklyDropForAll(): Promise<{ students: number }> {
   const ids = await store.allProfileIds();
-  for (const id of ids) {
+  const batch = ids.slice(0, MAX_DROP_FANOUT);
+  if (ids.length > batch.length) {
+    console.warn(`[engagement] weekly drop capped at ${batch.length} of ${ids.length} profiles (MAX_CRON_FANOUT)`);
+  }
+  for (const id of batch) {
     try {
       await runWeeklyDrop(id);
     } catch (err) {
       console.error("[engagement] drop failed for", id, err);
     }
   }
-  return { students: ids.length };
+  return { students: batch.length };
 }

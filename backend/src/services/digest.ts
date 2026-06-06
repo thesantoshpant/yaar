@@ -65,8 +65,16 @@ export async function sendDigest(profileId: string): Promise<{ subject: string; 
   return { subject: d.subject, result };
 }
 
+// Bounded like the weekly drop: each digest is a Gemini call (and possibly an
+// email), so the cron fan-out is capped no matter how many profiles exist.
+const MAX_DIGEST_FANOUT = Number(process.env.MAX_CRON_FANOUT ?? 300);
+
 export async function weeklyDigestForAll(): Promise<{ students: number; sent: number }> {
-  const ids = await store.allProfileIds();
+  const allIds = await store.allProfileIds();
+  const ids = allIds.slice(0, MAX_DIGEST_FANOUT);
+  if (allIds.length > ids.length) {
+    console.warn(`[digest] weekly digest capped at ${ids.length} of ${allIds.length} profiles (MAX_CRON_FANOUT)`);
+  }
   let sent = 0;
   for (const id of ids) {
     try {
