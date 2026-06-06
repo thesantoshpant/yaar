@@ -3,6 +3,7 @@ import { z } from "zod";
 import { generateRiskReport, analyzeDocuments, extractFieldsFromFiles } from "../services/riskReport";
 import { store } from "../lib/store";
 import { assertOwnership } from "../lib/userAuth";
+import { spendActor } from "../lib/actor";
 import type { RiskReport } from "../lib/types";
 
 export const riskRouter = Router();
@@ -38,7 +39,7 @@ riskRouter.post("/extract", uploadBody, async (req, res) => {
     if (!ALLOWED_MIME.test(f.mimeType)) return res.status(400).json({ error: `Unsupported file type: ${f.mimeType}. Upload a PDF or a photo.` });
     if (Buffer.byteLength(f.data, "base64") > MAX_BYTES) return res.status(413).json({ error: "That file is too large. Try a smaller photo or PDF (under 12MB)." });
   }
-  const result = await extractFieldsFromFiles(parsed.data.files);
+  const result = await extractFieldsFromFiles(parsed.data.files, spendActor(req));
   res.json(result);
 });
 
@@ -63,7 +64,7 @@ riskRouter.post("/report", async (req, res) => {
   const { profileId, documents } = parsed.data;
 
   if (!profileId) {
-    const core = await analyzeDocuments(documents);
+    const core = await analyzeDocuments(documents, spendActor(req));
     const full: RiskReport = { id: "transient", profileId: "", createdAt: new Date().toISOString(), ...core };
     return res.json({ report: full, needsAccount: true });
   }

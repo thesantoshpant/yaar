@@ -8,6 +8,7 @@ import { VISA_OFFICER_SYSTEM, visaScoreSystem } from "../lib/prompts";
 import { buildContextPack } from "../services/contextPack";
 import { recordActivity } from "../services/activity";
 import { assertOwnership } from "../lib/userAuth";
+import { spendActor } from "../lib/actor";
 import type { VisaScore, VisaTurn } from "../lib/types";
 
 export const visaRouter = Router();
@@ -50,6 +51,7 @@ visaRouter.post("/next", async (req, res) => {
     system,
     prompt: `Country: ${country}.${docBlock(documents)}\nInterview so far:\n${convo || "(not started)"}\n\nAsk your next question now. If you have asked 8 or more questions, you may say "That is all, please wait." Output only the officer's line.`,
     temperature: 0.7,
+    profileId: spendActor(req, profileId),
   });
   const officerCount = history.filter((t) => t.role === "officer").length;
   res.json({ question: text, done: officerCount >= 8, source });
@@ -104,6 +106,7 @@ Return ONLY JSON: { "overall": number 0-100, "recommendation": string, "dimensio
   const { data, source } = await generateJson<VisaScore>({
     system,
     prompt: `Country: ${country}.${docBlock(documents)}\nTranscript:\n${convo}\n\nScore it now.`,
+    profileId: spendActor(req, profileId),
     mock: () => mockScore(history),
   });
 

@@ -34,6 +34,7 @@ export async function consolidateMind(profileId: string): Promise<{ brief: strin
   const riskLine = risk ? `Visa readiness score ${risk.overall}/100. Weak points: ${(risk.weakPoints ?? []).slice(0, 3).join("; ")}` : "no risk report yet";
 
   const { data, source } = await generateJson<MindSynthesis>({
+    profileId,
     system: `${YAAR_PRINCIPLES}
 You are Yaar's Memory Agent. Synthesize a durable "mind" for ONE student from everything we know. Do not invent facts.
 Write: (1) a "brief": 3 to 5 plain sentences a counselor could read in 10 seconds to know exactly who this student is, what they want, their real constraints, where they are in the journey, and what they need next; and (2) up to 5 "insights": durable, high-signal conclusions (each a stable snake_case key prefixed "insight.", a short value, and a confidence 0..1). Insights should be synthesis, not raw restatement (e.g. insight.funding_gap, insight.spike_area, insight.biggest_risk).

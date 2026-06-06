@@ -19,6 +19,7 @@ export async function followUpSweep(): Promise<{ checked: number; sent: number }
     const { data, source } = await generateJson<{ body: string }>({
       system: "You are Yaar following up on something you suggested. Be warm and brief, no guilt. Ask if they did it and offer help if stuck. One or two sentences.",
       prompt: `You suggested to ${profile?.name ?? "the student"}: "${a.title}" (${a.why}). It has been a few days. Write a short check-in.`,
+      profileId: a.profileId,
       mock: () => ({ body: `${profile?.name ?? "Hi"}, how'd it go with "${a.title}"? No stress if you haven't started. I can help, or swap it for something simpler.` }),
     });
     await store.addInboxItem({

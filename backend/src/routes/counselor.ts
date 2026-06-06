@@ -5,6 +5,7 @@ import { hasGemini } from "../config";
 import { buildContextPack } from "../services/contextPack";
 import { extractMemory } from "../services/memoryUpdate";
 import { assertOwnership } from "../lib/userAuth";
+import { spendActor } from "../lib/actor";
 import { COUNSELOR_SYSTEM } from "../lib/prompts";
 import type { ChatMessage } from "../lib/types";
 
@@ -54,7 +55,7 @@ counselorRouter.post("/chat", async (req, res) => {
     .filter(Boolean)
     .join("\n\n");
 
-  const { text, source } = await generateText({ prompt, system: COUNSELOR_SYSTEM, temperature: 0.6 });
+  const { text, source } = await generateText({ prompt, system: COUNSELOR_SYSTEM, temperature: 0.6, profileId: spendActor(req, profileId) });
 
   if (profileId) extractMemory(profileId, `${transcript(messages)}\nCounselor: ${text}`);
   res.json({ reply: text, source });

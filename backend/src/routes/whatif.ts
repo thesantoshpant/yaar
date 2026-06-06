@@ -8,6 +8,7 @@ import { generateJson } from "../services/gemini";
 import { buildContextPack } from "../services/contextPack";
 import { recordActivity } from "../services/activity";
 import { assertOwnership } from "../lib/userAuth";
+import { spendActor } from "../lib/actor";
 import { YAAR_PRINCIPLES } from "../lib/prompts";
 
 export const whatifRouter = Router();
@@ -39,6 +40,7 @@ whatifRouter.post("/", async (req, res) => {
 You run a "what-if" for a student exploring a change to their plan. Given who they are and the hypothetical change, explain honestly and specifically how it shifts their roadmap, their school options, their funding picture, and their realistic chances. Never guarantee outcomes. Be concrete (name the kinds of schools, tests, or money that change). If the change is unrealistic for them, say so kindly.
 Return ONLY JSON: { "impact": string (2-3 sentences on what changes overall), "opensUp": string[] (2-4 things that become possible or easier), "watchOut": string[] (2-4 new trade-offs or risks), "verdict": string (one honest bottom-line sentence) }`,
     prompt: `Student situation:\n${who}\n\nWhat if: ${scenario}\n\nRun the what-if now.`,
+    profileId: spendActor(req, profileId),
     mock: () => ({
       impact: `Changing "${scenario}" would reshape parts of your plan. Add a Gemini key for a tailored breakdown; in general, budget and level changes most affect which schools and funding paths fit you.`,
       opensUp: ["Potentially a different tier of schools", "A different funding strategy"],

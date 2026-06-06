@@ -3,7 +3,7 @@
 import { generateJsonFromMedia, type MediaPart } from "./gemini";
 import { config } from "../config";
 
-export async function transcribeAudio(file: MediaPart): Promise<{ text: string; source: string }> {
+export async function transcribeAudio(file: MediaPart, actor?: string): Promise<{ text: string; source: string }> {
   const { data, source } = await generateJsonFromMedia<{ transcript: string }>({
     system:
       "You transcribe spoken audio to text. Output exactly the words spoken, in English, with normal punctuation and capitalization. Do not add commentary, labels, or quotes. If there is no clear speech, return an empty string.",
@@ -11,6 +11,7 @@ export async function transcribeAudio(file: MediaPart): Promise<{ text: string; 
     files: [file],
     model: config.geminiTextModel, // flash is plenty for transcription and fast
     temperature: 0,
+    profileId: actor,
     mock: () => ({ transcript: "" }),
   });
   return { text: (data?.transcript ?? "").trim(), source };

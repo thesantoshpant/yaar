@@ -34,19 +34,24 @@ export interface ProgressData {
   hasData: boolean;
 }
 
-const dayKey = (iso: string) => iso.slice(0, 10);
-const monthKey = (iso: string) => iso.slice(0, 7);
+// Day buckets are computed in the app timezone, not UTC. Most students are in
+// South Asia (UTC+5:45ish), where a 1am study session falls on "yesterday" in
+// UTC and silently breaks streaks. en-CA gives YYYY-MM-DD directly.
+const APP_TZ = process.env.APP_TIMEZONE ?? "Asia/Kathmandu";
+const dayFmt = new Intl.DateTimeFormat("en-CA", { timeZone: APP_TZ, year: "numeric", month: "2-digit", day: "2-digit" });
+const dayKey = (iso: string) => dayFmt.format(new Date(iso));
+const monthKey = (iso: string) => dayKey(iso).slice(0, 7);
 
 // Consecutive days with at least one activity, counting back from today. A one-day
 // grace (start from yesterday if nothing yet today) keeps the streak from reading 0
 // all morning before the student has done anything.
 function computeStreak(dayset: Set<string>): number {
   const d = new Date();
-  if (!dayset.has(d.toISOString().slice(0, 10))) d.setUTCDate(d.getUTCDate() - 1);
+  if (!dayset.has(dayFmt.format(d))) d.setTime(d.getTime() - 24 * 3600 * 1000);
   let streak = 0;
-  while (dayset.has(d.toISOString().slice(0, 10))) {
+  while (dayset.has(dayFmt.format(d))) {
     streak++;
-    d.setUTCDate(d.getUTCDate() - 1);
+    d.setTime(d.getTime() - 24 * 3600 * 1000);
   }
   return streak;
 }
@@ -160,6 +165,7 @@ export async function buildProgress(profileId: string): Promise<ProgressData> {
           "You are Yaar, an honest, warm study-abroad counselor. In 2-3 sentences, summarize how this student is progressing using ONLY the data given. Be specific with the numbers, celebrate real improvement, be honest about dips without discouraging, and end with the single most useful thing to focus on next. No emojis, no hype, no invented facts.",
         prompt: `Streak: ${totals.streak} days. Mocks taken: ${totals.mocks}. This month vs last: ${monthly.thisMonth.activities} vs ${monthly.lastMonth.activities} activities. Skill trends: ${summary}. Recurring weak areas: ${weakAreas.slice(0, 4).map((w) => w.type).join(", ") || "none"}.`,
         temperature: 0.5,
+        profileId,
       });
       if (text && !text.startsWith("[mock]")) recap = text.trim();
     } catch {

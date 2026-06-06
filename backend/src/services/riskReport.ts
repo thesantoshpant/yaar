@@ -75,10 +75,11 @@ function mockReport(combined: string): ReportCore {
 // Reads uploaded files (photo or PDF of an I-20, bank letter, admission letter)
 // and pulls out the key fields so the student confirms instead of typing it all.
 // Nothing is persisted: the file bytes live only for this call.
-export async function extractFieldsFromFiles(files: DocFileInput[]): Promise<{ extracted: ExtractedField[]; warnings: string[] }> {
+export async function extractFieldsFromFiles(files: DocFileInput[], actor?: string): Promise<{ extracted: ExtractedField[]; warnings: string[] }> {
   const parts: MediaPart[] = files.map((f) => ({ mimeType: f.mimeType, data: f.data }));
   const hints = files.map((f) => `${f.filename ?? "file"} (${f.kind})`).join(", ");
   const { data } = await generateJsonFromMedia<{ extracted: ExtractedField[]; warnings: string[] }>({
+    profileId: actor,
     system: `${riskReportSystem(VISA_DIMENSIONS.map((d) => d.name).join(", "))}
 You are reading the student's uploaded documents (${hints}). Pull out only what is actually written. Do not guess numbers.
 Return ONLY JSON:
@@ -99,12 +100,13 @@ Fields to look for when present: School, Program, Degree level, I-20 total cost 
 }
 
 // Pure analysis (no persistence). Used for anonymous/transient reports too.
-export async function analyzeDocuments(docs: DocInput[]): Promise<ReportCore> {
+export async function analyzeDocuments(docs: DocInput[], actor?: string): Promise<ReportCore> {
   const combined = docs.map((d) => `[${d.kind}] ${d.text}`).join("\n\n");
   const { data } = await generateJson<ReportCore>({
     system: SYSTEM,
     model: config.geminiProModel, // flagship: use the stronger model for this report
     prompt: `Student documents:\n${combined || "(none provided)"}\n\nProduce the risk report now.`,
+    profileId: actor,
     mock: () => mockReport(combined),
   });
   // defensive normalization in case the model returns partial JSON
@@ -123,7 +125,7 @@ export async function generateRiskReport(profileId: string, docs: DocInput[]): P
   // Privacy: we do NOT persist the raw document text. We only analyze it in-memory
   // and save the derived report (the student's owned artifact). This keeps the
   // "we don't store your raw documents" promise honest.
-  const core = await analyzeDocuments(docs);
+  const core = await analyzeDocuments(docs, profileId);
   await store.addEvent({ profileId, kind: "module_run", module: "visa", summary: `Generated visa risk report (score ${core.overall})`, status: "done" });
   // Feed the durable, derived facts into the student's mind (not the raw documents).
   const facts = [

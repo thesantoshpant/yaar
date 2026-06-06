@@ -34,9 +34,9 @@ function pcmToWav(pcm: Buffer, sampleRate: number, channels = 1, bits = 16): Buf
   return Buffer.concat([header, pcm]);
 }
 
-export async function synthesize(text: string, voice?: string): Promise<{ audioBase64: string; mimeType: string; source: string }> {
+export async function synthesize(text: string, voice?: string, actor?: string): Promise<{ audioBase64: string; mimeType: string; source: string }> {
   const speakers = detectSpeakers(text);
-  const { audioBase64, mimeType, source } = await generateSpeech(text, { voice, speakers: speakers.length ? speakers : undefined });
+  const { audioBase64, mimeType, source } = await generateSpeech(text, { voice, speakers: speakers.length ? speakers : undefined, profileId: actor });
   if (!audioBase64) return { audioBase64: "", mimeType: "", source };
   const rate = Number(/rate=(\d+)/.exec(mimeType)?.[1] ?? 24000);
   const wav = pcmToWav(Buffer.from(audioBase64, "base64"), rate);

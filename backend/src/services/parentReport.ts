@@ -30,6 +30,7 @@ export async function generateParentReport(profileId: string, language = "Englis
     : "No visa document review done yet, so the funding picture is still being built.";
 
   const { data, source } = await generateJson<Omit<ParentReport, "language" | "source" | "childName">>({
+    profileId,
     system: `${YAAR_PRINCIPLES}
 You are writing a private update for the PARENT of an international student, from Yaar (the student's AI counselor). The parent may not know the US system and may worry about cost and safety. Be warm, calm, and completely honest. Use simple words a non-expert parent understands. Explain any term in a few words. Never guarantee admission or a visa. Be specific to THIS student using the context provided; do not invent facts.
 Write the ENTIRE report in this language: ${language}. (If it is not English, write naturally in that language, not a translation that sounds robotic.)

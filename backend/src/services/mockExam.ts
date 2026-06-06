@@ -6,9 +6,20 @@ import { generateJson } from "./gemini";
 import { store } from "../lib/store";
 import { rememberFacts } from "./memoryUpdate";
 import { synthesize } from "./tts";
+import { hasGemini } from "../config";
+import { HttpError } from "../lib/errors";
 import { YAAR_PRINCIPLES } from "../lib/prompts";
 import { IELTS_SPEAKING_CRITERIA, TOEFL_SPEAKING_CRITERIA } from "../data/rubrics";
 import type { MockAttempt } from "../lib/types";
+
+// When a real key is configured but a call still came back as the mock (spend cap
+// reached, sustained 429s, outage), do NOT hand the student a fabricated test or a
+// fabricated score — that would pollute their history and adaptivity. Fail honestly.
+function failIfDegraded(source: string, what: string): void {
+  if (hasGemini && source === "mock") {
+    throw new HttpError(503, `${what} is temporarily unavailable (busy or at today's free limit). Your work is safe on this page — try again in a few minutes.`);
+  }
+}
 
 export type Exam = "IELTS" | "TOEFL";
 
@@ -39,11 +50,11 @@ const TTL = 3 * 60 * 60 * 1000;
 // Listening audio is generated in the background (TTS is slow) and cached by testId,
 // so it's ready by the time the student reads the page instead of waiting on a click.
 const audioCache = new Map<string, { status: "pending" | "ready" | "failed"; audio?: string; mimeType?: string; at: number }>();
-function prepareListeningAudio(testId: string, transcript: string): void {
+function prepareListeningAudio(testId: string, transcript: string, actor?: string): void {
   audioCache.set(testId, { status: "pending", at: Date.now() });
   void (async () => {
     try {
-      const r = await synthesize(transcript);
+      const r = await synthesize(transcript, undefined, actor);
       if (r.source === "gemini" && r.audioBase64) audioCache.set(testId, { status: "ready", audio: r.audioBase64, mimeType: r.mimeType, at: Date.now() });
       else audioCache.set(testId, { status: "failed", at: Date.now() });
     } catch {
@@ -167,12 +178,13 @@ async function adaptiveHint(profileId: string | undefined, exam: Exam): Promise<
   return `The student has done ${attempts.length} reading mock(s). Last result: ${last.scaledLabel}. Weak question types to emphasize and gently push on: ${weak.join(", ") || "none identified yet"}. Calibrate difficulty just above their last result so it stretches them without crushing them.`;
 }
 
-export async function generateReading(exam: Exam, profileId?: string): Promise<GeneratedReading> {
+export async function generateReading(exam: Exam, profileId?: string, actor?: string): Promise<GeneratedReading> {
   prune();
   const hint = await adaptiveHint(profileId, exam);
   const count = 7;
   const genOnce = () =>
     generateJson<{ title: string; passage: string; questions: KeyedQuestion[] }>({
+      profileId: actor ?? profileId,
       system: `${YAAR_PRINCIPLES}
 You are an expert ${exam} item writer. Create ONE authentic ${exam} Academic Reading practice set: a single academic passage plus EXACTLY ${count} questions (the "questions" array must contain ${count} items), exam-accurate in style and difficulty.
 ${READING_TYPES[exam]}
@@ -197,8 +209,10 @@ Return ONLY JSON: { "title": string, "passage": string, "questions": [ { "id": s
   // The model occasionally returns a passage with an empty/short questions array; retry
   // until we have a usable set so a student never gets a 0-question test.
   let data: { title?: string; passage?: string; questions?: KeyedQuestion[] } = {};
+  let lastSource = "mock";
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await genOnce();
+    lastSource = res.source;
     if (res.data?.passage && !data.passage) data = res.data;
     const valid = (Array.isArray(res.data?.questions) ? res.data.questions : []).filter((q) => q && q.prompt && String(q.answer ?? "").trim());
     if (valid.length >= 3) {
@@ -206,6 +220,7 @@ Return ONLY JSON: { "title": string, "passage": string, "questions": [ { "id": s
       break;
     }
   }
+  failIfDegraded(lastSource, "Test generation");
 
   const questions: KeyedQuestion[] = (Array.isArray(data?.questions) ? data.questions : [])
     .filter((q) => q && q.prompt && String(q.answer ?? "").trim())
@@ -250,6 +265,9 @@ export interface SectionResult {
 export async function scoreSection(testId: string, responses: Record<string, string>, profileId?: string): Promise<SectionResult | null> {
   const test = cache.get(testId);
   if (!test) return null;
+  // Claim the test immediately: a double-submit (double-click, client retry)
+  // must not score and persist the same attempt twice.
+  cache.delete(testId);
   const skill = test.skill;
 
   const byType = new Map<string, { correct: number; total: number }>();
@@ -281,10 +299,13 @@ export async function scoreSection(testId: string, responses: Record<string, str
     scaledLabel = `${scaled} / 30`;
   }
 
+  // Honest framing: a 6-7 question set is far shorter than the real 40-question
+  // exam, so one slip can swing the converted band. Say so.
+  const roughNote = " This was a short practice set, so treat the band as a rough signal rather than a precise result.";
   const feedback =
-    weakTypes.length > 0
+    (weakTypes.length > 0
       ? `You got ${correctCount} of ${total} right (${scaledLabel}). You're losing the most marks on: ${weakTypes.join(", ")}. Your next practice set will give you more of these so you can turn them into strengths.`
-      : `Strong work: ${correctCount} of ${total} right (${scaledLabel}). No single weak question type stood out. Your next set will push the difficulty up a notch.`;
+      : `Strong work: ${correctCount} of ${total} right (${scaledLabel}). No single weak question type stood out. Your next set will push the difficulty up a notch.`) + roughNote;
 
   // Save history + write memory only for known students (guests still get scored, just
   // not persisted — there is no identity to attach the attempt to).
@@ -313,7 +334,6 @@ export async function scoreSection(testId: string, responses: Record<string, str
     await store.addEvent({ profileId, kind: "module_run", module: "test_prep", summary: `${test.exam} ${skill} mock: ${scaledLabel}`, status: "done" }).catch(() => {});
   }
 
-  cache.delete(testId);
   return { exam: test.exam, skill, rawCorrect: correctCount, rawTotal: total, scaled, scaledLabel, byType: byTypeArr, weakTypes, feedback, questions };
 }
 
@@ -352,10 +372,11 @@ async function memoryHint(profileId: string | undefined, exam: Exam, skill: stri
   return `${attempts.length} prior attempt(s); last ${attempts[0].scaledLabel}. Weak areas to stretch: ${weak.join(", ") || "none yet"}. Calibrate just above their last result.`;
 }
 
-export async function generateWriting(exam: Exam, profileId?: string): Promise<WritingTask> {
+export async function generateWriting(exam: Exam, profileId?: string, actor?: string): Promise<WritingTask> {
   const hint = await memoryHint(profileId, exam, "writing");
   const taskType = exam === "IELTS" ? "ielts_task2" : "toefl_academic_discussion";
-  const { data } = await generateJson<{ prompt: string; context?: string }>({
+  const { data, source } = await generateJson<{ prompt: string; context?: string }>({
+    profileId: actor ?? profileId,
     system: `${YAAR_PRINCIPLES}
 You are an expert ${exam} item writer. Create ONE authentic ${exam} writing task.
 ${
@@ -372,6 +393,7 @@ Return ONLY JSON: { "prompt": string, "context": string }`,
         ? { prompt: "Some people believe that university education should be free for all students. To what extent do you agree or disagree? Give reasons and examples. Write at least 250 words." }
         : { prompt: "Write a post of at least 100 words contributing your own view, with reasons and examples.", context: "Dr. Lee: Should cities invest more in public transport or in roads for cars? Student A: Public transport reduces traffic and pollution. Student B: But many families rely on cars for work and rural access." },
   });
+  failIfDegraded(source, "Task generation");
   return {
     exam,
     skill: "writing",
@@ -427,7 +449,7 @@ function verifyQuotes(criteria: RawScoredCriterion[] | undefined, essay: string)
   return { ok: missing.length === 0, missing };
 }
 
-export async function scoreWriting(exam: Exam, taskType: string, prompt: string, context: string | undefined, essay: string, profileId?: string): Promise<WritingResult> {
+export async function scoreWriting(exam: Exam, taskType: string, prompt: string, context: string | undefined, essay: string, profileId?: string, actor?: string): Promise<WritingResult> {
   const crit = WRITING_CRITERIA[exam];
   const strongThreshold = Math.round(crit[0].max * 0.85);
   const SYSTEM = `${YAAR_PRINCIPLES}
@@ -457,7 +479,10 @@ Return ONLY JSON: { "criteria": [ { "name": string, "score": number, "evidenceQu
     modelNote: "A top response states a clear position, develops each point with a concrete example, and uses varied, precise language with very few errors.",
   });
 
-  let { data } = await generateJson<{ criteria: RawScoredCriterion[]; modelNote: string }>({ system: SYSTEM, prompt: userPrompt, temperature: 0.3, mock });
+  let { data, source } = await generateJson<{ criteria: RawScoredCriterion[]; modelNote: string }>({ system: SYSTEM, prompt: userPrompt, temperature: 0.3, profileId: actor ?? profileId, mock });
+  // Never hand back (or persist) a fabricated score when scoring degraded to the
+  // mock with a real key configured. The student keeps their essay and retries.
+  failIfDegraded(source, "Scoring");
 
   // If any quote isn't actually in the essay, the model hallucinated it.
   // Retry once with a corrective instruction; if it still fails we accept
@@ -468,6 +493,7 @@ Return ONLY JSON: { "criteria": [ { "name": string, "score": number, "evidenceQu
       system: SYSTEM,
       prompt: `${userPrompt}\n\nYour previous response had quotes that are NOT actually in the student's essay: ${check.missing.join("; ")}. Re-extract every evidenceQuote and weakestQuote so each is a verbatim substring of the essay. Do not invent quotes.`,
       temperature: 0.2,
+      profileId: actor ?? profileId,
       mock,
     });
     if (verifyQuotes(retry.data?.criteria, essay).ok) data = retry.data;
@@ -533,12 +559,13 @@ export interface GeneratedListening {
   timeSec: number;
 }
 
-export async function generateListening(exam: Exam, profileId?: string): Promise<GeneratedListening> {
+export async function generateListening(exam: Exam, profileId?: string, actor?: string): Promise<GeneratedListening> {
   prune();
   const hint = await memoryHint(profileId, exam, "listening");
   const count = 6;
   const genOnce = () =>
     generateJson<{ title: string; transcript: string; questions: KeyedQuestion[] }>({
+      profileId: actor ?? profileId,
       system: `${YAAR_PRINCIPLES}
 You are an expert ${exam} item writer. Create ONE authentic ${exam} listening item: a TRANSCRIPT that will be read aloud to the student (text-to-speech), plus EXACTLY ${count} questions (the "questions" array must contain ${count} items).
 The transcript is a ${exam === "IELTS" ? "natural monologue or a two-speaker conversation (social or academic)" : "short academic lecture or a campus conversation"}, about 150-190 words, spoken style. For conversations, prefix each turn with the speaker and a colon (e.g. "Tutor:", "Student:") so different voices can be used.
@@ -561,8 +588,10 @@ Return ONLY JSON: { "title": string, "transcript": string, "questions": [ { "id"
 
   // Retry if the model returns too few usable questions, so a student never gets an empty test.
   let data: { title?: string; transcript?: string; questions?: KeyedQuestion[] } = {};
+  let lastSource = "mock";
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await genOnce();
+    lastSource = res.source;
     if (res.data?.transcript && !data.transcript) data = res.data;
     const valid = (Array.isArray(res.data?.questions) ? res.data.questions : []).filter((q) => q && q.prompt && String(q.answer ?? "").trim());
     if (valid.length >= 3) {
@@ -570,6 +599,7 @@ Return ONLY JSON: { "title": string, "transcript": string, "questions": [ { "id"
       break;
     }
   }
+  failIfDegraded(lastSource, "Test generation");
 
   const questions: KeyedQuestion[] = (Array.isArray(data?.questions) ? data.questions : [])
     .filter((q) => q && q.prompt && String(q.answer ?? "").trim())
@@ -584,7 +614,7 @@ Return ONLY JSON: { "title": string, "transcript": string, "questions": [ { "id"
 
   const testId = id();
   cache.set(testId, { exam, skill: "listening", title: data.title || "Listening", passage: data.transcript || "", questions, targetBand: "", createdAt: Date.now() });
-  prepareListeningAudio(testId, data.transcript || ""); // start TTS now so it's ready on play
+  prepareListeningAudio(testId, data.transcript || "", actor ?? profileId); // start TTS now so it's ready on play
   return {
     testId,
     exam,
@@ -612,9 +642,10 @@ export interface SpeakingTask {
   speakSec: number;
 }
 
-export async function generateSpeaking(exam: Exam, profileId?: string): Promise<SpeakingTask> {
+export async function generateSpeaking(exam: Exam, profileId?: string, actor?: string): Promise<SpeakingTask> {
   const hint = await memoryHint(profileId, exam, "speaking");
-  const { data } = await generateJson<{ prompt: string; bullets?: string[] }>({
+  const { data, source } = await generateJson<{ prompt: string; bullets?: string[] }>({
+    profileId: actor ?? profileId,
     system: `${YAAR_PRINCIPLES}
 You are an expert ${exam} examiner writing ONE authentic speaking task.
 ${
@@ -631,6 +662,7 @@ Return ONLY JSON: { "prompt": string, "bullets": string[] }`,
         ? { prompt: "Describe a skill you would like to learn.", bullets: ["what the skill is", "why you want to learn it", "how you would learn it", "and explain how it would help you"] }
         : { prompt: "Some students prefer to study in the morning, while others prefer the evening. Which do you prefer, and why? Include reasons and examples." },
   });
+  failIfDegraded(source, "Task generation");
   return {
     exam,
     skill: "speaking",
@@ -654,7 +686,7 @@ export interface SpeakingResult {
   note: string;
 }
 
-export async function scoreSpeaking(exam: Exam, taskType: string, prompt: string, transcript: string, profileId?: string): Promise<SpeakingResult> {
+export async function scoreSpeaking(exam: Exam, taskType: string, prompt: string, transcript: string, profileId?: string, actor?: string): Promise<SpeakingResult> {
   const crit = SPEAKING_CRITERIA[exam];
   const strongThreshold = Math.round(crit[0].max * 0.85);
   const SYSTEM = `${YAAR_PRINCIPLES}
@@ -683,7 +715,8 @@ Return ONLY JSON: { "criteria": [ { "name": string, "score": number, "evidenceQu
     modelNote: "A top answer is fluent, well-organized, uses a range of accurate language, and fully develops the response with specific examples.",
   });
 
-  let { data } = await generateJson<{ criteria: RawScoredCriterion[]; modelNote: string }>({ system: SYSTEM, prompt: userPrompt, temperature: 0.3, mock });
+  let { data, source } = await generateJson<{ criteria: RawScoredCriterion[]; modelNote: string }>({ system: SYSTEM, prompt: userPrompt, temperature: 0.3, profileId: actor ?? profileId, mock });
+  failIfDegraded(source, "Scoring");
 
   // Verify quotes against the transcript; retry once if any quote isn't real.
   const check = verifyQuotes(data?.criteria, transcript);
@@ -692,6 +725,7 @@ Return ONLY JSON: { "criteria": [ { "name": string, "score": number, "evidenceQu
       system: SYSTEM,
       prompt: `${userPrompt}\n\nYour previous response had quotes that are NOT actually in the transcript: ${check.missing.join("; ")}. Re-extract every evidenceQuote and weakestQuote so each is a verbatim substring of the transcript.`,
       temperature: 0.2,
+      profileId: actor ?? profileId,
       mock,
     });
     if (verifyQuotes(retry.data?.criteria, transcript).ok) data = retry.data;

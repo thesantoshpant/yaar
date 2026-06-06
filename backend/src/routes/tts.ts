@@ -2,15 +2,16 @@
 import { Router } from "express";
 import { z } from "zod";
 import { synthesize } from "../services/tts";
+import { spendActor } from "../lib/actor";
 
 export const ttsRouter = Router();
 
-const schema = z.object({ text: z.string().min(1).max(8000), voice: z.string().optional() });
+const schema = z.object({ text: z.string().min(1).max(8000), voice: z.string().max(40).optional() });
 
 ttsRouter.post("/", async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const result = await synthesize(parsed.data.text, parsed.data.voice);
+  const result = await synthesize(parsed.data.text, parsed.data.voice, spendActor(req));
   // source "mock" means TTS is unavailable; the client falls back to the browser voice.
   res.json(result);
 });

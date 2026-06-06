@@ -4,6 +4,7 @@ import { generateJson } from "../services/gemini";
 import { buildContextPack } from "../services/contextPack";
 import { recordActivity } from "../services/activity";
 import { assertOwnership } from "../lib/userAuth";
+import { spendActor } from "../lib/actor";
 import type { Roadmap } from "../lib/types";
 
 export const roadmapRouter = Router();
@@ -89,7 +90,7 @@ Return ONLY JSON matching this TypeScript type:
   }, testStatus=${b.testStatus ?? "unknown"}, careerGoal=${b.careerGoal ?? "unknown"}, targetIntake=${b.targetIntake ?? "unknown"}.
 Create the roadmap now.`;
 
-  const { data, source } = await generateJson<Roadmap>({ prompt, system, mock: () => mockRoadmap(b) });
+  const { data, source } = await generateJson<Roadmap>({ prompt, system, profileId: spendActor(req, b.profileId), mock: () => mockRoadmap(b) });
 
   // Defensive normalization in case the model returns partial JSON.
   const roadmap: Roadmap = {

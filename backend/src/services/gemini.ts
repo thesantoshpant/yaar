@@ -15,8 +15,9 @@ import { checkSpendOk, recordSpend, estimateCostUsd } from "./safety";
 
 // Token-count helper. The Gemini SDK exposes usage at res.usageMetadata when
 // the call succeeds. We fall back to a rough char/4 estimate when usage is
-// not returned (e.g. TTS) so the cap still moves on every call.
-function chargeForCall(res: unknown, profileId: string | undefined, fallbackChars: number): void {
+// not returned (e.g. TTS) so the cap still moves on every call. Pricing is
+// per model tier (Pro/TTS cost far more than Flash).
+function chargeForCall(res: unknown, profileId: string | undefined, fallbackChars: number, model: string): void {
   let inputTokens = 0;
   let outputTokens = 0;
   const u = (res as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } } | undefined)?.usageMetadata;
@@ -29,7 +30,14 @@ function chargeForCall(res: unknown, profileId: string | undefined, fallbackChar
     inputTokens = Math.ceil(estTokens * 0.5);
     outputTokens = Math.ceil(estTokens * 0.5);
   }
-  recordSpend(profileId, estimateCostUsd(inputTokens, outputTokens));
+  recordSpend(profileId, estimateCostUsd(inputTokens, outputTokens, model));
+}
+
+// Pre-call cost estimate from the REAL prompt size, not a flat number. With a
+// flat estimate, one giant prompt could sail through the gate for "$0.005" and
+// then bill dollars; sizing the estimate makes the caps bound the first call too.
+function preEstimate(promptChars: number, expectedOutputTokens: number, model: string, floorUsd: number): number {
+  return Math.max(floorUsd, estimateCostUsd(Math.ceil(promptChars / 4), expectedOutputTokens, model));
 }
 
 let ai: GoogleGenAI | null = null;
@@ -95,21 +103,23 @@ export async function generateText(opts: {
   // Pre-call safety gate. When the kill switch is engaged or the day's cap is
   // reached, fall back to the same graceful mock the no-key path returns —
   // the user sees a friendly message and we spend nothing.
-  const gate = checkSpendOk(opts.profileId, 0.005);
+  const model = config.geminiTextModel;
+  const promptChars = (opts.prompt?.length ?? 0) + (opts.system?.length ?? 0);
+  const gate = checkSpendOk(opts.profileId, preEstimate(promptChars, 1000, model, 0.005));
   if (!gate.ok) {
     return { text: `I'm temporarily unavailable (${gate.reason}). Try again shortly.`, source: "mock" };
   }
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
       const res = await ai.models.generateContent({
-        model: config.geminiTextModel,
+        model,
         contents: opts.prompt,
         config: {
           systemInstruction: opts.system,
           temperature: opts.temperature ?? 0.7,
         },
       });
-      chargeForCall(res, opts.profileId, (opts.prompt?.length ?? 0) + (opts.system?.length ?? 0) + (res.text?.length ?? 0));
+      chargeForCall(res, opts.profileId, promptChars + (res.text?.length ?? 0), model);
       return { text: res.text ?? "", source: "gemini" };
     } catch (err) {
       const status = (err as { status?: number })?.status;
@@ -135,7 +145,9 @@ export async function generateJson<T>(opts: {
   if (!ai) {
     return { data: opts.mock(), source: "mock" };
   }
-  const gate = checkSpendOk(opts.profileId, 0.006);
+  const model = opts.model ?? config.geminiTextModel;
+  const promptChars = (opts.prompt?.length ?? 0) + (opts.system?.length ?? 0);
+  const gate = checkSpendOk(opts.profileId, preEstimate(promptChars, 1500, model, 0.006));
   if (!gate.ok) {
     return { data: opts.mock(), source: "mock" };
   }
@@ -147,7 +159,7 @@ export async function generateJson<T>(opts: {
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
       const res = await ai.models.generateContent({
-        model: opts.model ?? config.geminiTextModel,
+        model,
         contents: opts.prompt,
         config: {
           systemInstruction: opts.system,
@@ -156,7 +168,7 @@ export async function generateJson<T>(opts: {
         },
       });
       const raw = res.text ?? "";
-      chargeForCall(res, opts.profileId, (opts.prompt?.length ?? 0) + (opts.system?.length ?? 0) + raw.length);
+      chargeForCall(res, opts.profileId, promptChars + raw.length, model);
       const data = JSON.parse(extractJson(raw)) as T;
       return { data, source: "gemini" };
     } catch (err) {
@@ -181,8 +193,9 @@ export async function generateSpeech(
   opts?: { voice?: string; speakers?: { speaker: string; voice: string }[]; profileId?: string }
 ): Promise<{ audioBase64: string; mimeType: string; source: Source }> {
   if (!ai || !text.trim()) return { audioBase64: "", mimeType: "", source: "mock" };
-  // TTS is the expensive surface (long audio = many tokens). Gate harder.
-  const gate = checkSpendOk(opts?.profileId, Math.max(0.01, text.length * 0.00002));
+  // TTS is the expensive surface (long audio = many tokens). Gate hardest:
+  // estimate output audio tokens generously at TTS pricing.
+  const gate = checkSpendOk(opts?.profileId, preEstimate(text.length, text.length * 2, config.geminiTtsModel, 0.02));
   if (!gate.ok) {
     return { audioBase64: "", mimeType: "", source: "mock" };
   }
@@ -198,7 +211,7 @@ export async function generateSpeech(
     });
     const part = res?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
     const data = part?.inlineData?.data;
-    chargeForCall(res, opts?.profileId, text.length + (data?.length ?? 0));
+    chargeForCall(res, opts?.profileId, text.length + (data?.length ?? 0), config.geminiTtsModel);
     if (!data) return { audioBase64: "", mimeType: "", source: "mock" };
     return { audioBase64: data, mimeType: part?.inlineData?.mimeType || "audio/L16;rate=24000", source: "gemini" };
   } catch (err) {
@@ -221,8 +234,12 @@ export async function generateJsonFromMedia<T>(opts: {
   if (!ai || opts.files.length === 0) {
     return { data: opts.mock(), source: "mock" };
   }
-  // Multimodal/Pro is the most expensive path; gate hardest.
-  const gate = checkSpendOk(opts.profileId, 0.02);
+  // Multimodal/Pro is the most expensive path; gate hardest. Estimate from the
+  // real payload: prompt chars plus a conservative per-byte charge for files.
+  const model = opts.model ?? config.geminiProModel;
+  const fileBytes = opts.files.reduce((s, f) => s + (f.data?.length ?? 0), 0);
+  const promptChars = (opts.prompt?.length ?? 0) + (opts.system?.length ?? 0) + Math.ceil(fileBytes / 500);
+  const gate = checkSpendOk(opts.profileId, preEstimate(promptChars, 2000, model, 0.02));
   if (!gate.ok) {
     return { data: opts.mock(), source: "mock" };
   }
@@ -232,7 +249,7 @@ export async function generateJsonFromMedia<T>(opts: {
       { text: opts.prompt },
     ];
     const res = await ai.models.generateContent({
-      model: opts.model ?? config.geminiProModel,
+      model,
       contents: [{ role: "user", parts }],
       config: {
         systemInstruction: opts.system,
@@ -241,7 +258,7 @@ export async function generateJsonFromMedia<T>(opts: {
       },
     });
     const raw = res.text ?? "";
-    chargeForCall(res, opts.profileId, (opts.prompt?.length ?? 0) + opts.files.reduce((s, f) => s + (f.data?.length ?? 0), 0) + raw.length);
+    chargeForCall(res, opts.profileId, (opts.prompt?.length ?? 0) + fileBytes + raw.length, model);
     const data = JSON.parse(extractJson(raw)) as T;
     return { data, source: "gemini" };
   } catch (err) {

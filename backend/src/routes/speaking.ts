@@ -5,6 +5,7 @@ import { buildContextPack } from "../services/contextPack";
 import { recordActivity } from "../services/activity";
 import { store } from "../lib/store";
 import { assertOwnership } from "../lib/userAuth";
+import { spendActor } from "../lib/actor";
 import { SPEAKING_PROMPTS } from "../data/questionBanks";
 import { examCriteria } from "../data/rubrics";
 import type { SpeakingScore } from "../lib/types";
@@ -69,6 +70,7 @@ Return ONLY JSON: { "band": number, "exam": "${examName}", "criteria": { "name":
   const { data, source } = await generateJson<SpeakingScore>({
     system,
     prompt: `Prompt: ${prompt}\n\nStudent answer (transcribed): ${answer}\n\nScore it now.`,
+    profileId: spendActor(req, profileId),
     mock: () => mockSpeakingScore(exam, answer),
   });
 

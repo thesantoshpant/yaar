@@ -5,6 +5,7 @@ import { hasGemini } from "../config";
 import { buildContextPack } from "../services/contextPack";
 import { recordActivity } from "../services/activity";
 import { assertOwnership } from "../lib/userAuth";
+import { spendActor } from "../lib/actor";
 
 export const applicationsRouter = Router();
 
@@ -76,6 +77,6 @@ applicationsRouter.post("/draft", async (req, res) => {
     .filter(Boolean)
     .join("\n");
 
-  const { text, source } = await generateText({ system, prompt, temperature: 0.7 });
+  const { text, source } = await generateText({ system, prompt, temperature: 0.7, profileId: spendActor(req, b.profileId) });
   res.json({ draft: text, source });
 });

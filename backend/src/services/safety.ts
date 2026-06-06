@@ -17,10 +17,23 @@ const DAILY_HARD_CAP_USD = Number(process.env.DAILY_HARD_CAP_USD ?? 8);
 const PER_USER_DAILY_CAP_USD = Number(process.env.PER_USER_DAILY_CAP_USD ?? 0.5);
 
 // Conservative per-token price estimates (USD). We err high so the gate
-// triggers before real billing does. Calibrated to Gemini 2.5 Flash pricing;
-// override via env if model mix changes.
-const PRICE_PER_M_INPUT_USD = Number(process.env.GEMINI_PRICE_INPUT_PER_M ?? 0.3);
-const PRICE_PER_M_OUTPUT_USD = Number(process.env.GEMINI_PRICE_OUTPUT_PER_M ?? 2.5);
+// triggers before real billing does. Pricing is PER MODEL TIER: charging Pro
+// or TTS calls at Flash rates undercounts real spend 4-8x, which would let
+// actual billing blow past the cap while the gate thought we were fine.
+const PRICE_PER_M_INPUT_USD = Number(process.env.GEMINI_PRICE_INPUT_PER_M ?? 0.3); // flash
+const PRICE_PER_M_OUTPUT_USD = Number(process.env.GEMINI_PRICE_OUTPUT_PER_M ?? 2.5); // flash
+const PRICE_PRO_INPUT_USD = Number(process.env.GEMINI_PRICE_PRO_INPUT_PER_M ?? 1.25);
+const PRICE_PRO_OUTPUT_USD = Number(process.env.GEMINI_PRICE_PRO_OUTPUT_PER_M ?? 10);
+const PRICE_TTS_INPUT_USD = Number(process.env.GEMINI_PRICE_TTS_INPUT_PER_M ?? 0.5);
+const PRICE_TTS_OUTPUT_USD = Number(process.env.GEMINI_PRICE_TTS_OUTPUT_PER_M ?? 12);
+
+function pricesFor(model: string): { input: number; output: number } {
+  if (/tts/i.test(model)) return { input: PRICE_TTS_INPUT_USD, output: PRICE_TTS_OUTPUT_USD };
+  if (/pro/i.test(model)) return { input: PRICE_PRO_INPUT_USD, output: PRICE_PRO_OUTPUT_USD };
+  if (!model || /flash|lite/i.test(model)) return { input: PRICE_PER_M_INPUT_USD, output: PRICE_PER_M_OUTPUT_USD };
+  // Unknown model: assume the expensive tier so the gate errs on the safe side.
+  return { input: PRICE_PRO_INPUT_USD, output: PRICE_PRO_OUTPUT_USD };
+}
 
 interface SafetyState {
   killSwitchEngaged: boolean;
@@ -119,8 +132,9 @@ function rolloverIfNewDay(): void {
   persist();
 }
 
-export function estimateCostUsd(inputTokens: number, outputTokens: number): number {
-  return (inputTokens * PRICE_PER_M_INPUT_USD + outputTokens * PRICE_PER_M_OUTPUT_USD) / 1_000_000;
+export function estimateCostUsd(inputTokens: number, outputTokens: number, model = ""): number {
+  const p = pricesFor(model);
+  return (inputTokens * p.input + outputTokens * p.output) / 1_000_000;
 }
 
 // Cheap default estimate when we don't know the call size yet. Sized so a

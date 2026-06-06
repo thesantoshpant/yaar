@@ -305,6 +305,9 @@ export default function Counselor() {
               </svg>
             </button>
           </div>
+          <p className="mt-2 text-[11px] text-faint">
+            Yaar gives coaching and information, not legal or immigration advice. Always verify visa and money requirements with official sources or your DSO.
+          </p>
         </div>
       </div>
     </div>

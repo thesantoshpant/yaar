@@ -46,7 +46,8 @@ export function extractMemoryFrom(
     try {
       const { data } = await generateJson<Extraction>({
         system: SYSTEM,
-        prompt: `Interaction to mine for durable facts:\n${transcript}\n\nExtract the facts now.`,
+        prompt: `Interaction to mine for durable facts:\n${transcript.slice(0, 16000)}\n\nExtract the facts now.`,
+        profileId,
         mock: () => ({ facts: [], noteForTimeline: "" }),
       });
       if (Array.isArray(data?.facts) && data.facts.length) {

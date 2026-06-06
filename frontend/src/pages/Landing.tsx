@@ -134,8 +134,8 @@ const SANDBOX_PERSONAS: SandboxPersona[] = [
     stats: "Nepal · Grade 11 · $5k budget",
     nextStep: {
       module: "Roadmap",
-      title: "Launch a 'Manufactured Extracurricular' Project",
-      why: "US colleges demand leadership. Since your rural school lacks formal clubs, Yaar suggests creating a localized project, like building a community resource website. We'll track your first step this week.",
+      title: "Launch a self-started community project",
+      why: "US colleges look for leadership. Since your rural school has no formal clubs, Yaar suggests starting a local project yourself, like building a community resource website. We'll track your first step this week.",
       progress: 15,
     },
     opportunity: {
@@ -146,7 +146,7 @@ const SANDBOX_PERSONAS: SandboxPersona[] = [
     },
     chatSnippet: {
       user: "Nobody in my family has ever been to college, let alone the US. Is it even possible with a $5k budget? 🥺",
-      yaar: "It is absolutely possible, Ramesh! Private liberal arts colleges in the US have massive financial aid funds. Because your budget is $5k, we will bypass standard commercial schools and target need-blind/need-aware institutions. I will help you build a standout portfolio to secure that scholarship.",
+      yaar: "It is genuinely possible, Ramesh, though it takes real work. Some US liberal arts colleges give large aid to international students. With a $5k budget we will target the schools known for that aid, and I will help you build a portfolio that gives you a real shot at a big scholarship. No guarantees, but a real plan.",
     },
   },
   {
@@ -157,7 +157,7 @@ const SANDBOX_PERSONAS: SandboxPersona[] = [
     nextStep: {
       module: "Test prep",
       title: "TOEFL Speaking Drill: Academic Expression",
-      why: "Your technical projects are outstanding, but top-tier universities and graduate assistantships require a strong speaking band. Let's aim for a 26+ speaking score to secure your funding.",
+      why: "Your technical projects are outstanding, but top-tier universities and graduate assistantships expect a strong speaking band. Let's aim for a 26+ speaking score to make your funding case as strong as it can be.",
       progress: 40,
     },
     opportunity: {

@@ -69,6 +69,7 @@ evidenceRouter.post("/:profileId/summarize", async (req, res) => {
 Turn the student's real activities into US application material. Write (1) Common App-style activity descriptions, each <= 150 characters, action-verb led, concrete and honest; and (2) one short essay-ready paragraph that weaves the activities into a coherent story of who the student is. Do not invent anything not in the activities.
 Return ONLY JSON: { "activityLines": string[], "essayParagraph": string }`,
     prompt: `Student activities:\n${list}\n\nWrite the activity lines and the paragraph now.`,
+    profileId: req.params.profileId,
     mock: () => ({
       activityLines: items.slice(0, 10).map((e) => `${e.title}: ${e.whatYouDid}`.slice(0, 150)),
       essayParagraph:

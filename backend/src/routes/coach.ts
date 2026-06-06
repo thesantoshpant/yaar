@@ -7,6 +7,7 @@ import { generateJson } from "../services/gemini";
 import { buildContextPack } from "../services/contextPack";
 import { recordActivity } from "../services/activity";
 import { assertOwnership } from "../lib/userAuth";
+import { spendActor } from "../lib/actor";
 import {
   RECOMMENDER_COACH_SYSTEM,
   FUNDING_COACH_SYSTEM,
@@ -50,6 +51,7 @@ Return ONLY JSON: { "requestMessage": string, "bragSheet": string[], "projectSum
     prompt: `${ctx ? `Student context:\n${ctx}\n\n` : ""}Recommender: ${b.recommenderRole ?? "a teacher who knows the student well"}.
 Achievements/notes from the student: ${b.achievements ?? "(none provided yet)"}.
 Write the recommender package now.`,
+    profileId: spendActor(req, b.profileId),
     mock: () => ({
       requestMessage: `Dear ${b.recommenderRole ?? "Teacher"}, I am applying to US universities and would be grateful if you could write a recommendation letter. I have prepared a short brag sheet and all deadlines to make it easy. Would you be willing?`,
       bragSheet: [
@@ -108,6 +110,7 @@ Return ONLY JSON: { "costExplanation": string, "sponsorStory": string, "gapAnaly
     }. Sponsor: ${b.sponsor ?? "unknown"}. Notes: ${b.notes ?? "none"}. ${
       gap != null ? `Computed gap: ${gap} USD.` : ""
     }\nProduce the funding guidance now.`,
+    profileId: spendActor(req, b.profileId),
     mock: () => ({
       costExplanation:
         "The I-20 lists the total cost the school expects you to cover for one year, including tuition, living, and fees. Your visa officer expects proof you can cover it without working illegally.",
@@ -176,6 +179,7 @@ Return ONLY JSON: { "overview": string, "terms": [ { "term": string, "focus": st
       b.intendedMajor ?? "undecided"
     }. Country: ${b.country}. Constraints: ${b.constraints ?? "none stated"}.
 Build a term-by-term milestone plan from grade ${b.gradeLevel} through grade 12.`,
+    profileId: spendActor(req, b.profileId),
     mock: () => ({
       overview: `A milestone plan from grade ${b.gradeLevel} to grade 12 for a ${b.intendedMajor ?? "future"} applicant from ${b.country}. Each milestone is something you can finish and show.`,
       terms: [
@@ -245,6 +249,7 @@ coachRouter.post("/f1-status", async (req, res) => {
     system: `${F1_GUARD_SYSTEM}
 Return ONLY JSON: { "answer": string, "mustDo": string[], "checkWithDSO": true, "disclaimer": string }`,
     prompt: `${ctx ? `Student context:\n${ctx}\n\n` : ""}Student question about maintaining F-1 status: ${b.question}\nAnswer informationally now.`,
+    profileId: spendActor(req, b.profileId),
     mock: () => ({
       answer:
         "In general, F-1 students must keep a full course load, only do authorized work (on-campus is limited, off-campus needs CPT or OPT), and keep their I-20 and address current. Unauthorized work, including most self-employment, can end your status.",

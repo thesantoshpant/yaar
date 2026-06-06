@@ -9,6 +9,7 @@ import { getOrCreateJourney } from "../services/journey";
 import { buildContextPack } from "../services/contextPack";
 import { personaPreamble } from "../lib/personaPreamble";
 import { assertOwnership } from "../lib/userAuth";
+import { spendActor } from "../lib/actor";
 import { AGENT_BRAIN_SYSTEM } from "../lib/prompts";
 
 export const agentRouter = Router();
@@ -89,7 +90,7 @@ Return ONLY JSON: { "nextAction": { "module": one of the modules, "title": strin
 Extra notes: ${notes ?? "none"}.
 Decide the next action now.`;
 
-  const { data, source } = await generateJson<AgentPlan>({ system, prompt, mock: () => mockPlan(effectiveCompleted) });
+  const { data, source } = await generateJson<AgentPlan>({ system, prompt, profileId: spendActor(req, profileId), mock: () => mockPlan(effectiveCompleted) });
 
   // Defensive normalization in case the model returns partial JSON.
   const plan: AgentPlan = {

@@ -5,6 +5,7 @@ import { generateText } from "../services/gemini";
 import { hasGemini } from "../config";
 import { recordActivity } from "../services/activity";
 import { assertOwnership } from "../lib/userAuth";
+import { spendActor } from "../lib/actor";
 import type { School } from "../lib/types";
 
 export const schoolsRouter = Router();
@@ -67,6 +68,7 @@ schoolsRouter.post("/search", async (req, res) => {
         b.maxNetPriceUsd ?? "flexible"
       }. Schools: ${top}.`,
       temperature: 0.5,
+      profileId: spendActor(req, b.profileId),
     });
     if (text && !text.startsWith("[mock]")) advisorNote = text;
   }

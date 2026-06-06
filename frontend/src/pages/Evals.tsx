@@ -1,8 +1,8 @@
 // Public yaar-evals dashboard. Reads /evals.json (a static asset produced by
 // scripts/run-evals.mjs on every deploy) and renders the latest pass rate +
-// per-case breakdown. The whole point is verifiable claims for a resume /
-// portfolio: not "I built an AI app" but "this is how often it does the right
-// thing on these specific inputs, measured."
+// per-case breakdown. The point is honest, verifiable measurement: not "Yaar
+// works" but "this is how often it does the right thing on these specific
+// inputs, measured on every release."
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -139,7 +139,7 @@ export default function Evals() {
                   ))}
                 </div>
                 <p className="mt-3 text-[11px] text-faint">
-                  Current sample set is illustrative; replace with Cambridge IELTS / ETS published-band scripts to make this a real held-out study (see <code>evals/cases/grader/README.md</code>).
+                  Measured against a small starter set of benchmark essays with known bands; the set grows with each release. AI scores are practice estimates, never official results.
                 </p>
               </div>
             )}

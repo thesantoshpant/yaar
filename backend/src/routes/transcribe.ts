@@ -2,6 +2,7 @@
 import { Router, json } from "express";
 import { z } from "zod";
 import { transcribeAudio } from "../services/transcribe";
+import { spendActor } from "../lib/actor";
 
 export const transcribeRouter = Router();
 
@@ -21,6 +22,6 @@ transcribeRouter.post("/", uploadBody, async (req, res) => {
   // Browsers record audio as audio/webm or audio/mp4; some report it as video/webm.
   if (!/^(audio\/|video\/webm)/i.test(mimeType)) return res.status(400).json({ error: "Expected an audio recording." });
   if (Buffer.byteLength(data, "base64") > MAX_BYTES) return res.status(413).json({ error: "That recording is too long. Keep it under about two minutes." });
-  const result = await transcribeAudio({ mimeType, data });
+  const result = await transcribeAudio({ mimeType, data }, spendActor(req));
   res.json(result);
 });

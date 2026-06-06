@@ -5,6 +5,7 @@ import { z } from "zod";
 import { generateReading, scoreSection, generateWriting, scoreWriting, generateListening, generateSpeaking, scoreSpeaking, getListeningAudio, type Exam } from "../services/mockExam";
 import { store } from "../lib/store";
 import { assertOwnership } from "../lib/userAuth";
+import { spendActor } from "../lib/actor";
 
 export const mockRouter = Router();
 
@@ -15,7 +16,7 @@ mockRouter.post("/reading/generate", async (req, res) => {
   const parsed = generateSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   await assertOwnership(req, parsed.data.profileId);
-  const test = await generateReading(examOf(parsed.data.exam), parsed.data.profileId);
+  const test = await generateReading(examOf(parsed.data.exam), parsed.data.profileId, spendActor(req, parsed.data.profileId));
   res.json(test);
 });
 
@@ -38,7 +39,7 @@ mockRouter.post("/listening/generate", async (req, res) => {
   const parsed = generateSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   await assertOwnership(req, parsed.data.profileId);
-  res.json(await generateListening(examOf(parsed.data.exam), parsed.data.profileId));
+  res.json(await generateListening(examOf(parsed.data.exam), parsed.data.profileId, spendActor(req, parsed.data.profileId)));
 });
 // Poll for the pre-generated natural-voice audio (generated in the background at /generate).
 mockRouter.get("/listening/:testId/audio", (req, res) => {
@@ -58,7 +59,7 @@ mockRouter.post("/speaking/generate", async (req, res) => {
   const parsed = generateSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   await assertOwnership(req, parsed.data.profileId);
-  res.json(await generateSpeaking(examOf(parsed.data.exam), parsed.data.profileId));
+  res.json(await generateSpeaking(examOf(parsed.data.exam), parsed.data.profileId, spendActor(req, parsed.data.profileId)));
 });
 const speakingScoreSchema = z.object({
   exam: z.string().max(20).optional(),
@@ -72,14 +73,14 @@ mockRouter.post("/speaking/score", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const d = parsed.data;
   await assertOwnership(req, d.profileId);
-  res.json(await scoreSpeaking(examOf(d.exam), d.taskType, d.prompt, d.transcript, d.profileId));
+  res.json(await scoreSpeaking(examOf(d.exam), d.taskType, d.prompt, d.transcript, d.profileId, spendActor(req, d.profileId)));
 });
 
 mockRouter.post("/writing/generate", async (req, res) => {
   const parsed = generateSchema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   await assertOwnership(req, parsed.data.profileId);
-  res.json(await generateWriting(examOf(parsed.data.exam), parsed.data.profileId));
+  res.json(await generateWriting(examOf(parsed.data.exam), parsed.data.profileId, spendActor(req, parsed.data.profileId)));
 });
 
 const writingScoreSchema = z.object({
@@ -95,7 +96,7 @@ mockRouter.post("/writing/score", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const d = parsed.data;
   await assertOwnership(req, d.profileId);
-  res.json(await scoreWriting(examOf(d.exam), d.taskType, d.prompt, d.context, d.essay, d.profileId));
+  res.json(await scoreWriting(examOf(d.exam), d.taskType, d.prompt, d.context, d.essay, d.profileId, spendActor(req, d.profileId)));
 });
 
 mockRouter.get("/history/:profileId", async (req, res) => {

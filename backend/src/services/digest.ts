@@ -36,6 +36,7 @@ export async function buildDigest(profileId: string): Promise<Digest | null> {
     "Keep moving on your current step.";
 
   const { data, source } = await generateJson<{ subject: string; body: string }>({
+    profileId,
     system: `${YAAR_PRINCIPLES}
 Write a short weekly email from Yaar to ONE student. Warm, specific, skimmable, like a friend who remembers them. Reference what you know about them and this week's moves, point to ONE clear next step, and end with one genuine line of encouragement. Plain text only (no markdown, no asterisks). 80-140 words.
 Return ONLY JSON: { "subject": string (under 60 chars, specific to this student), "body": string (the plain-text email) }`,

@@ -123,8 +123,15 @@ export async function runWeeklyDrop(profileId: string, take = 4): Promise<DropRe
 
   const picks = diversify(scored, take, gaps.leadership?.have === false);
 
+  // A long-term student can exhaust every applicable opportunity. Don't burn a
+  // model call on an empty list; just return an empty drop.
+  if (picks.length === 0) {
+    return { inbox: [], source: "none" };
+  }
+
   // one Gemini call to write a personal "why this fits you" + "first step" for all picks
   const { data, source } = await generateJson<{ items: { id: string; why: string; firstStep: string }[] }>({
+    profileId,
     system: `You are Yaar, the student's unbiased AI counselor. For each opportunity, write a warm, specific 1-2 sentence "why this fits YOU" using the student's situation, and one concrete "first step" they can do today. Be honest, encouraging, and concrete. Return ONLY JSON: { "items": [ { "id": string, "why": string, "firstStep": string } ] }`,
     prompt: `Student: ${profile.name}, ${profile.country}, ${profile.intendedLevel} ${profile.intendedMajor ?? ""}, target ${profile.targetIntake ?? "?"}, ${profile.isRural ? "rural, " : ""}${profile.firstGen ? "first-generation, " : ""}tests: ${profile.testStatus ?? "not started"}.
 Opportunities:\n${picks.map((p) => `- id=${p.opp.id}: ${p.opp.title} — ${p.opp.summary}`).join("\n")}\nWrite the items now.`,
