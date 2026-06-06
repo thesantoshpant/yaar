@@ -39,7 +39,14 @@ import { handleLiveConnection, type LiveParams } from "./services/geminiLive";
 const app = express();
 app.set("trust proxy", 1);
 app.use(cors({ origin: config.corsOrigins }));
-app.use(express.json({ limit: "1mb" }));
+// Body parsing. Most routes accept small JSON, but the upload routes (document
+// photos, voice recordings) declare their own larger parsers with explicit size
+// guards. The global 1mb parser must SKIP those paths: whichever json() runs
+// first consumes the body, so parsing them here would 413 every real upload
+// before the route's own limit ever applied.
+const smallJson = express.json({ limit: "1mb" });
+const BIG_UPLOAD_PATH = /^\/api\/(risk\/extract|transcribe)\/?$/;
+app.use((req, res, next) => (BIG_UPLOAD_PATH.test(req.path) ? next() : smallJson(req, res, next)));
 // Basic abuse protection. Layered: this global per-IP limit catches raw request
 // floods; the aiTier/heavyTier stacks below strictly cap the endpoints that cost
 // real money per call; and services/safety.ts holds the daily dollar cap as the

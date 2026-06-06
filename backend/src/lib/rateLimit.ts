@@ -77,9 +77,10 @@ function layered(prefix: string, perMin: number, perHour: number, perDay: number
 }
 
 // AI tier: every endpoint that triggers a Gemini call (chat, plans, scoring,
-// mock generation). Strict but roomy enough for a real study session.
+// mock generation). Strict but roomy enough for a real study session (and for
+// the smoke suite, which makes ~26 AI calls back to back).
 export function aiTier(): Middleware[] {
-  return layered("RATE_AI", 20, 150, 500, "AI features");
+  return layered("RATE_AI", 30, 150, 500, "AI features");
 }
 
 // Heavy tier: the most expensive surfaces (multimodal document reading, speech
