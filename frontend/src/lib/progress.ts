@@ -16,15 +16,19 @@ export function setProfileId(id: string): void {
 }
 
 // Reset to a clean slate so a new student (or a demo of a different persona) starts
-// fresh. Clears EVERYTHING student-shaped on this device, including the profile form
-// and the saved counselor chat; "delete my data" relies on this leaving no ghost
-// that could silently recreate a profile from the erased details.
+// fresh. Many of our users share computers, so this removes EVERY "yaar." key on the
+// device (profile form, counselor chat, essay drafts, roadmap, gate counters, all of
+// it) except device-level settings that aren't about a person. Sweeping by prefix
+// means a future feature can't silently add another key that leaks after sign-out.
+const DEVICE_KEYS = new Set(["yaar.theme", "yaar.adminToken", "yaar.token", "yaar.user"]);
+
 export function clearStudent(): void {
-  localStorage.removeItem(PROFILE_ID_KEY);
-  localStorage.removeItem(DONE_KEY);
-  localStorage.removeItem(PROFILE_KEY);
-  localStorage.removeItem("yaar.profile.form");
-  localStorage.removeItem("yaar.counselor");
+  const doomed: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith("yaar.") && !DEVICE_KEYS.has(key)) doomed.push(key);
+  }
+  for (const key of doomed) localStorage.removeItem(key);
 }
 
 const TOKEN_KEY = "yaar.token";

@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { PageHeading, Spinner, SourceBadge, ErrorNote } from "../components/ui";
 import { Skeleton, SkeletonCard } from "../components/Skeleton";
-import { clearStudent, getProfileId } from "../lib/progress";
-import { useProfile } from "../lib/profile";
+import { clearAuth, clearStudent, getProfileId } from "../lib/progress";
 import { api } from "../api/client";
 
 type Fact = { key: string; type: string; value: string; confidence: number; source: string };
@@ -23,8 +22,6 @@ const TYPE_META: { type: string; label: string; emoji: string; badge: string }[]
 
 export default function Memory() {
   const profileId = getProfileId();
-  const navigate = useNavigate();
-  const { reset } = useProfile();
   const [memory, setMemory] = useState<Memory | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -74,12 +71,13 @@ export default function Memory() {
     setDeleteError(false);
     try {
       await api.deleteProfile(profileId);
-      // Clear BOTH the device storage and the in-memory profile context, or the
-      // still-mounted Dashboard form would repopulate with the deleted student's
-      // details and quietly recreate a profile from supposedly erased data.
+      // The server also deleted the linked account, so sign out too, then do a
+      // FULL reload: an SPA navigate would leave mounted providers (profile form,
+      // signed-in state) holding the deleted student's data, and the device would
+      // still claim to be signed in with an account that no longer exists.
       clearStudent();
-      reset();
-      navigate("/app");
+      clearAuth();
+      window.location.assign("/");
     } catch {
       setDeleteError(true);
     } finally {

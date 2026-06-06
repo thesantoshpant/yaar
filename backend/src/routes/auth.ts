@@ -19,7 +19,10 @@ authRouter.post("/google", async (req, res) => {
     const g = await verifyGoogleCredential(parsed.data.credential);
     const user = await store.upsertUserByGoogle({ googleSub: g.sub, email: g.email, name: g.name });
     const token = issueJwt(user);
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
+    // Tell the device which profile this account owns, so signing in on a fresh
+    // (or signed-out) device restores the student's journey instead of losing it.
+    const profileId = await store.findProfileIdByUserId(user.id);
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name }, profileId });
   } catch (err) {
     console.error("[auth] google verify failed:", err);
     res.status(401).json({ error: "Could not verify Google sign-in." });
@@ -34,5 +37,6 @@ authRouter.get("/me", async (req, res) => {
   if (!payload) return res.status(401).json({ error: "Invalid token" });
   const user = await store.getUser(payload.uid);
   if (!user) return res.status(404).json({ error: "User not found" });
-  res.json({ user: { id: user.id, email: user.email, name: user.name } });
+  const profileId = await store.findProfileIdByUserId(user.id);
+  res.json({ user: { id: user.id, email: user.email, name: user.name }, profileId });
 });

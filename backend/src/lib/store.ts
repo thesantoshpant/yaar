@@ -74,6 +74,19 @@ export const store = {
     return mem.profiles.get(id) ?? null;
   },
 
+  // The profile owned by a signed-in account (newest first if several). This is
+  // how a student gets their journey back after signing in on a fresh device or
+  // after sign-out wiped the local state.
+  async findProfileIdByUserId(userId: string): Promise<string | null> {
+    if (dbConnected()) {
+      const doc = await ProfileModel.findOne({ userId }).sort({ createdAt: -1 }).lean<StudentProfile>().exec();
+      return doc?.id ?? null;
+    }
+    const owned = [...mem.profiles.values()].filter((p) => p.userId === userId);
+    owned.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return owned[0]?.id ?? null;
+  },
+
   async updateProfile(id: string, patch: Partial<StudentProfile>): Promise<StudentProfile | null> {
     if (dbConnected()) {
       const doc = await ProfileModel.findOneAndUpdate({ id }, { $set: patch }, { new: true })

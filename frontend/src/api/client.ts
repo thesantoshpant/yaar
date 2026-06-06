@@ -10,13 +10,20 @@ import type {
   VisaScore,
   VisaTurn,
 } from "../lib/types";
-import { getToken } from "../lib/progress";
+import { clearAuth, getToken } from "../lib/progress";
 
 const BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:4000";
 
 function authHeaders(): Record<string, string> {
   const t = getToken();
   return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
+// A 401 while carrying a token means the session is dead (expired JWT, rotated
+// secret). Drop it so the UI falls back to the sign-in button on next render
+// instead of showing "signed in" while every owned-profile call fails.
+function dropDeadSession(status: number): void {
+  if (status === 401 && getToken()) clearAuth();
 }
 
 async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
@@ -27,6 +34,7 @@ async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promi
     signal,
   });
   if (!res.ok) {
+    dropDeadSession(res.status);
     // Surface server-side reason where present so the caller can show a
     // specific message ("Recording too long...") rather than a blanket fail.
     let serverMsg = "";
@@ -51,7 +59,10 @@ export function errText(e: unknown, fallback: string): string {
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { headers: { ...authHeaders() } });
-  if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
+  if (!res.ok) {
+    dropDeadSession(res.status);
+    throw new Error(`${path} failed: ${res.status}`);
+  }
   return res.json() as Promise<T>;
 }
 
@@ -61,7 +72,10 @@ async function patch<T>(path: string, body?: unknown): Promise<T> {
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
+  if (!res.ok) {
+    dropDeadSession(res.status);
+    throw new Error(`${path} failed: ${res.status}`);
+  }
   return res.json() as Promise<T>;
 }
 
@@ -160,7 +174,10 @@ export const api = {
   authConfig: () => get<{ googleAuthEnabled: boolean }>("/api/auth/config"),
 
   authGoogle: (credential: string) =>
-    post<{ token: string; user: { id: string; email: string; name: string } }>("/api/auth/google", { credential }),
+    post<{ token: string; user: { id: string; email: string; name: string }; profileId?: string | null }>(
+      "/api/auth/google",
+      { credential }
+    ),
 
   // Coaches
   coachRecommender: (input: Record<string, unknown>) =>

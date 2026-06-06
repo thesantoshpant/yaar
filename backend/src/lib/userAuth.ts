@@ -50,5 +50,11 @@ export async function assertOwnership(
   const profile = await store.getProfile(profileId);
   if (!profile) throw new HttpError(404, "Profile not found");
   if (profile.userId && profile.userId !== req.userId) throw new HttpError(403, "You do not have access to this profile.");
-  if (opts.claim && !profile.userId && req.userId) await store.updateProfile(profileId, { userId: req.userId });
+  if (opts.claim && !profile.userId && req.userId) {
+    // A JWT outlives account deletion (it's just a signed blob), so confirm the
+    // account still exists before stamping ownership. Otherwise a deleted user's
+    // leftover token could bind fresh profiles to a dead account id.
+    const user = await store.getUser(req.userId);
+    if (user) await store.updateProfile(profileId, { userId: req.userId });
+  }
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 import { api } from "../api/client";
-import { getUser, setAuth, clearAuth, getProfileId } from "../lib/progress";
+import { getUser, setAuth, clearAuth, clearStudent, getProfileId, setProfileId } from "../lib/progress";
 
 // Renders nothing unless VITE_GOOGLE_CLIENT_ID is set (so the app still works in
 // guest mode). When signed in, shows the name and a sign-out link.
@@ -18,8 +18,12 @@ export default function AuthButton() {
         <button
           className="ml-2 underline hover:text-ink"
           onClick={() => {
+            // Sign-out must leave NOTHING of this student on the device: many of
+            // our users share computers. Their data stays safe on the server under
+            // their account and comes back the moment they sign in again.
             clearAuth();
-            setUser(null);
+            clearStudent();
+            window.location.assign("/");
           }}
         >
           Sign out
@@ -36,11 +40,24 @@ export default function AuthButton() {
           .authGoogle(cr.credential)
           .then(async (r) => {
             setAuth(r.token, r.user);
-            setUser(r.user);
-            // Claim the profile built as a guest on this device so memory + progress
-            // carry over to the account (the token is now in storage for auth headers).
             const pid = getProfileId();
-            if (pid) await api.getProfile(pid).catch(() => {});
+            if (pid) {
+              // Active guest work on this device: claim it so it carries over.
+              try {
+                await api.getProfile(pid);
+              } catch {
+                // Stale (deleted) or someone else's profile: drop it and fall
+                // back to the profile this account actually owns.
+                clearStudent();
+                if (r.profileId) setProfileId(r.profileId);
+              }
+            } else if (r.profileId) {
+              // Clean device (fresh, or post sign-out): restore the profile this
+              // account owns so their memory + progress come back.
+              setProfileId(r.profileId);
+            }
+            // Reload so every provider re-reads the (possibly restored) profile.
+            window.location.reload();
           })
           .catch(() => {});
       }}

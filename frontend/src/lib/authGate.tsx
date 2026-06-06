@@ -5,7 +5,7 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 import { api } from "../api/client";
-import { getProfileId, getToken, setAuth } from "./progress";
+import { clearStudent, getProfileId, getToken, setAuth, setProfileId } from "./progress";
 import { GATES, gateUseCount, recordGateUse, type GateKey } from "./gates";
 
 const authEnabled = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
@@ -55,7 +55,27 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
       setAuth(r.token, r.user);
       setSignedIn(true);
       const pid = getProfileId();
-      if (pid) await api.getProfile(pid).catch(() => {}); // claim the guest profile
+      if (r.profileId && !pid) {
+        // Returning student on a clean device: restore their account's profile and
+        // reload so every provider hydrates from it. Running the pending action on
+        // a half-restored state risks the stale blank form overwriting their real
+        // profile, so the action is dropped; they land signed in and click again.
+        setProfileId(r.profileId);
+        window.location.reload();
+        return;
+      }
+      if (pid) {
+        try {
+          await api.getProfile(pid); // claim the guest profile
+        } catch {
+          // The local profile is stale (deleted) or belongs to someone else.
+          // Drop it, fall back to this account's own profile, start clean.
+          clearStudent();
+          if (r.profileId) setProfileId(r.profileId);
+          window.location.reload();
+          return;
+        }
+      }
     } catch {
       return;
     }
