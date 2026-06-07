@@ -405,8 +405,8 @@ export default function MockTest() {
   return (
     <div className="space-y-6">
       <PageHeading
-        title="Mock test 🎯"
-        subtitle="A real IELTS or TOEFL section, generated fresh, scored honestly, and saved. Yaar learns where you slip and makes your next test target exactly that."
+        title="Practice"
+        subtitle="A real IELTS or TOEFL section, generated fresh and scored honestly. Yaar learns where you slip and targets it next time."
       />
 
       {/* A submit/score failure during the test must be visible (the intro card's
@@ -421,8 +421,7 @@ export default function MockTest() {
       {phase === "intro" && !loading && (
         <>
           <div className="card">
-            <h2 className="text-lg font-semibold text-ink">Start a mock</h2>
-            <p className="mt-1 text-sm text-muted">Pick an exam and a section. Each one is generated fresh and scored honestly.</p>
+            <h2 className="font-display text-xl font-bold text-ink">Start a practice test</h2>
 
             <div className="mt-4">
               <label className="label" htmlFor="mock-exam">Exam</label>
@@ -433,8 +432,8 @@ export default function MockTest() {
             </div>
 
             <div className="mt-4">
-              <span className="label">Section</span>
-              <div className="mt-1.5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <span className="label">Which skill?</span>
+              <div className="mt-1.5 space-y-2">
                 {SECTIONS.map((s) => {
                   const active = section === s.key;
                   return (
@@ -442,50 +441,41 @@ export default function MockTest() {
                       key={s.key}
                       type="button"
                       onClick={() => setSection(s.key)}
-                      className={`card text-left transition ${active ? "border-brand-500/60 bg-brand-500/5 ring-1 ring-brand-500/40" : "hover:border-line hover:bg-surface-2"}`}
+                      className={`flex w-full items-center gap-3 rounded-xl border p-3.5 text-left transition ${active ? "border-brand-500 bg-brand-500/5" : "border-line hover:bg-surface-2"}`}
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{s.icon}</span>
-                        <span className="font-semibold text-ink">{s.label}</span>
-                        {active && <span className="badge ml-auto bg-brand-500/15 text-brand-500">Selected</span>}
-                      </div>
-                      <p className="mt-1.5 text-xs text-muted">{s.blurb}</p>
+                      <span className="text-2xl">{s.icon}</span>
+                      <span className="flex-1">
+                        <span className="block font-semibold text-ink">{s.label}</span>
+                        <span className="block text-xs text-muted">{s.blurb}</span>
+                      </span>
+                      <span className={`h-4 w-4 shrink-0 rounded-full border-2 ${active ? "border-brand-500 bg-brand-500" : "border-line"}`} />
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button className="btn-primary" onClick={() => void start(section)} disabled={loading}>
-                {loading ? <Spinner label="Building your test..." /> : `Start ${SECTIONS.find((s) => s.key === section)?.label.toLowerCase()} mock`}
-              </button>
-            </div>
+            <button className="btn-primary mt-5 w-full sm:w-auto" onClick={() => void start(section)} disabled={loading}>
+              {loading ? <Spinner label="Building your test..." /> : `Start ${SECTIONS.find((s) => s.key === section)?.label.toLowerCase()} test`}
+            </button>
 
             {error && <div className="mt-3"><ErrorNote onRetry={() => void start(section)}>{error}</ErrorNote></div>}
-            {!profileId && <p className="mt-3 text-xs text-faint">Tip: set up your profile on the Dashboard so Yaar saves your history and adapts to you.</p>}
+            {!profileId && <p className="mt-3 text-xs text-faint">Sign in to save your scores and let Yaar adapt to you.</p>}
           </div>
 
           {history.length > 0 && (
             <div className="card">
-              <h2 className="text-lg font-semibold text-ink">Your history</h2>
-              <p className="mt-1 text-sm text-muted">{history.length} attempt{history.length === 1 ? "" : "s"} saved. Latest first.</p>
-              <div className="mt-3 space-y-2">
-                {history.map((a) => (
-                  <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-2/40 px-4 py-2.5 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="badge bg-brand-500/15 text-brand-500">{a.exam}</span>
-                      <span className="capitalize text-muted">{a.skill}</span>
-                      <span className="font-semibold text-ink">{a.scaledLabel}</span>
-                      {a.rawTotal ? <span className="text-faint">({a.rawCorrect}/{a.rawTotal})</span> : null}
-                    </div>
-                    <div className="flex items-center gap-2 text-faint">
-                      {a.weakTypes.slice(0, 2).map((w) => <span key={w} className="badge bg-amber-500/12 text-amber-600 dark:text-amber-400">{pretty(w)}</span>)}
-                      <span className="text-xs">{a.createdAt.slice(0, 10)}</span>
-                    </div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-faint">Your last scores</h2>
+              <div className="mt-3 grid grid-cols-3 gap-3">
+                {history.slice(0, 3).map((a) => (
+                  <div key={a.id} className="rounded-xl border border-line bg-surface-2/40 p-3 text-center">
+                    <div className="font-display text-lg font-extrabold text-ink">{a.scaledLabel.replace(/^Band\s*/, "")}</div>
+                    <div className="mt-0.5 text-[11px] capitalize text-muted">{a.exam} {a.skill}</div>
+                    <div className="text-[10px] text-faint">{a.createdAt.slice(0, 10)}</div>
                   </div>
                 ))}
               </div>
+              {history.length > 3 && <p className="mt-2 text-xs text-faint">+{history.length - 3} more saved.</p>}
             </div>
           )}
         </>
