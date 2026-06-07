@@ -5,7 +5,7 @@ import Layout from "./components/Layout";
 import Landing from "./pages/Landing";
 // The 4 student screens. During the redesign these point at the existing pages;
 // each phase swaps in the rebuilt screen. Ask Yaar (chat) is the home.
-import Counselor from "./pages/Counselor"; // → Ask Yaar home (Phase 1)
+import AskYaar from "./pages/AskYaar"; // Ask Yaar home (chat)
 import MockTest from "./pages/MockTest"; // → Practice (Phase 3)
 import VisaSimulator from "./pages/VisaSimulator"; // → Visa flow (Phase 2)
 import Parent from "./pages/Parent"; // → For parents (Phase 4)
@@ -35,7 +35,7 @@ export default function App() {
       <Route path="/pulse" element={<Pulse />} />
       <Route path="/app" element={<ProfileProvider><AuthGateProvider><Layout /></AuthGateProvider></ProfileProvider>}>
         {/* The four screens + off-nav Settings. */}
-        <Route index element={<Counselor />} />
+        <Route index element={<AskYaar />} />
         <Route path="practice" element={<MockTest />} />
         <Route path="visa" element={<VisaSimulator />} />
         <Route path="parents" element={<Parent />} />
