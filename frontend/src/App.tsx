@@ -8,8 +8,8 @@ import Landing from "./pages/Landing";
 import AskYaar from "./pages/AskYaar"; // Ask Yaar home (chat)
 import MockTest from "./pages/MockTest"; // → Practice (Phase 3)
 import VisaSimulator from "./pages/VisaSimulator"; // → Visa flow (Phase 2)
-import Parent from "./pages/Parent"; // → For parents (Phase 4)
-import Memory from "./pages/Memory"; // → Settings (Phase 5)
+import Parent from "./pages/Parent"; // For parents
+import Settings from "./pages/Settings"; // off-nav: account, privacy, delete-my-data
 import Company from "./pages/Company"; // admin ops, off the student nav
 // Public + share pages.
 import ParentShared from "./pages/ParentShared";
@@ -39,7 +39,7 @@ export default function App() {
         <Route path="practice" element={<MockTest />} />
         <Route path="visa" element={<VisaSimulator />} />
         <Route path="parents" element={<Parent />} />
-        <Route path="settings" element={<Memory />} />
+        <Route path="settings" element={<Settings />} />
         <Route path="company" element={<Company />} />
         {/* Redirect old deep links so existing bookmarks/shares don't 404. */}
         <Route path="counselor" element={<Navigate to="/app" replace />} />
