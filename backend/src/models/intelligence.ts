@@ -15,6 +15,7 @@ import type {
   AgentAction,
   CompanyTask,
   MockAttempt,
+  FeedbackItem,
 } from "../lib/types";
 
 const journeySchema = new Schema(
@@ -169,6 +170,18 @@ const agentActionSchema = new Schema(
   { collection: "agent_actions" }
 );
 
+const feedbackSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true, index: true },
+    kind: { type: String, default: "bug" },
+    message: { type: String, required: true },
+    email: String,
+    page: String,
+    createdAt: { type: String, required: true },
+  },
+  { collection: "feedback" }
+);
+
 const companyTaskSchema = new Schema(
   {
     id: { type: String, required: true, unique: true, index: true },
@@ -234,5 +247,6 @@ export const UserModel = model<AppUser>("User", userSchema);
 export const EvidenceModel = model<EvidenceArtifact>("Evidence", evidenceSchema);
 export const AgentActionModel = model<AgentAction>("AgentAction", agentActionSchema);
 export const CompanyTaskModel = model<CompanyTask>("CompanyTask", companyTaskSchema);
+export const FeedbackModel = model<FeedbackItem>("Feedback", feedbackSchema);
 export const MockAttemptModel = model<MockAttempt>("MockAttempt", mockAttemptSchema);
 export const OpsStateModel = model<{ id: string; killSwitchEngaged: boolean; reason: string; day: string; totalSpendUsd: number; callCount: number; perUserSpendUsd: Record<string, number>; perUserCallCount: Record<string, number>; updatedAt: string }>("OpsState", opsStateSchema);

@@ -586,6 +586,7 @@ export default function Landing() {
           <span>Yaar · free and open source, built for students</span>
           <div className="flex items-center gap-4">
             <Link to="/privacy" className="hover:text-ink">Privacy</Link>
+            <Link to="/feedback" className="hover:text-ink">Report a problem</Link>
             <Link to="/evals" className="hover:text-ink">Evals</Link>
           </div>
         </div>

@@ -53,7 +53,9 @@ export default function Privacy() {
           <section>
             <h2 className="text-base font-semibold">Questions</h2>
             <p className="mt-2 text-muted">
-              Yaar is open source. If anything here looks wrong or unclear, open an issue on the project's repository and it will be fixed.
+              If anything here looks wrong or unclear, tell us through the{" "}
+              <Link to="/feedback" className="font-medium text-ink underline hover:no-underline">report form</Link>{" "}
+              and it will be fixed. No login needed.
             </p>
           </section>
         </div>

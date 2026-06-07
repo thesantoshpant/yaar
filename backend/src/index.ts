@@ -28,6 +28,7 @@ import { mockRouter, mockAudioRouter } from "./routes/mock";
 import { progressRouter } from "./routes/progress";
 import { evalsRouter } from "./routes/evals";
 import { ttsRouter } from "./routes/tts";
+import { feedbackRouter } from "./routes/feedback";
 import { opsRouter } from "./routes/ops";
 import { requireAdmin } from "./lib/adminAuth";
 import { attachUser } from "./lib/userAuth";
@@ -101,6 +102,7 @@ app.use("/api/mock", ai, mockRouter);
 app.use("/api/progress", progressRouter);
 app.use("/api/eval", ai, evalsRouter);
 app.use("/api/tts", heavy, ttsRouter);
+app.use("/api/feedback", feedbackRouter);
 app.use("/api/ops", requireAdmin, opsRouter);
 
 // Unmatched API routes -> clean 404; everything else -> centralized error handler.

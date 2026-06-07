@@ -110,6 +110,9 @@ export default function Layout() {
             </div>
           </div>
         )}
+        <Link to="/feedback" className="mt-2 block px-1 text-xs text-white/60 hover:text-white">
+          Something broken? Report it →
+        </Link>
       </div>
     </div>
   );

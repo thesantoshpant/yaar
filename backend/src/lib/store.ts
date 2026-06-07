@@ -15,6 +15,7 @@ import type {
   AgentAction,
   CompanyTask,
   MockAttempt,
+  FeedbackItem,
 } from "./types";
 import { dbConnected } from "../db";
 import { ProfileModel } from "../models/Profile";
@@ -31,6 +32,7 @@ import {
   AgentActionModel,
   CompanyTaskModel,
   MockAttemptModel,
+  FeedbackModel,
 } from "../models/intelligence";
 
 // ---- in-memory fallback collections ----
@@ -48,6 +50,7 @@ const mem = {
   agentActions: [] as AgentAction[],
   companyTasks: [] as CompanyTask[],
   mockAttempts: [] as MockAttempt[],
+  feedback: [] as FeedbackItem[],
 };
 
 const now = () => new Date().toISOString();
@@ -452,6 +455,22 @@ export const store = {
       return doc ? clean(doc) : null;
     }
     return mem.users.get(id) ?? null;
+  },
+
+  // ---------- feedback (anonymous bug reports / ideas) ----------
+  async addFeedback(input: Omit<FeedbackItem, "id" | "createdAt">): Promise<FeedbackItem> {
+    const item: FeedbackItem = { ...input, id: nanoid(10), createdAt: now() };
+    if (dbConnected()) await FeedbackModel.create(item);
+    else mem.feedback.push(item);
+    return item;
+  },
+
+  async listFeedback(limit = 100): Promise<FeedbackItem[]> {
+    if (dbConnected()) {
+      const docs = await FeedbackModel.find({}).sort({ createdAt: -1 }).limit(limit).lean<FeedbackItem[]>().exec();
+      return docs.map(clean);
+    }
+    return mem.feedback.slice(-limit).reverse();
   },
 
   // ---------- delete my data ----------

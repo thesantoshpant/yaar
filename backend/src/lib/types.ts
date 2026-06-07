@@ -258,6 +258,17 @@ export interface EvidenceArtifact {
   createdAt: string;
 }
 
+// A bug report or suggestion from anyone using Yaar. Anonymous by default; the
+// email is only there if the reporter wants a reply.
+export interface FeedbackItem {
+  id: string;
+  kind: "bug" | "idea" | "other";
+  message: string;
+  email?: string;
+  page?: string; // where in the app they were
+  createdAt: string;
+}
+
 // A task the CEO agent assigns to a department; worked by that department's agent.
 export interface CompanyTask {
   id: string;
