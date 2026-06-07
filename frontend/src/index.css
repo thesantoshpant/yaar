@@ -7,14 +7,14 @@
      Values are space-separated RGB channels so Tailwind's <alpha-value>
      syntax (e.g. bg-surface/60) works. */
   :root {
-    /* "Warm Buddy": a warm cream canvas, white cards, plum ink, warm hairlines. */
-    --bg: 255 246 233;
+    /* "Warm Human Minimalism": a calm paper cream, white cards, plum ink, soft hairlines. */
+    --bg: 252 248 255;
     --surface: 255 255 255;
-    --surface-2: 251 239 217;
-    --ink: 26 26 46;
-    --muted: 91 79 62;
-    --faint: 138 122 102;
-    --line: 236 221 196;
+    --surface-2: 246 242 249;
+    --ink: 28 27 32;
+    --muted: 82 69 51;
+    --faint: 133 116 97;
+    --line: 230 224 234;
   }
   .dark {
     /* Deep teal-plum night, keeping the warm accents glowing. */
@@ -34,18 +34,16 @@
   }
   body {
     @apply bg-bg text-ink antialiased;
-    /* Ambient color wash so backgrounds have depth instead of flat gray.
-       The gradients fade to transparent, letting the bg token show through. */
+    /* Calm paper canvas. A single, very faint warm wash at the top so the
+       background has a hint of warmth without the "glowing AI gradient" look. */
     background-image:
-      radial-gradient(42rem 30rem at 100% -8%, rgba(244, 163, 0, 0.10), transparent 60%),
-      radial-gradient(38rem 28rem at -8% 2%, rgba(255, 92, 138, 0.06), transparent 55%);
+      radial-gradient(46rem 30rem at 100% -10%, rgba(244, 163, 0, 0.05), transparent 60%);
     background-attachment: fixed;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
   .dark body {
     background-image:
-      radial-gradient(46rem 32rem at 100% -8%, rgba(244, 163, 0, 0.12), transparent 60%),
-      radial-gradient(40rem 30rem at -8% 4%, rgba(33, 104, 103, 0.22), transparent 55%);
+      radial-gradient(46rem 32rem at 100% -10%, rgba(244, 163, 0, 0.08), transparent 60%);
   }
   ::selection {
     @apply bg-brand-500/25;
