@@ -1,4 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+// Visa — the flagship, as one guided flow: upload documents → honest readiness
+// score → mock interview drilling the weak points → a shareable Visa Pass.
+// Every handler (analyzeDocs / start / answer / finish, the gate, the voice
+// dictation + read-aloud) is preserved from the old simulator; the step
+// structure is derived from the existing flags (report / started / score).
+import { useState, useEffect } from "react";
 import { api, errText } from "../api/client";
 import type { RiskReport, VisaScore, VisaTurn } from "../lib/types";
 import { markCompleted, getProfileId } from "../lib/progress";
@@ -6,11 +11,33 @@ import { useProfile } from "../lib/profile";
 import { useAuthGate } from "../lib/authGate";
 import { useSpeech } from "../lib/useSpeech";
 import { useRecorder } from "../lib/useRecorder";
-import { Spinner, SourceBadge, ScoreBar, PageHeading, ErrorNote } from "../components/ui";
+import { Spinner, ScoreBar, ScoreRing, PageHeading, ErrorNote } from "../components/ui";
 import DocumentUpload from "../components/DocumentUpload";
 import Markdown from "../components/Markdown";
+import VisaPassCard, { type PassData } from "../components/VisaPassCard";
 
 const COUNTRY_OPTIONS = ["Nepal", "India", "Bangladesh", "Other"];
+const STEPS = ["Documents", "Readiness", "Interview", "Pass"];
+
+function Steps({ current }: { current: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      {STEPS.map((s, i) => (
+        <div key={s} className="flex items-center gap-2">
+          <div
+            className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+              i < current ? "bg-brand-600 text-white" : i === current ? "bg-gold-500 text-gold-ink" : "bg-surface-2 text-faint"
+            }`}
+          >
+            {i < current ? "✓" : i + 1}
+          </div>
+          <span className={`hidden text-xs font-medium sm:inline ${i === current ? "text-ink" : "text-faint"}`}>{s}</span>
+          {i < STEPS.length - 1 && <span className="h-px w-4 bg-line sm:w-6" />}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function VisaSimulator() {
   const { profile, setField } = useProfile();
@@ -23,28 +50,24 @@ export default function VisaSimulator() {
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const [score, setScore] = useState<VisaScore | null>(null);
-  const [source, setSource] = useState<string>();
   const [report, setReport] = useState<RiskReport | null>(null);
   const [riskLoading, setRiskLoading] = useState(false);
   const [riskError, setRiskError] = useState("");
   const [interviewError, setInterviewError] = useState("");
-  const [needsAccount, setNeedsAccount] = useState(false);
-  const reportRef = useRef<HTMLDivElement>(null);
 
-  // Voice: speak your answer (recorded + transcribed by Gemini, reliable across browsers)
-  // and have the officer read aloud (TTS). Both degrade to the plain text box.
-  const speech = useSpeech(); // used only for the read-aloud (TTS) toggle
-  const rec = useRecorder(); // used for dictating the student's answer
+  // Voice: dictate your answer (recorded + transcribed) and have the officer read aloud.
+  const speech = useSpeech();
+  const rec = useRecorder();
   const [readAloud, setReadAloud] = useState(false);
-  const lastSpoke = useRef(-1);
+  const [lastSpoke, setLastSpoke] = useState(-1);
   useEffect(() => {
     if (!readAloud) return;
     const i = history.length - 1;
-    if (i >= 0 && history[i].role === "officer" && i !== lastSpoke.current) {
-      lastSpoke.current = i;
+    if (i >= 0 && history[i].role === "officer" && i !== lastSpoke) {
+      setLastSpoke(i);
       speech.speak(history[i].text);
     }
-  }, [history, readAloud, speech]);
+  }, [history, readAloud, speech, lastSpoke]);
 
   async function toggleDictation() {
     if (rec.recording) {
@@ -62,10 +85,6 @@ export default function VisaSimulator() {
     try {
       const res = await api.riskReport([{ kind: "i20", text: documents.slice(0, 12000) }], getProfileId() || undefined);
       setReport(res.report);
-      setNeedsAccount(!!res.needsAccount);
-      // Note: the visa milestone is marked complete only after the mock interview is
-      // scored (see finish()), not just for generating a document report.
-      setTimeout(() => reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     } catch (e) {
       setRiskError(errText(e, "Yaar couldn't build your report just now. Give it a moment and try again."));
     } finally {
@@ -114,7 +133,6 @@ export default function VisaSimulator() {
     try {
       const res = await api.visaScore(country, history, documents.slice(0, 12000) || undefined, getProfileId() || undefined);
       setScore(res.score);
-      setSource(res.source);
       markCompleted("visa");
     } catch (e) {
       setInterviewError(errText(e, "Couldn't score the interview just now. Your answers are safe — try again."));
@@ -123,129 +141,126 @@ export default function VisaSimulator() {
     }
   }
 
+  function restart() {
+    setStarted(false);
+    setHistory([]);
+    setScore(null);
+    setDone(false);
+    setInput("");
+  }
+
   const officerQuestions = history.filter((t) => t.role === "officer").length;
   const canFinish = !loading && (done || officerQuestions >= 4);
+  const stepIndex = score ? 3 : started ? 2 : report ? 1 : 0;
+
+  // Build the shareable pass from the final score.
+  let pass: PassData | null = null;
+  if (score) {
+    const sorted = [...score.dimensions].sort((a, b) => b.score - a.score);
+    pass = {
+      name: (profile.name || "A student").trim(),
+      consulate: country || "your consulate",
+      overall: score.overall,
+      verdict: score.overall >= 75 ? "passed" : score.overall >= 55 ? "needs work" : "not yet ready",
+      top: sorted.slice(0, 2).map((d) => ({ name: d.name, score: d.score })),
+      weak: sorted.length ? { name: sorted[sorted.length - 1].name, score: sorted[sorted.length - 1].score } : undefined,
+      date: new Date().toISOString(),
+    };
+  }
 
   return (
-    <div className="space-y-6">
-      <PageHeading
-        title="Visa interview simulator 🎫"
-        subtitle="Practice your F-1 interview with an AI officer until you walk in calm. It probes your ties to home, your finances, and your study plan, then scores you honestly. Coaching, not legal advice."
-      />
+    <div className="space-y-5">
+      <PageHeading title="Visa" subtitle="Practice your US student-visa interview until you walk in calm. Coaching, not legal advice." />
+      <Steps current={stepIndex} />
 
-      <div className="card">
-        <h2 className="text-lg font-semibold text-ink">Document-grounded visa risk report</h2>
-        <p className="mt-1 text-sm text-muted">
-          Upload your I-20, admission letter, and funding proof. Yaar reads them the way a consular officer would and
-          flags the gaps before you walk in, so nothing catches you off guard.
-        </p>
-
-        <div className="mt-3">
-          <DocumentUpload value={documents} onChange={setDocuments} />
-        </div>
-
-        {riskError && <div className="mt-3"><ErrorNote onRetry={analyzeDocs}>{riskError}</ErrorNote></div>}
-
-        <button className="btn-primary mt-4" onClick={analyzeDocs} disabled={riskLoading || !documents.trim()}>
-          {riskLoading ? <Spinner label="Checking your documents..." /> : "Build my risk report"}
-        </button>
-
-        {report && (
-          <div ref={reportRef} className="mt-5 rounded-xl border border-line p-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-ink">
-                Readiness: <span className="text-brand-500">{report.overall}</span>/100
-              </h3>
-            </div>
-            <p className="mt-1 text-sm text-muted">Here's an honest look. Every point below is fixable before your interview.</p>
-            {report.summary && <Markdown className="mt-1 text-sm text-muted">{report.summary}</Markdown>}
-
-            {report.inconsistencies.length > 0 && (
-              <div className="mt-3">
-                <h4 className="text-sm font-semibold text-rose-600 dark:text-rose-400">Inconsistencies</h4>
-                <ul className="mt-1 list-inside list-disc text-sm text-rose-600 dark:text-rose-300">
-                  {report.inconsistencies.map((x, i) => (
-                    <li key={i}><Markdown inline>{x}</Markdown></li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {report.weakPoints.length > 0 && (
-              <div className="mt-3">
-                <h4 className="text-sm font-semibold text-ink">Weak points an officer will push on</h4>
-                <ul className="mt-1 list-inside list-disc text-sm text-ink/90">
-                  {report.weakPoints.map((x, i) => (
-                    <li key={i}><Markdown inline>{x}</Markdown></li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {report.dimensions.length > 0 && (
-              <div className="mt-3 space-y-2">
-                {report.dimensions.map((d, i) => (
-                  <div key={i}>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-ink">{d.name}</span>
-                      <span className="text-muted">{d.score}/100</span>
-                    </div>
-                    <ScoreBar value={d.score} />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {report.recommendation && (
-              <p className="mt-3 rounded-xl border border-brand-500/15 bg-brand-500/5 p-3 text-sm text-ink"><Markdown inline>{report.recommendation}</Markdown></p>
-            )}
-
-            {needsAccount && (
-              <div className="mt-4 rounded-xl border border-brand-500/30 bg-brand-500/10 p-4 text-sm text-ink">
-                This report isn't saved anywhere yet. Make a quick profile on the Dashboard and Yaar keeps your reports so you can come back to them anytime.
-              </div>
-            )}
+      {/* STEP 1 — documents */}
+      {stepIndex === 0 && (
+        <div className="card space-y-4">
+          <div>
+            <h2 className="font-display text-xl font-bold text-ink">Check your visa readiness</h2>
+            <p className="mt-1 text-sm text-muted">
+              Paste or upload your I-20 and funding details. Yaar reads them the way a consular officer would and flags
+              the gaps before you walk in. <span className="font-medium text-ink">Your documents are never saved.</span>
+            </p>
           </div>
-        )}
-      </div>
 
-      {!started && (
-        <div className="card">
-          <label className="label" htmlFor="visa-country">Your country</label>
-          <select id="visa-country" className="input max-w-xs" value={country} onChange={(e) => setField({ country: e.target.value })}>
-            {!COUNTRY_OPTIONS.includes(country) && <option value={country}>{country}</option>}
-            {COUNTRY_OPTIONS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          <p className="mt-3 text-sm text-muted">
-            Ready to practice? The officer uses the documents you shared above, so it probes the same gaps a real
-            interview would. {!documents.trim() && "You can also start without documents."}
-          </p>
+          <div>
+            <label className="label" htmlFor="visa-country">Where will you interview?</label>
+            <select id="visa-country" className="input max-w-xs" value={country} onChange={(e) => setField({ country: e.target.value })}>
+              {!COUNTRY_OPTIONS.includes(country) && <option value={country}>{country}</option>}
+              {COUNTRY_OPTIONS.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
 
-          {interviewError && <div className="mt-3"><ErrorNote onRetry={start}>{interviewError}</ErrorNote></div>}
+          <DocumentUpload value={documents} onChange={setDocuments} />
 
-          <button className="btn-primary mt-4" onClick={() => gate("visaInterview", () => start())} disabled={loading}>
-            {loading ? <Spinner label="Getting the officer ready..." /> : "Start the interview"}
-          </button>
+          {riskError && <ErrorNote onRetry={analyzeDocs}>{riskError}</ErrorNote>}
+
+          <div className="flex flex-wrap gap-3">
+            <button className="btn-primary" onClick={analyzeDocs} disabled={riskLoading || !documents.trim()}>
+              {riskLoading ? <Spinner label="Reading your documents..." /> : "Check my readiness"}
+            </button>
+            <button className="btn-ghost" onClick={() => gate("visaInterview", () => start())} disabled={loading}>
+              {loading ? <Spinner label="Getting ready..." /> : "Skip — just practice the interview"}
+            </button>
+          </div>
         </div>
       )}
 
-      {started && (
+      {/* STEP 2 — readiness result */}
+      {stepIndex === 1 && report && (
+        <div className="space-y-4">
+          <div className="card flex flex-col items-center gap-3 text-center">
+            <ScoreRing value={report.overall} suffix="/ 100 ready" />
+            {report.summary && <Markdown className="max-w-prose text-sm text-muted">{report.summary}</Markdown>}
+          </div>
+
+          {report.inconsistencies.length > 0 && (
+            <div className="card">
+              <h3 className="text-sm font-semibold text-rose-600 dark:text-rose-400">Things that don't add up</h3>
+              <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-rose-600 dark:text-rose-300">
+                {report.inconsistencies.map((x, i) => <li key={i}><Markdown inline>{x}</Markdown></li>)}
+              </ul>
+            </div>
+          )}
+
+          {report.weakPoints.length > 0 && (
+            <div className="card">
+              <h3 className="font-semibold text-ink">What an officer will push on</h3>
+              <ul className="mt-2 list-inside list-disc space-y-1.5 text-sm text-ink/90">
+                {report.weakPoints.map((x, i) => <li key={i}><Markdown inline>{x}</Markdown></li>)}
+              </ul>
+            </div>
+          )}
+
+          {report.recommendation && (
+            <p className="rounded-xl border border-brand-500/15 bg-brand-500/5 p-4 text-sm text-ink"><Markdown inline>{report.recommendation}</Markdown></p>
+          )}
+
+          {interviewError && <ErrorNote onRetry={() => gate("visaInterview", () => start())}>{interviewError}</ErrorNote>}
+
+          <div className="flex flex-wrap gap-3">
+            <button className="btn-primary" onClick={() => gate("visaInterview", () => start())} disabled={loading}>
+              {loading ? <Spinner label="Getting the officer ready..." /> : "Practice these in a mock interview"}
+            </button>
+            <button className="btn-ghost" onClick={() => setReport(null)}>Start over</button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 3 — mock interview */}
+      {stepIndex === 2 && (
         <div className="card flex flex-col overflow-hidden p-0">
-          {/* Officer header */}
           <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-slate-600 to-slate-900 text-white">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z" />
-                </svg>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-white">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z" /></svg>
               </span>
               <div className="leading-tight">
                 <div className="text-sm font-semibold text-ink">Consular Officer</div>
-                <div className="text-xs text-muted">F-1 visa interview · mock</div>
+                <div className="text-xs text-muted">mock interview · {country}</div>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -261,28 +276,21 @@ export default function VisaSimulator() {
                   {readAloud ? "Voice on" : "Voice off"}
                 </button>
               )}
-              <span className="badge bg-surface-2 text-muted">{officerQuestions} questions</span>
+              <span className="badge bg-surface-2 text-muted">{officerQuestions} asked</span>
             </div>
           </div>
 
-          {/* Conversation */}
-          <div className="flex-1 space-y-3 bg-surface-2/50 px-5 py-4">
+          <div className="flex-1 space-y-3 bg-surface-2/40 px-5 py-4">
             {history.map((t, i) => (
               <div key={i} className={`flex ${t.role === "student" ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[82%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                    t.role === "officer"
-                      ? "rounded-bl-md bg-gradient-to-br from-slate-700 to-slate-900 text-white shadow-sm"
-                      : "rounded-br-md bg-white text-slate-900 shadow-sm ring-1 ring-black/5"
-                  }`}
-                >
+                <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${t.role === "officer" ? "rounded-bl-md bg-slate-700 text-white shadow-sm" : "rounded-br-md bg-surface text-ink shadow-sm ring-1 ring-black/5 dark:ring-white/10"}`}>
                   {t.text}
                 </div>
               </div>
             ))}
             {loading && (
               <div className="flex justify-start">
-                <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md bg-gradient-to-br from-slate-700 to-slate-900 px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md bg-slate-700 px-4 py-3 shadow-sm">
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90 [animation-delay:-0.3s]" />
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90 [animation-delay:-0.15s]" />
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90" />
@@ -291,157 +299,76 @@ export default function VisaSimulator() {
             )}
           </div>
 
-          {/* Composer */}
-          {!score && (
-            <div className="border-t border-line bg-surface px-5 py-4">
-              {interviewError && <div className="mb-3"><ErrorNote onRetry={() => (history[history.length - 1]?.role === "student" ? answer() : start())}>{interviewError}</ErrorNote></div>}
-              <div className="flex gap-2">
-                <textarea
-                  className="input min-h-[44px] resize-none"
-                  rows={1}
-                  placeholder="Answer the officer. Enter to send, Shift+Enter for a new line."
-                  aria-label="Your answer to the officer"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      answer();
-                    }
-                  }}
-                />
-                {rec.supported && (
-                  <button
-                    type="button"
-                    onClick={toggleDictation}
-                    disabled={loading || rec.transcribing}
-                    aria-label={rec.recording ? "Stop and transcribe" : "Speak your answer"}
-                    title={rec.recording ? "Recording... tap to stop" : "Speak your answer"}
-                    className={`btn-ghost shrink-0 self-end disabled:opacity-60 ${rec.recording ? "border-rose-500/50 text-rose-500" : ""}`}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={rec.recording ? "animate-pulse" : ""}>
-                      <rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-                    </svg>
-                  </button>
-                )}
-                <button className="btn-primary shrink-0 self-end" onClick={answer} disabled={loading || !input.trim() || rec.recording || rec.transcribing} aria-label="Send answer">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-                  </svg>
-                </button>
-              </div>
+          <div className="border-t border-line bg-surface px-5 py-4">
+            {interviewError && <div className="mb-3"><ErrorNote onRetry={() => (history[history.length - 1]?.role === "student" ? answer() : start())}>{interviewError}</ErrorNote></div>}
+            <div className="flex gap-2">
+              <textarea
+                className="input min-h-[44px] resize-none"
+                rows={1}
+                placeholder="Answer the officer…"
+                aria-label="Your answer"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); answer(); } }}
+              />
               {rec.supported && (
-                <p className="mt-1.5 text-xs text-faint">
-                  {rec.phase === "uploading"
-                    ? "Uploading your answer..."
-                    : rec.phase === "thinking"
-                      ? "Yaar is listening — almost there..."
-                      : rec.recording
-                        ? "Recording... speak your answer, then tap the mic to stop."
-                        : rec.error
-                          ? rec.error
-                          : "Tip: tap the mic to speak your answer out loud, just like the real interview."}
-                </p>
+                <button
+                  type="button"
+                  onClick={toggleDictation}
+                  disabled={loading || rec.transcribing}
+                  aria-label={rec.recording ? "Stop and transcribe" : "Speak your answer"}
+                  className={`btn-ghost shrink-0 self-end disabled:opacity-60 ${rec.recording ? "border-rose-500/50 text-rose-500" : ""}`}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={rec.recording ? "animate-pulse" : ""}><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
+                </button>
               )}
-              <button
-                className={`mt-3 w-full sm:w-auto ${canFinish ? "btn-gold" : "btn-ghost"}`}
-                onClick={finish}
-                disabled={loading || history.length < 2}
-              >
-                {canFinish ? "You've done enough. Score me" : "Finish and score me"}
+              <button className="btn-primary shrink-0 self-end" onClick={answer} disabled={loading || !input.trim() || rec.recording || rec.transcribing} aria-label="Send answer">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
               </button>
-              {done && <p className="mt-2 text-sm text-muted">You've answered enough. Take a breath, then see how you did.</p>}
             </div>
-          )}
+            {rec.supported && (
+              <p className="mt-1.5 text-xs text-faint">
+                {rec.phase === "uploading" ? "Uploading your answer..." : rec.phase === "thinking" ? "Yaar is listening — almost there..." : rec.recording ? "Recording... tap the mic to stop." : rec.error ? rec.error : "Tip: tap the mic to answer out loud, like the real interview."}
+              </p>
+            )}
+            <button className={`mt-3 w-full sm:w-auto ${canFinish ? "btn-gold" : "btn-ghost"}`} onClick={finish} disabled={loading || history.length < 2}>
+              {canFinish ? "You've done enough — score me" : "Finish and score me"}
+            </button>
+          </div>
         </div>
       )}
 
-      {score && (
-        <div className="card">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-ink">
-              Readiness: <span className="text-brand-500">{score.overall}</span> / 100
-            </h2>
-            <SourceBadge source={source} />
-          </div>
-          <p className="mb-4 rounded-xl border border-brand-500/15 bg-brand-500/5 p-3 text-sm text-ink"><Markdown inline>{score.recommendation}</Markdown></p>
+      {/* STEP 4 — Visa Pass + full feedback */}
+      {stepIndex === 3 && score && pass && (
+        <div className="space-y-5">
+          <VisaPassCard pass={pass} />
 
-          <div className="space-y-3">
-            {score.dimensions.map((d, i) => (
-              <div key={i}>
-                <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="font-medium text-ink">{d.name}</span>
-                  <span className="text-muted">{d.score} / 100</span>
+          <details className="card">
+            <summary className="cursor-pointer font-semibold text-ink">See the full breakdown</summary>
+            <p className="mt-3 rounded-xl border border-brand-500/15 bg-brand-500/5 p-3 text-sm text-ink"><Markdown inline>{score.recommendation}</Markdown></p>
+            <div className="mt-3 space-y-3">
+              {score.dimensions.map((d, i) => (
+                <div key={i}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="font-medium text-ink">{d.name}</span>
+                    <span className="text-muted">{d.score} / 100</span>
+                  </div>
+                  <ScoreBar value={d.score} />
+                  <p className="mt-1 text-sm text-muted"><Markdown inline>{d.note}</Markdown></p>
                 </div>
-                <ScoreBar value={d.score} />
-                <p className="mt-1 text-sm text-muted"><Markdown inline>{d.note}</Markdown></p>
-              </div>
-            ))}
-          </div>
-
-          {score.redFlags.length > 0 && (
-            <div className="mt-5 rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
-              <h3 className="font-semibold text-rose-600 dark:text-rose-400">Red flags</h3>
-              <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-rose-600 dark:text-rose-300">
-                {score.redFlags.map((r, i) => (
-                  <li key={i}><Markdown inline>{r}</Markdown></li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <div className="mt-4">
-            <h3 className="font-semibold text-ink">Drills</h3>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-ink/90">
-              {score.drills.map((d, i) => (
-                <li key={i}><Markdown inline>{d}</Markdown></li>
               ))}
-            </ul>
-          </div>
+            </div>
+            {score.drills.length > 0 && (
+              <div className="mt-4">
+                <h3 className="font-semibold text-ink">Drills</h3>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-ink/90">
+                  {score.drills.map((d, i) => <li key={i}><Markdown inline>{d}</Markdown></li>)}
+                </ul>
+              </div>
+            )}
+          </details>
 
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <button
-              className="btn-primary"
-              onClick={() => {
-                // Build a shareable Visa Pass. Payload lives in the URL hash (never
-                // hits the server), so we can share without storing PII.
-                const top = [...score.dimensions]
-                  .sort((a, b) => b.score - a.score)
-                  .slice(0, 2)
-                  .map((d) => ({ name: d.name, score: d.score }));
-                const highlights: { officer: string; student: string }[] = [];
-                for (let i = 0; i < history.length - 1; i++) {
-                  if (history[i].role === "officer" && history[i + 1]?.role === "student") {
-                    highlights.push({ officer: history[i].text.slice(0, 220), student: history[i + 1].text.slice(0, 320) });
-                  }
-                }
-                const verdict: "passed" | "needs work" | "not yet ready" =
-                  score.overall >= 75 ? "passed" : score.overall >= 55 ? "needs work" : "not yet ready";
-                const pass = {
-                  name: (profile.name || "A student").trim(),
-                  consulate: country || "your consulate",
-                  overall: score.overall,
-                  verdict,
-                  top,
-                  highlights: highlights.slice(-2),
-                  date: new Date().toISOString(),
-                };
-                const json = JSON.stringify(pass);
-                const b64 = btoa(unescape(encodeURIComponent(json)))
-                  .replace(/\+/g, "-")
-                  .replace(/\//g, "_")
-                  .replace(/=+$/, "");
-                const url = `${window.location.origin}/visa-pass#data=${b64}`;
-                if (navigator.clipboard) void navigator.clipboard.writeText(url);
-                window.open(url, "_blank", "noopener");
-              }}
-            >
-              Generate Visa Pass 🪪
-            </button>
-            <button className="btn-ghost" onClick={() => { setStarted(false); setHistory([]); setScore(null); }}>
-              Practice again
-            </button>
-          </div>
+          <button className="btn-ghost" onClick={restart}>Practice again</button>
         </div>
       )}
     </div>

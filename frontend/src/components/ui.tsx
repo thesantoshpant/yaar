@@ -45,6 +45,38 @@ export function ScoreBar({ value, max = 100 }: { value: number; max?: number }) 
   );
 }
 
+// A circular score gauge — calmer than a chart, used for visa readiness + test bands.
+export function ScoreRing({ value, max = 100, size = 132, suffix }: { value: number; max?: number; size?: number; suffix?: string }) {
+  const pct = Math.max(0, Math.min(1, value / max));
+  const stroke = 10;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const color = pct >= 0.75 ? "#1FA37A" : pct >= 0.5 ? "#F4A300" : "#E11D48";
+  return (
+    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(var(--line))" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - pct)}
+          style={{ transition: "stroke-dashoffset 0.8s ease" }}
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center leading-none">
+        <span className="font-display text-3xl font-extrabold text-ink">{Math.round(value)}</span>
+        {suffix && <span className="mt-0.5 text-xs text-muted">{suffix}</span>}
+      </div>
+    </div>
+  );
+}
+
 export function Section({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
   return (
     <div className="card">
