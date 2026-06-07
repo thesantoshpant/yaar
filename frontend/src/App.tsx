@@ -18,7 +18,6 @@ import Privacy from "./pages/Privacy";
 import Feedback from "./pages/Feedback";
 import Evals from "./pages/Evals";
 import MockCard from "./pages/MockCard";
-import Wrapped from "./pages/Wrapped";
 import Pulse from "./pages/Pulse";
 
 export default function App() {
@@ -31,7 +30,6 @@ export default function App() {
       <Route path="/feedback" element={<Feedback />} />
       <Route path="/evals" element={<Evals />} />
       <Route path="/mock-card" element={<MockCard />} />
-      <Route path="/wrapped" element={<Wrapped />} />
       <Route path="/pulse" element={<Pulse />} />
       <Route path="/app" element={<ProfileProvider><AuthGateProvider><Layout /></AuthGateProvider></ProfileProvider>}>
         {/* The four screens + off-nav Settings. */}
