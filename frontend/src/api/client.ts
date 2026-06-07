@@ -85,8 +85,17 @@ export interface HealthMode {
   db: "mongodb" | "in-memory";
 }
 
+// The server mode flags don't change within a session, so cache them briefly
+// instead of re-hitting /api/health every time Settings mounts.
+let healthCache: { value: { ok: boolean; mode: HealthMode }; at: number } | null = null;
+
 export const api = {
-  health: () => get<{ ok: boolean; mode: HealthMode }>("/api/health"),
+  health: async () => {
+    if (healthCache && Date.now() - healthCache.at < 60_000) return healthCache.value;
+    const r = await get<{ ok: boolean; mode: HealthMode }>("/api/health");
+    healthCache = { value: r, at: Date.now() };
+    return r;
+  },
 
   chat: (messages: { role: "user" | "assistant"; content: string }[], profileSummary?: string, profileId?: string) =>
     post<{ reply: string; source: string }>("/api/counselor/chat", { messages, profileSummary, profileId }),

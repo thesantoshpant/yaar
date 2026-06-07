@@ -9,6 +9,7 @@ import { api, errText } from "../api/client";
 import { getProfileSummary, getProfileId } from "../lib/progress";
 import { useAuthGate } from "../lib/authGate";
 import { useProfile } from "../lib/profile";
+import { markdownToHtml } from "../components/Markdown";
 
 interface Msg {
   role: "user" | "assistant";
@@ -29,38 +30,6 @@ const STARTER_CHIPS = [
   "Can I work in the US on a student visa?",
   "Help me write my SOP",
 ];
-
-function renderMessageContent(content: string) {
-  let html = content
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/^### (.*$)/gim, "<h3>$1</h3>")
-    .replace(/^#### (.*$)/gim, "<h4>$1</h4>")
-    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/^\s*[-*]\s+(.*$)/gim, "<li>$1</li>")
-    .replace(/^\s*\d+\.\s+(.*$)/gim, "<li>$1</li>");
-
-  const lines = html.split("\n");
-  let inList = false;
-  const processed = lines.map((line) => {
-    const isLi = line.startsWith("<li>") || line.endsWith("</li>");
-    if (isLi && !inList) {
-      inList = true;
-      return "<ul>" + line;
-    } else if (!isLi && inList) {
-      inList = false;
-      return "</ul>" + (line.trim() ? `<p>${line}</p>` : "");
-    } else if (!line.trim()) {
-      return "";
-    } else if (!isLi && !line.startsWith("<h")) {
-      return `<p>${line}</p>`;
-    }
-    return line;
-  });
-  if (inList) processed.push("</ul>");
-  return processed.filter(Boolean).join("");
-}
 
 const GREETING: Msg = {
   role: "assistant",
@@ -225,7 +194,7 @@ export default function AskYaar() {
                 <div className="group relative max-w-[85%]">
                   <div
                     className="counselor-md rounded-2xl rounded-bl-md bg-brand-600 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm"
-                    dangerouslySetInnerHTML={{ __html: renderMessageContent(m.content) }}
+                    dangerouslySetInnerHTML={{ __html: markdownToHtml(m.content) }}
                   />
                   <button
                     onClick={() => speak(m.content, i)}

@@ -4,6 +4,7 @@
 // remembered deterministically so they never depend on a model call.
 import { generateJson } from "./gemini";
 import { store } from "../lib/store";
+import { invalidateContextPack } from "./contextPack";
 import type { MemoryFact, StudentProfile, EvidenceArtifact } from "../lib/types";
 
 type FactInput = Omit<MemoryFact, "id" | "createdAt" | "status">;
@@ -26,7 +27,11 @@ function slug(s: string): string {
 // Low-level: write facts straight to memory (dedupes by key via the store).
 export async function rememberFacts(facts: FactInput[]): Promise<void> {
   const clean = facts.filter((f) => f && f.key && f.value && String(f.value).trim());
-  if (clean.length) await store.addFacts(clean);
+  if (!clean.length) return;
+  await store.addFacts(clean);
+  // The student's remembered picture just changed; drop the cached context pack
+  // so the very next AI turn rebuilds with the new facts.
+  for (const pid of new Set(clean.map((f) => f.profileId))) invalidateContextPack(pid);
 }
 
 const SYSTEM = `You are the memory engine for Yaar, an AI counselor for international students.

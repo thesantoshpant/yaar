@@ -192,6 +192,9 @@
 .counselor-md strong {
   @apply font-bold text-white;
 }
+.counselor-md em {
+  @apply italic;
+}
 .counselor-md ul {
   @apply list-disc list-inside mb-2 pl-2 space-y-1;
 }

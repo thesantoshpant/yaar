@@ -2,8 +2,10 @@
 // so students never see raw ** or * in the UI. Input is escaped before formatting,
 // so it is safe to set as HTML. Styled neutrally for normal cards (text-ink/muted).
 
-function toHtml(content: string): string {
-  const html = content
+// Exported so every surface (cards AND the chat bubbles) renders markdown the
+// same way — no more divergent renderers that miss *italic* or ## headings.
+export function markdownToHtml(content: string): string {
+  const html = (content ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -64,5 +66,5 @@ export default function Markdown({
   if (inline) {
     return <span className={className} dangerouslySetInnerHTML={{ __html: toInlineHtml(children ?? "") }} />;
   }
-  return <div className={`md ${className}`} dangerouslySetInnerHTML={{ __html: toHtml(children ?? "") }} />;
+  return <div className={`md ${className}`} dangerouslySetInnerHTML={{ __html: markdownToHtml(children ?? "") }} />;
 }

@@ -69,6 +69,15 @@ export default function VisaSimulator() {
     }
   }, [history, readAloud, speech, lastSpoke]);
 
+  // Bring back the student's last saved risk report instead of making them
+  // re-upload and re-run an expensive analysis. Only when they haven't started
+  // a fresh flow this session.
+  useEffect(() => {
+    const pid = getProfileId();
+    if (!pid) return;
+    api.riskLatest(pid).then((r) => { if (r.report) setReport((cur) => cur ?? r.report); }).catch(() => {});
+  }, []);
+
   async function toggleDictation() {
     if (rec.recording) {
       const t = await rec.stop();

@@ -8,6 +8,7 @@ import { listPersonas, seedPersona } from "../services/personaSeeds";
 import { assertOwnership } from "../lib/userAuth";
 import { createTier } from "../lib/rateLimit";
 import { forgetActor } from "../services/safety";
+import { invalidateContextPack } from "../services/contextPack";
 
 export const profileRouter = Router();
 
@@ -100,5 +101,6 @@ profileRouter.delete("/:id", async (req, res) => {
   await store.deleteProfileData(req.params.id);
   if (profile.userId) await store.deleteUser(profile.userId);
   forgetActor(req.params.id);
+  invalidateContextPack(req.params.id); // don't serve a deleted student from cache
   res.json({ ok: true, deleted: req.params.id });
 });
