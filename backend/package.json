@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Yaar backend: AI counselor for international students (Build with Gemini XPRIZE)",
+  "description": "Yaar backend: a free, open-source AI counselor for international students",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
