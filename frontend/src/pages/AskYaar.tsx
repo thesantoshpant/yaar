@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { api, errText } from "../api/client";
 import { getProfileSummary, getProfileId } from "../lib/progress";
 import { useAuthGate } from "../lib/authGate";
+import { useProfile } from "../lib/profile";
 
 interface Msg {
   role: "user" | "assistant";
@@ -88,6 +89,7 @@ export default function AskYaar() {
   const [playingIdx, setPlayingIdx] = useState<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const { gate } = useAuthGate();
+  const { saveNow } = useProfile();
   const navigate = useNavigate();
 
   const empty = messages.length <= 1;
@@ -136,7 +138,18 @@ export default function AskYaar() {
     setMessages(next);
     setLoading(true);
     try {
-      const res = await api.chat(next, getProfileSummary() || undefined, getProfileId() || undefined);
+      // The chat IS the intake: create a lightweight profile on the first real
+      // message so memory accumulates and saving (history, parent report) works,
+      // without ever asking the student to fill a form. Rate-limited server-side.
+      let pid = getProfileId();
+      if (!pid) {
+        try {
+          pid = (await saveNow()) ?? null;
+        } catch {
+          // a failed create must never block the reply
+        }
+      }
+      const res = await api.chat(next, getProfileSummary() || undefined, pid || undefined);
       setMessages([...next, { role: "assistant", content: res.reply }]);
     } catch (e) {
       setMessages([...next, { role: "assistant", content: errText(e, "Sorry yaar, I couldn't reach you just now. Check your internet and try again in a sec.") }]);
