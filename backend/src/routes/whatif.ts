@@ -58,12 +58,15 @@ Return ONLY JSON: { "impact": string (2-3 sentences on what changes overall), "o
     facts: [{ profileId: profileId!, key: "context.considering", type: "context", value: `Considering: ${scenario}`, confidence: 0.6, source: "inferred" }],
   });
 
+  // `data` is parsed model JSON; with a live key it can be null or a primitive
+  // (JSON.parse("null") succeeds), so guard the access — bare data.impact would
+  // throw and 500. Mirrors the optional-chaining used by the sibling JSON routes.
   res.json({
     scenario,
-    impact: data.impact ?? "",
-    opensUp: Array.isArray(data.opensUp) ? data.opensUp : [],
-    watchOut: Array.isArray(data.watchOut) ? data.watchOut : [],
-    verdict: data.verdict ?? "",
+    impact: typeof data?.impact === "string" ? data.impact : "",
+    opensUp: Array.isArray(data?.opensUp) ? data.opensUp : [],
+    watchOut: Array.isArray(data?.watchOut) ? data.watchOut : [],
+    verdict: typeof data?.verdict === "string" ? data.verdict : "",
     source,
   });
 });

@@ -51,8 +51,9 @@ const bodySchema = z.object({ language: z.string().max(40).optional() });
 // Owner generates the report and gets a shareable link.
 parentRouter.post("/:profileId/report", async (req, res) => {
   await assertOwnership(req, req.params.profileId);
-  const { language } = bodySchema.parse(req.body ?? {});
-  const lang = language?.trim() || "English";
+  const parsed = bodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const lang = parsed.data.language?.trim() || "English";
   const report = await generateParentReport(req.params.profileId, lang);
   if (!report) return res.status(404).json({ error: "Profile not found" });
   cache.set(`${req.params.profileId}|${lang}`, { report, at: Date.now() });

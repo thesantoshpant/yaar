@@ -160,14 +160,17 @@ export async function buildProgress(profileId: string): Promise<ProgressData> {
       const summary = skills
         .map((s) => `${s.key}: latest ${s.latestLabel}${s.delta != null ? ` (change ${prettyDelta(s.unit, s.delta)} vs previous)` : ""}, best ${s.best}, ${s.attempts} attempt(s)`)
         .join("; ");
-      const { text } = await generateText({
+      const { text, source } = await generateText({
         system:
           "You are Yaar, an honest, warm study-abroad counselor. In 2-3 sentences, summarize how this student is progressing using ONLY the data given. Be specific with the numbers, celebrate real improvement, be honest about dips without discouraging, and end with the single most useful thing to focus on next. No emojis, no hype, no invented facts.",
         prompt: `Streak: ${totals.streak} days. Mocks taken: ${totals.mocks}. This month vs last: ${monthly.thisMonth.activities} vs ${monthly.lastMonth.activities} activities. Skill trends: ${summary}. Recurring weak areas: ${weakAreas.slice(0, 4).map((w) => w.type).join(", ") || "none"}.`,
         temperature: 0.5,
         profileId,
       });
-      if (text && !text.startsWith("[mock]")) recap = text.trim();
+      // Only adopt a genuine live response. On any mock path (no key, spend cap,
+      // kill switch, API error) generateText returns a non-"[mock]" placeholder
+      // string; gating on source keeps those internal messages out of the recap.
+      if (source === "gemini" && text.trim()) recap = text.trim();
     } catch {
       // keep the deterministic recap
     }

@@ -23,7 +23,21 @@ function decodeHash(): CardData | null {
     if (!raw) return null;
     const b = raw.replace(/-/g, "+").replace(/_/g, "/");
     const json = decodeURIComponent(escape(atob(b)));
-    return JSON.parse(json) as CardData;
+    const p = JSON.parse(json) as Record<string, unknown>;
+    // Untrusted URL payload on an error-boundary-free public route: validate the
+    // fields we render (skill/exam/scaledLabel/name) so a malformed-but-parseable
+    // link shows the empty state instead of crashing on e.g. card.skill.charAt.
+    if (
+      !p ||
+      typeof p !== "object" ||
+      typeof p.skill !== "string" ||
+      typeof p.exam !== "string" ||
+      typeof p.scaledLabel !== "string" ||
+      typeof p.name !== "string"
+    ) {
+      return null;
+    }
+    return p as unknown as CardData;
   } catch {
     return null;
   }

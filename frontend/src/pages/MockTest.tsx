@@ -365,6 +365,21 @@ export default function MockTest() {
     }
   }, [speaking, exam, transcript, profileId, loadHistory]);
 
+  // The timer effect below only re-runs on [phase, timerOn, section] changes, but
+  // the submitters are recreated as the student types (they close over
+  // responses/essay). Keep the active submitter in a ref, refreshed every render,
+  // so the 0-countdown auto-submit reads the CURRENT answers — not the empty
+  // initial state captured when the timer first started.
+  const autoSubmitRef = useRef<() => void>(() => {});
+  autoSubmitRef.current =
+    section === "reading"
+      ? () => void submitReading()
+      : section === "listening"
+      ? () => void submitListening()
+      : section === "writing"
+      ? () => void submitWriting()
+      : () => {};
+
   // ---- Timer (reading / listening / writing) -----------------------------
   // Wall-clock countdown: store the absolute end time in a ref, then compute
   // timeLeft from `Date.now()`. Background tab throttling and clock drift
@@ -378,11 +393,7 @@ export default function MockTest() {
     const tick = () => {
       const remaining = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000));
       setTimeLeft(remaining);
-      if (remaining === 0) {
-        if (section === "reading") void submitReading();
-        else if (section === "listening") void submitListening();
-        else if (section === "writing") void submitWriting();
-      }
+      if (remaining === 0) autoSubmitRef.current();
     };
     // 250ms tick lets the visible number stay current after a tab refocus
     // without spinning needlessly between seconds.

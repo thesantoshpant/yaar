@@ -11,26 +11,31 @@
 // every mock score, every coach call ultimately funnels through here.
 import { GoogleGenAI } from "@google/genai";
 import { config, hasGemini } from "../config";
-import { checkSpendOk, recordSpend, estimateCostUsd } from "./safety";
+import { reserveSpend, settleSpend, releaseSpend, estimateCostUsd } from "./safety";
 
-// Token-count helper. The Gemini SDK exposes usage at res.usageMetadata when
-// the call succeeds. We fall back to a rough char/4 estimate when usage is
-// not returned (e.g. TTS) so the cap still moves on every call. Pricing is
-// per model tier (Pro/TTS cost far more than Flash).
-function chargeForCall(res: unknown, profileId: string | undefined, fallbackChars: number, model: string): void {
+// Real-cost helper. The Gemini SDK exposes usage at res.usageMetadata when the
+// call succeeds; we fall back to a rough char/4 estimate when usage is not
+// returned (e.g. TTS) so the cap still moves on every call. Pricing is per
+// model tier (Pro/TTS cost far more than Flash). For 2.5 "thinking" models
+// (the shipped defaults) the billed output tokens are candidates + thoughts;
+// candidatesTokenCount alone omits the (billed) thinking tokens, which would
+// undercount real Vertex spend and let billing slip past the daily cap.
+function costForCall(res: unknown, fallbackChars: number, model: string): number {
   let inputTokens = 0;
   let outputTokens = 0;
-  const u = (res as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } } | undefined)?.usageMetadata;
-  if (u?.promptTokenCount && u?.candidatesTokenCount) {
+  const u = (
+    res as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number } } | undefined
+  )?.usageMetadata;
+  if (u?.promptTokenCount) {
     inputTokens = u.promptTokenCount;
-    outputTokens = u.candidatesTokenCount;
+    outputTokens = (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0);
   } else {
     // Conservative fallback: assume ~4 chars per token, half input half output.
     const estTokens = Math.ceil(fallbackChars / 4);
     inputTokens = Math.ceil(estTokens * 0.5);
     outputTokens = Math.ceil(estTokens * 0.5);
   }
-  recordSpend(profileId, estimateCostUsd(inputTokens, outputTokens, model));
+  return estimateCostUsd(inputTokens, outputTokens, model);
 }
 
 // Pre-call cost estimate from the REAL prompt size, not a flat number. With a
@@ -105,33 +110,42 @@ export async function generateText(opts: {
   // the user sees a friendly message and we spend nothing.
   const model = config.geminiTextModel;
   const promptChars = (opts.prompt?.length ?? 0) + (opts.system?.length ?? 0);
-  const gate = checkSpendOk(opts.profileId, preEstimate(promptChars, 1000, model, 0.005));
-  if (!gate.ok) {
-    return { text: `I'm temporarily unavailable (${gate.reason}). Try again shortly.`, source: "mock" };
+  const reservation = reserveSpend(opts.profileId, preEstimate(promptChars, 1000, model, 0.005));
+  if (!reservation.ok) {
+    // Never echo the internal cap amount or the operator's kill-switch reason to
+    // the user; the detail is kept for the ops console via recentRejections.
+    console.warn("[gemini] spend gate blocked:", reservation.reason);
+    return { text: "I'm temporarily unavailable right now. Please try again in a few minutes.", source: "mock" };
   }
-  for (let attempt = 0; attempt < 4; attempt++) {
-    try {
-      const res = await ai.models.generateContent({
-        model,
-        contents: opts.prompt,
-        config: {
-          systemInstruction: opts.system,
-          temperature: opts.temperature ?? 0.7,
-        },
-      });
-      chargeForCall(res, opts.profileId, promptChars + (res.text?.length ?? 0), model);
-      return { text: res.text ?? "", source: "gemini" };
-    } catch (err) {
-      const status = (err as { status?: number })?.status;
-      if (status === 429 && attempt < 3) {
-        await new Promise((r) => setTimeout(r, 1500 * Math.pow(2, attempt)));
-        continue;
+  let settled = false;
+  try {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const res = await ai.models.generateContent({
+          model,
+          contents: opts.prompt,
+          config: {
+            systemInstruction: opts.system,
+            temperature: opts.temperature ?? 0.7,
+          },
+        });
+        settleSpend(opts.profileId, reservation.reservedUsd, costForCall(res, promptChars + (res.text?.length ?? 0), model));
+        settled = true;
+        return { text: res.text ?? "", source: "gemini" };
+      } catch (err) {
+        const status = (err as { status?: number })?.status;
+        if (status === 429 && attempt < 3) {
+          await new Promise((r) => setTimeout(r, 1500 * Math.pow(2, attempt)));
+          continue;
+        }
+        console.error("[gemini] generateText failed, using fallback:", err);
+        return { text: "I had trouble reaching the AI service just now. Please try again.", source: "mock" };
       }
-      console.error("[gemini] generateText failed, using fallback:", err);
-      return { text: "I had trouble reaching the AI service just now. Please try again.", source: "mock" };
     }
+    return { text: "I had trouble reaching the AI service just now. Please try again.", source: "mock" };
+  } finally {
+    if (!settled) releaseSpend(opts.profileId, reservation.reservedUsd);
   }
-  return { text: "I had trouble reaching the AI service just now. Please try again.", source: "mock" };
 }
 
 export async function generateJson<T>(opts: {
@@ -147,43 +161,51 @@ export async function generateJson<T>(opts: {
   }
   const model = opts.model ?? config.geminiTextModel;
   const promptChars = (opts.prompt?.length ?? 0) + (opts.system?.length ?? 0);
-  const gate = checkSpendOk(opts.profileId, preEstimate(promptChars, 1500, model, 0.006));
-  if (!gate.ok) {
+  const reservation = reserveSpend(opts.profileId, preEstimate(promptChars, 1500, model, 0.006));
+  if (!reservation.ok) {
     return { data: opts.mock(), source: "mock" };
   }
-  // Vertex/Gemini RPM caps can produce 429 bursts when the eval suite, a
-  // boardroom, or the grader study runs many calls in seconds. Retry up to
-  // 3 times with exponential backoff so a transient quota hiccup doesn't
-  // silently fall back to the mock (which would silently approve in Diya's
-  // case until we fixed that to fail-closed).
-  for (let attempt = 0; attempt < 4; attempt++) {
-    try {
-      const res = await ai.models.generateContent({
-        model,
-        contents: opts.prompt,
-        config: {
-          systemInstruction: opts.system,
-          temperature: opts.temperature ?? 0.6,
-          responseMimeType: "application/json",
-        },
-      });
-      const raw = res.text ?? "";
-      chargeForCall(res, opts.profileId, promptChars + raw.length, model);
-      const data = JSON.parse(extractJson(raw)) as T;
-      return { data, source: "gemini" };
-    } catch (err) {
-      const status = (err as { status?: number })?.status;
-      if (status === 429 && attempt < 3) {
-        // Exponential backoff: 1.5s, 3s, 6s before final retry.
-        await new Promise((r) => setTimeout(r, 1500 * Math.pow(2, attempt)));
-        continue;
+  let settled = false;
+  try {
+    // Vertex/Gemini RPM caps can produce 429 bursts when the eval suite, a
+    // boardroom, or the grader study runs many calls in seconds. Retry up to
+    // 3 times with exponential backoff so a transient quota hiccup doesn't
+    // silently fall back to the mock (which would silently approve in Diya's
+    // case until we fixed that to fail-closed).
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const res = await ai.models.generateContent({
+          model,
+          contents: opts.prompt,
+          config: {
+            systemInstruction: opts.system,
+            temperature: opts.temperature ?? 0.6,
+            responseMimeType: "application/json",
+          },
+        });
+        const raw = res.text ?? "";
+        // Settle BEFORE parsing: the API call happened and billed regardless of
+        // whether the body parses, so charge it and don't release on a parse fail.
+        settleSpend(opts.profileId, reservation.reservedUsd, costForCall(res, promptChars + raw.length, model));
+        settled = true;
+        const data = JSON.parse(extractJson(raw)) as T;
+        return { data, source: "gemini" };
+      } catch (err) {
+        const status = (err as { status?: number })?.status;
+        if (status === 429 && attempt < 3) {
+          // Exponential backoff: 1.5s, 3s, 6s before final retry.
+          await new Promise((r) => setTimeout(r, 1500 * Math.pow(2, attempt)));
+          continue;
+        }
+        console.error("[gemini] generateJson failed, using fallback:", err);
+        return { data: opts.mock(), source: "mock" };
       }
-      console.error("[gemini] generateJson failed, using fallback:", err);
-      return { data: opts.mock(), source: "mock" };
     }
+    // Unreachable, but TypeScript needs a return.
+    return { data: opts.mock(), source: "mock" };
+  } finally {
+    if (!settled) releaseSpend(opts.profileId, reservation.reservedUsd);
   }
-  // Unreachable, but TypeScript needs a return.
-  return { data: opts.mock(), source: "mock" };
 }
 
 // Natural text-to-speech via Gemini (neural voices, far better than the browser engine).
@@ -195,10 +217,11 @@ export async function generateSpeech(
   if (!ai || !text.trim()) return { audioBase64: "", mimeType: "", source: "mock" };
   // TTS is the expensive surface (long audio = many tokens). Gate hardest:
   // estimate output audio tokens generously at TTS pricing.
-  const gate = checkSpendOk(opts?.profileId, preEstimate(text.length, text.length * 2, config.geminiTtsModel, 0.02));
-  if (!gate.ok) {
+  const reservation = reserveSpend(opts?.profileId, preEstimate(text.length, text.length * 2, config.geminiTtsModel, 0.02));
+  if (!reservation.ok) {
     return { audioBase64: "", mimeType: "", source: "mock" };
   }
+  let settled = false;
   try {
     const speechConfig =
       opts?.speakers && opts.speakers.length >= 2
@@ -215,12 +238,15 @@ export async function generateSpeech(
     // the base64 audio length: a minute of audio is millions of base64 chars,
     // and chars/4 of that would falsely record several dollars for one call and
     // trip the daily cap for everyone.
-    chargeForCall(res, opts?.profileId, text.length * 3, config.geminiTtsModel);
+    settleSpend(opts?.profileId, reservation.reservedUsd, costForCall(res, text.length * 3, config.geminiTtsModel));
+    settled = true;
     if (!data) return { audioBase64: "", mimeType: "", source: "mock" };
     return { audioBase64: data, mimeType: part?.inlineData?.mimeType || "audio/L16;rate=24000", source: "gemini" };
   } catch (err) {
     console.error("[gemini] generateSpeech failed:", err);
     return { audioBase64: "", mimeType: "", source: "mock" };
+  } finally {
+    if (!settled) releaseSpend(opts?.profileId, reservation.reservedUsd);
   }
 }
 
@@ -243,10 +269,11 @@ export async function generateJsonFromMedia<T>(opts: {
   const model = opts.model ?? config.geminiProModel;
   const fileBytes = opts.files.reduce((s, f) => s + (f.data?.length ?? 0), 0);
   const promptChars = (opts.prompt?.length ?? 0) + (opts.system?.length ?? 0) + Math.ceil(fileBytes / 500);
-  const gate = checkSpendOk(opts.profileId, preEstimate(promptChars, 2000, model, 0.02));
-  if (!gate.ok) {
+  const reservation = reserveSpend(opts.profileId, preEstimate(promptChars, 2000, model, 0.02));
+  if (!reservation.ok) {
     return { data: opts.mock(), source: "mock" };
   }
+  let settled = false;
   try {
     const parts = [
       ...opts.files.map((f) => ({ inlineData: { mimeType: f.mimeType, data: f.data } })),
@@ -262,11 +289,15 @@ export async function generateJsonFromMedia<T>(opts: {
       },
     });
     const raw = res.text ?? "";
-    chargeForCall(res, opts.profileId, (opts.prompt?.length ?? 0) + fileBytes + raw.length, model);
+    // Settle before parsing for the same reason as generateJson.
+    settleSpend(opts.profileId, reservation.reservedUsd, costForCall(res, (opts.prompt?.length ?? 0) + fileBytes + raw.length, model));
+    settled = true;
     const data = JSON.parse(extractJson(raw)) as T;
     return { data, source: "gemini" };
   } catch (err) {
     console.error("[gemini] generateJsonFromMedia failed, using fallback:", err);
     return { data: opts.mock(), source: "mock" };
+  } finally {
+    if (!settled) releaseSpend(opts.profileId, reservation.reservedUsd);
   }
 }

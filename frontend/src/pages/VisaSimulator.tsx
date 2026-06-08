@@ -318,7 +318,7 @@ export default function VisaSimulator() {
                 aria-label="Your answer"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); answer(); } }}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !loading && !rec.recording && !rec.transcribing) { e.preventDefault(); answer(); } }}
               />
               {rec.supported && (
                 <button

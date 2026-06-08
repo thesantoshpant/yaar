@@ -30,7 +30,22 @@ export function decodePass(): PassData | null {
     const raw = (typeof window !== "undefined" ? window.location.hash : "").replace(/^#data=/, "");
     if (!raw) return null;
     const b = raw.replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(decodeURIComponent(escape(atob(b)))) as PassData;
+    const p = JSON.parse(decodeURIComponent(escape(atob(b)))) as Record<string, unknown>;
+    // A shared link is untrusted: chat apps mangle/truncate URLs, an older link
+    // can carry a legacy shape, and the value can be hand-edited. The public
+    // /visa-pass page renders OUTSIDE any error boundary, so a parseable-but-
+    // malformed payload must degrade to the friendly empty state, never crash.
+    const verdict = p?.verdict;
+    if (
+      !p ||
+      typeof p !== "object" ||
+      typeof p.overall !== "number" ||
+      !Array.isArray(p.top) ||
+      (verdict !== "passed" && verdict !== "needs work" && verdict !== "not yet ready")
+    ) {
+      return null;
+    }
+    return p as unknown as PassData;
   } catch {
     return null;
   }
@@ -45,7 +60,9 @@ const VERDICT: Record<PassData["verdict"], { label: string; pill: string }> = {
 export default function VisaPassCard({ pass }: { pass: PassData }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
-  const tone = VERDICT[pass.verdict];
+  // Total lookup so an unexpected verdict (e.g. from the inline in-flow render)
+  // can never make tone undefined and throw on tone.pill/tone.label below.
+  const tone = VERDICT[pass.verdict] ?? VERDICT["needs work"];
   const shareUrl = encodePassUrl(pass);
   const shareText = `I scored ${pass.overall}/100 on my mock US student-visa interview with Yaar. Practice yours free: `;
 
@@ -115,7 +132,7 @@ export default function VisaPassCard({ pass }: { pass: PassData }) {
           </div>
 
           <div className="mt-5 space-y-2">
-            {pass.top.slice(0, 1).map((d) => (
+            {(pass.top ?? []).slice(0, 1).map((d) => (
               <div key={d.name} className="flex items-center gap-2 text-sm">
                 <span className="font-semibold text-[#1FA37A]">Strong</span>
                 <span className="text-[#524533]">{d.name}</span>

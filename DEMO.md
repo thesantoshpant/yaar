@@ -36,26 +36,33 @@ responses, and prints whether each AI feature is live (`gemini`) or `mock`. Exit
 non-zero if anything fails, so run it right before a demo.
 
 ## 3-minute judge demo script
-1. **Land + the story (20s).** Open `/`. Scroll to "Not just a chatbot, a company that
-   works for you": memory, an AI-run company, parent updates.
-2. **Become a real student instantly (20s).** Go to `/app`, click a sample student
-   (e.g. "Ramesh — rural, first-gen"). This loads a full profile, memory, a logged
-   activity, and a recommended next step. (Shows Yaar adapts to different journeys.)
-3. **The mind (20s).** Open **Mind**. Show the synthesized brief + the facts Yaar
-   extracted. Hit "Refresh my mind" to show the Memory agent re-synthesize live.
-4. **Document-grounded visa report (35s).** Open **Visa simulator**, upload an I-20
-   (PDF/photo). Gemini extracts the fields and the report flags real issues (cost vs.
-   funds, missing sponsor, wrong I-20 type). This is the flagship feature, free like
-   everything else.
-5. **What-if (20s).** On the Dashboard, "Play out a what-if" -> "raise my budget to $30k".
-   Watch the plan and school options shift, grounded in this student's memory.
-6. **Parent mode (25s).** Open **For parents**, pick a language (try Nepali), generate the
-   update, copy the share link, open it (`/parent/:token`) in a new tab: a no-login,
+The student app is four screens — **Ask Yaar** (`/app`), **Practice** (`/app/practice`),
+**Visa** (`/app/visa`), **For parents** (`/app/parents`) — plus an off-nav Settings (gear)
+and an off-nav Company console.
+
+1. **Land + the story (15s).** Open `/`. The honest pitch: "I work for you, not for any
+   school" — no agents, no commissions.
+2. **Ask Yaar, the front door (30s).** Go to `/app`. Tap a fear ("Can I actually get in?")
+   or type a real question. Yaar answers honestly, and the chat itself is the intake: it
+   silently builds a per-student memory (no form to fill). Hit the speaker icon on a reply
+   to hear it read aloud.
+3. **Visa — the flagship (45s).** Open **Visa**. Walk the guided flow: upload an I-20 or
+   bank letter (Gemini reads the PDF/photo and flags real issues — cost vs. funds, missing
+   sponsor, wrong I-20 type), see the readiness ring, answer a few mock-interview
+   questions, then generate the **Visa Pass** and share it (WhatsApp / save image). Free,
+   like everything else.
+4. **Practice — a real, scored mock (30s).** Open **Practice**. Generate a fresh IELTS or
+   TOEFL section (try Writing), submit, and get a banded score with a verbatim quote and a
+   concrete fix per criterion. Share the **Mock Card**.
+5. **For parents (25s).** Open **For parents**, pick a language (try Nepali), generate the
+   update, copy the share link, and open it (`/parent/:token`) in a new tab: a no-login,
    plain-language report a parent actually understands.
-7. **The autonomous company (40s).** Open **Company HQ**. Run a boardroom on a real topic.
-   Watch the CEO open, departments debate (referencing each other by name), the CEO decide
-   and assign tasks, and the eval/QA agent approve, all from real KPIs, with the action
-   queue and autonomy mode (dry-run/assist/live) visible.
+6. **Under the hood — the autonomous company (35s).** It's off the student nav: open
+   `/app/company` directly (on a deployed instance with `ADMIN_TOKEN` set, paste the token
+   when prompted). Run a boardroom on a real topic and watch the CEO open, departments
+   debate by name, decisions become tasks, and the eval/QA agent review — with the action
+   queue and autonomy mode (dry-run/assist/live) visible. `/pulse` shows the live
+   spend/kill-switch dashboard.
 
 ## Notes
 - Branch `yaar-autobuild` holds the autonomous build; `main` is the pre-session checkpoint.

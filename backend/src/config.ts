@@ -19,9 +19,11 @@ export const config = {
   geminiProModel: process.env.GEMINI_PRO_MODEL ?? "gemini-2.5-pro",
   geminiTtsModel: process.env.GEMINI_TTS_MODEL ?? "gemini-2.5-flash-preview-tts",
   // gemini-2.0-flash-live-001 was deprecated 2026-02-18 and retires 2026-06-01.
-  // Default now targets the supported native-audio Live model. Live is still
-  // off by default (see YAAR_ENABLE_LIVE_VOICE in index.ts).
-  geminiLiveModel: process.env.GEMINI_LIVE_MODEL ?? "gemini-2.5-flash-native-audio",
+  // Default targets the published native-audio Live model id ("gemini-2.5-flash-
+  // native-audio" without the "live-" prefix is NOT a real model). Live is still
+  // off by default (see YAAR_ENABLE_LIVE_VOICE in index.ts); confirm the current
+  // id against Vertex/AI Studio before enabling, as these ids rotate.
+  geminiLiveModel: process.env.GEMINI_LIVE_MODEL ?? "gemini-live-2.5-flash-native-audio",
   collegeScorecardApiKey: process.env.COLLEGE_SCORECARD_API_KEY ?? "",
   mongodbUri: process.env.MONGODB_URI ?? "",
   corsOrigins: (process.env.CORS_ORIGINS ?? "http://localhost:5173")

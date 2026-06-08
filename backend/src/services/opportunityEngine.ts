@@ -3,6 +3,7 @@
 // and turn them into tracked action items + inbox messages with a "why" and a
 // concrete first step.
 import { generateJson } from "./gemini";
+import { invalidateContextPack } from "./contextPack";
 import { store } from "../lib/store";
 import { OPPORTUNITIES, GAP_TAGS } from "../data/opportunities";
 import { monthsToIntake } from "../lib/classify";
@@ -177,5 +178,8 @@ Opportunities:\n${picks.map((p) => `- id=${p.opp.id}: ${p.opp.title} — ${p.opp
     await store.addEvent({ profileId, kind: "suggestion", module: "opportunity", summary: `Suggested: ${opp.title}`, status: "open" });
   }
 
+  // New action items + events change the context pack without writing a fact, so
+  // drop the cached pack or the next AI turn could omit what we just suggested.
+  invalidateContextPack(profileId);
   return { inbox, source };
 }

@@ -54,10 +54,17 @@ export default function DocumentUpload({ value, onChange }: { value: string; onC
     setError(false);
     const next: Pending[] = [];
     for (const f of Array.from(list).slice(0, 4)) {
-      const data = await readAsBase64(f);
-      next.push({ name: f.name, mimeType: f.type || "application/octet-stream", data, kind: guessKind(f.name) });
+      try {
+        const data = await readAsBase64(f);
+        next.push({ name: f.name, mimeType: f.type || "application/octet-stream", data, kind: guessKind(f.name) });
+      } catch {
+        // A single unreadable file (corrupt, permission revoked, undecodable
+        // mobile photo) must not throw an unhandled rejection or silently drop
+        // the whole batch. Keep the readable files and surface the error.
+        setError(true);
+      }
     }
-    setFiles((prev) => [...prev, ...next].slice(0, 4));
+    if (next.length) setFiles((prev) => [...prev, ...next].slice(0, 4));
   }
 
   async function extract() {

@@ -128,9 +128,13 @@ export default function Company() {
       setBoard(latest);
       setActions(acts.actions ?? []);
     } catch (err) {
-      // 503 = admin token required (only happens when deployed). Show an inline
-      // field to paste a token instead of a generic failure.
-      if (err instanceof OpsError && err.status === 503) {
+      // Two unauthorized cases, both should surface the token field rather than a
+      // generic failure: 401 = ADMIN_TOKEN is set but our header is missing/wrong
+      // (the normal production case — paste a token to fix); 503 = no ADMIN_TOKEN
+      // configured on a non-local host. On 401 a stale/bad saved token is the
+      // likely cause, so clear it before prompting for a fresh one.
+      if (err instanceof OpsError && (err.status === 401 || err.status === 503)) {
+        if (err.status === 401) localStorage.removeItem("yaar.adminToken");
         setNeedsToken(true);
       } else {
         setLoadError(true);

@@ -17,7 +17,17 @@ export function invalidateContextPack(profileId: string): void {
   cache.delete(profileId);
 }
 
+// Drop entries past their TTL. Without this the Map only ever shrinks on an
+// explicit invalidate, so one stale string per distinct profile (every guest,
+// every cron-touched id) would accumulate for the life of the process — a slow
+// leak on a single long-running instance. Mirrors the prune() in mockExam.ts.
+function prune(): void {
+  const now = Date.now();
+  for (const [k, v] of cache) if (now - v.at > TTL_MS) cache.delete(k);
+}
+
 export async function buildContextPack(profileId: string): Promise<string> {
+  prune();
   const cached = cache.get(profileId);
   if (cached && Date.now() - cached.at < TTL_MS) return cached.value;
 

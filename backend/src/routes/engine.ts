@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { store } from "../lib/store";
 import { runWeeklyDrop } from "../services/opportunityEngine";
+import { invalidateContextPack } from "../services/contextPack";
 import { followUpSweep } from "../services/engagement";
 import { assertOwnership } from "../lib/userAuth";
 import { requireAdmin } from "../lib/adminAuth";
@@ -65,6 +66,9 @@ engineRouter.patch("/action/:id", async (req, res) => {
     status,
     resolvedAt: status === "done" || status === "skipped" ? new Date().toISOString() : undefined,
   });
+  // Resolving a suggested item removes it from the pack's "open items"; drop the
+  // cache so the counselor doesn't reference a just-resolved item for up to 45s.
+  invalidateContextPack(item.profileId);
 
   if (status === "done") {
     await store.addEvent({ profileId: item.profileId, kind: "action_taken", module: item.module, summary: `Did: ${item.title}`, status: "done" });

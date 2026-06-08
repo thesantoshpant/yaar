@@ -59,13 +59,22 @@ Return ONLY JSON: { "subject": string (under 60 chars, specific to this student)
 export async function sendDigest(profileId: string): Promise<{ subject: string; result: string } | null> {
   const d = await buildDigest(profileId);
   if (!d) return null;
-  // Always include a way out. Consent to receive is checked by the caller (the
-  // cron only emails opted-in students; the manual send is student-initiated).
+  // Consent gate on DELIVERY, here in the service so it holds no matter how this
+  // is reached (manual /send route, cron, or any future caller). The UI promises
+  // "Off unless you turn it on", so a student who never opted in is never emailed.
+  // Preview is unaffected; it uses buildDigest directly.
+  const profile = await store.getProfile(profileId);
+  // Always include a way out.
   const body = `${d.body}\n\n--\nYou get this weekly note because you turned it on in Yaar. To stop it, turn off "Weekly email" in your Yaar profile, or reply STOP.`;
-  const result = await sendEmail({ to: d.to ?? undefined, subject: d.subject, text: body });
-  await store
-    .addEvent({ profileId, kind: "note", summary: `Weekly digest ${result.startsWith("sent") ? "emailed" : "prepared (simulated, no email key)"}` })
-    .catch(() => {});
+  const result = profile?.emailOptIn
+    ? await sendEmail({ to: d.to ?? undefined, subject: d.subject, text: body })
+    : "skipped: no email opt-in";
+  const summary = result.startsWith("sent")
+    ? "Weekly digest emailed"
+    : result.startsWith("skipped")
+    ? "Weekly digest not sent (no email opt-in)"
+    : "Weekly digest prepared (simulated, no email key)";
+  await store.addEvent({ profileId, kind: "note", summary }).catch(() => {});
   return { subject: d.subject, result };
 }
 

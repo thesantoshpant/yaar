@@ -54,7 +54,7 @@ gcloud run deploy yaar-backend \
   --region=us-central1 \
   --service-account="yaar-run@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com" \
   --min-instances=1 --max-instances=1 \
-  --cpu-always-allocated \
+  --no-cpu-throttling \
   --timeout=300 \
   --allow-unauthenticated \
   --set-env-vars="GEMINI_USE_VERTEX=true,GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT,GOOGLE_CLOUD_LOCATION=us-central1,YAAR_AUTONOMY_MODE=dry_run" \
@@ -62,8 +62,8 @@ gcloud run deploy yaar-backend \
 ```
 
 Notes:
-- `--cpu-always-allocated` is required: cron runs between requests, and request-only
-  CPU would pause it.
+- `--no-cpu-throttling` is required (keeps CPU allocated between requests): cron runs
+  between requests, and request-only CPU would pause it.
 - No `GOOGLE_APPLICATION_CREDENTIALS` and no `sa.json` on Cloud Run — the service
   account identity handles Vertex auth. Keep the sa.json path only for local dev.
 - Put real secrets in **Secret Manager** and reference them with

@@ -33,8 +33,13 @@ export default function Pulse() {
       setPulse(r);
       setStatus("ok");
     } catch (err) {
-      if (err instanceof OpsError && err.status === 401) setStatus("auth");
-      else setStatus("error");
+      // 401 (ADMIN_TOKEN set, header missing/wrong) and 503 (no ADMIN_TOKEN
+      // configured on a non-local host) are both auth/config gates, not a
+      // backend outage — show the token prompt, not "couldn't reach the backend".
+      if (err instanceof OpsError && (err.status === 401 || err.status === 503)) {
+        if (err.status === 401) localStorage.removeItem(TOKEN_KEY);
+        setStatus("auth");
+      } else setStatus("error");
     }
   }, []);
 

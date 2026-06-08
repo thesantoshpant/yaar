@@ -2,6 +2,7 @@
 // completion SERVER-SIDE (source of truth, consistent across devices).
 import { store } from "../lib/store";
 import { classify } from "../lib/classify";
+import { invalidateContextPack } from "./contextPack";
 import type { JourneyState, JourneyStage } from "../lib/types";
 
 const MODULE_ORDER = ["roadmap", "test_prep", "school_search", "applications", "finances", "visa"];
@@ -50,5 +51,9 @@ export async function markModuleComplete(profileId: string, module: string): Pro
   const journey = await getOrCreateJourney(profileId);
   if (!journey) return null;
   const completed = Array.from(new Set([...(journey.completedModules ?? []), module]));
-  return store.upsertJourney(applyProgress(journey, completed));
+  const updated = await store.upsertJourney(applyProgress(journey, completed));
+  // Completing a module changes the journey stage embedded in the context pack
+  // without writing a fact, so refresh the cache for the next AI turn.
+  invalidateContextPack(profileId);
+  return updated;
 }

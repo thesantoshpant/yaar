@@ -178,6 +178,50 @@ export function recordSpend(profileId: string | undefined, costUsd: number): voi
   persist();
 }
 
+// ---- Reservation API (closes the check-then-act race) ----------------------
+// checkSpendOk is a pure read, but a Gemini call is checkSpendOk -> await
+// network -> recordSpend. Node yields at the await, so N concurrent callers all
+// read the same pre-burst total and all pass the gate before any records spend,
+// letting a burst overshoot the cap. reserveSpend does the SAME caps check but
+// also charges the estimate up front (synchronous, single-threaded), so
+// concurrent callers see each other's in-flight spend and the cap holds before
+// the round-trip returns. The caller MUST then either settleSpend (success) or
+// releaseSpend (failure/mock) so the reservation is reconciled or returned.
+// In-memory only here; durability happens on settle/release.
+export function reserveSpend(
+  profileId?: string,
+  estimateUsd: number = DEFAULT_ESTIMATE_USD
+): { ok: boolean; reason?: string; reservedUsd: number } {
+  const gate = checkSpendOk(profileId, estimateUsd);
+  if (!gate.ok) return { ok: false, reason: gate.reason, reservedUsd: 0 };
+  state.totalSpendUsd += estimateUsd;
+  if (profileId) state.perUserSpendUsd[profileId] = (state.perUserSpendUsd[profileId] ?? 0) + estimateUsd;
+  return { ok: true, reservedUsd: estimateUsd };
+}
+
+// Settle a completed call: swap the reservation for the real cost and count it.
+export function settleSpend(profileId: string | undefined, reservedUsd: number, actualUsd: number): void {
+  rolloverIfNewDay();
+  const delta = Math.max(0, actualUsd) - Math.max(0, reservedUsd);
+  state.totalSpendUsd = Math.max(0, state.totalSpendUsd + delta);
+  state.callCount += 1;
+  if (profileId) {
+    state.perUserSpendUsd[profileId] = Math.max(0, (state.perUserSpendUsd[profileId] ?? 0) + delta);
+    state.perUserCallCount[profileId] = (state.perUserCallCount[profileId] ?? 0) + 1;
+  }
+  persist();
+}
+
+// Return a reservation for a call that never billed (error, retry exhaustion,
+// parse-before-charge). Does NOT count the call. Without this, a reserved-but-
+// failed call would permanently inflate the counter and slowly starve the cap.
+export function releaseSpend(profileId: string | undefined, reservedUsd: number): void {
+  if (reservedUsd <= 0) return;
+  state.totalSpendUsd = Math.max(0, state.totalSpendUsd - reservedUsd);
+  if (profileId) state.perUserSpendUsd[profileId] = Math.max(0, (state.perUserSpendUsd[profileId] ?? 0) - reservedUsd);
+  persist();
+}
+
 // Delete-my-data support: drop a student's per-user spend/call counters so no
 // per-student residue survives in ops_state after they erase everything.
 export function forgetActor(profileId: string): void {
