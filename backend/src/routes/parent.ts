@@ -37,7 +37,14 @@ function readShareToken(token: string): { pid: string; language: string } | null
 // Tiny TTL cache so a parent refreshing the link doesn't trigger a model call each time.
 const cache = new Map<string, { report: ParentReport; at: number }>();
 const TTL = 10 * 60 * 1000;
+// Sweep expired entries so the Map doesn't grow one report per distinct
+// `pid|language` forever on a long-running instance (mirrors contextPack/mockExam).
+function pruneCache(): void {
+  const now = Date.now();
+  for (const [k, v] of cache) if (now - v.at > TTL) cache.delete(k);
+}
 async function reportCached(pid: string, language: string): Promise<ParentReport | null> {
+  pruneCache();
   const key = `${pid}|${language}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL) return hit.report;
@@ -56,6 +63,7 @@ parentRouter.post("/:profileId/report", async (req, res) => {
   const lang = parsed.data.language?.trim() || "English";
   const report = await generateParentReport(req.params.profileId, lang);
   if (!report) return res.status(404).json({ error: "Profile not found" });
+  pruneCache();
   cache.set(`${req.params.profileId}|${lang}`, { report, at: Date.now() });
   const token = makeShareToken(req.params.profileId, lang);
   res.json({ report, shareToken: token, shareUrl: `${config.publicUrl}/parent/${token}` });

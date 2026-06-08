@@ -387,6 +387,24 @@ export const store = {
     return mem.agentActions.find((a) => a.id === id) ?? null;
   },
 
+  // Atomic compare-and-set on status: flip `from` -> `to` only if it is still
+  // `from`. The single claim point for executing a queued action, so two
+  // concurrent approvals (double-click / retry) can't both fire the outbound
+  // effect — only the request that wins the CAS proceeds; the loser gets null.
+  async claimAction(id: string, from: AgentAction["status"], to: AgentAction["status"]): Promise<AgentAction | null> {
+    if (dbConnected()) {
+      const doc = await AgentActionModel.findOneAndUpdate({ id, status: from }, { $set: { status: to } }, { new: true })
+        .lean<AgentAction>()
+        .exec();
+      return doc ? clean(doc) : null;
+    }
+    // In-memory: find + mutate with no await between is atomic on Node's single thread.
+    const a = mem.agentActions.find((x) => x.id === id);
+    if (!a || a.status !== from) return null;
+    a.status = to;
+    return a;
+  },
+
   async setActionStatus(id: string, status: AgentAction["status"], result?: string): Promise<AgentAction | null> {
     const patch = { status, result, resolvedAt: now() };
     if (dbConnected()) {

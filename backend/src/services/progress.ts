@@ -132,11 +132,13 @@ export async function buildProgress(profileId: string): Promise<ProgressData> {
     streak: computeStreak(eventDays),
   };
 
-  // Month over month.
+  // Month over month. Derive last month from the thisM string, NOT by mutating a
+  // Date with setUTCMonth: on the 31st of a month preceded by a shorter month the
+  // day-of-month survives and overflows (e.g. "Apr 31" -> "May 1"), leaving lastM
+  // in the current month and silently breaking the this-vs-last comparison.
   const thisM = monthKey(new Date().toISOString());
-  const lastDate = new Date();
-  lastDate.setUTCMonth(lastDate.getUTCMonth() - 1);
-  const lastM = monthKey(lastDate.toISOString());
+  const [ty, tm] = thisM.split("-").map(Number);
+  const lastM = `${tm === 1 ? ty - 1 : ty}-${String(tm === 1 ? 12 : tm - 1).padStart(2, "0")}`;
   const monthly = {
     thisMonth: { activities: events.filter((e) => monthKey(e.ts) === thisM).length, mocks: attempts.filter((a) => monthKey(a.createdAt) === thisM).length },
     lastMonth: { activities: events.filter((e) => monthKey(e.ts) === lastM).length, mocks: attempts.filter((a) => monthKey(a.createdAt) === lastM).length },

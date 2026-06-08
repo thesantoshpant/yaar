@@ -133,13 +133,22 @@ opsRouter.post("/actions/:id/approve", async (req, res) => {
   const action = await store.getAction(req.params.id);
   if (!action) return res.status(404).json({ error: "Not found" });
   if (action.status !== "pending_approval") return res.status(400).json({ error: `Action is ${action.status}, not pending` });
-  const updated = await executeApproved(action);
+  // Atomically claim the action before any outbound effect so two concurrent
+  // approvals can't both send the email. The loser of the CAS gets a 409.
+  const claimed = await store.claimAction(req.params.id, "pending_approval", "approved");
+  if (!claimed) return res.status(409).json({ error: "Action is already being processed" });
+  const updated = await executeApproved(claimed);
   res.json({ action: updated });
 });
 
 opsRouter.post("/actions/:id/reject", async (req, res) => {
   const action = await store.getAction(req.params.id);
   if (!action) return res.status(404).json({ error: "Not found" });
+  // Only a not-yet-acted action can be rejected; never overwrite a terminal
+  // status (executed/failed/rejected) — that would corrupt the autonomy audit log.
+  if (action.status !== "pending_approval" && action.status !== "dry_run") {
+    return res.status(400).json({ error: `Action is ${action.status}, not pending` });
+  }
   const updated = await store.setActionStatus(req.params.id, "rejected");
   res.json({ action: updated });
 });

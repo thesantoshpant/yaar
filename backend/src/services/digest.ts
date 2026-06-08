@@ -66,13 +66,19 @@ export async function sendDigest(profileId: string): Promise<{ subject: string; 
   const profile = await store.getProfile(profileId);
   // Always include a way out.
   const body = `${d.body}\n\n--\nYou get this weekly note because you turned it on in Yaar. To stop it, turn off "Weekly email" in your Yaar profile, or reply STOP.`;
-  const result = profile?.emailOptIn
-    ? await sendEmail({ to: d.to ?? undefined, subject: d.subject, text: body })
-    : "skipped: no email opt-in";
+  // Deliver ONLY to a resolved student recipient. d.to is the linked account's
+  // email; for a guest/unlinked profile it is null. Never pass an empty `to` to
+  // sendEmail from this student-facing path — it would fall back to the operator's
+  // NOTIFY_EMAIL and ship one student's private digest to the operator's inbox.
+  const result = !profile?.emailOptIn
+    ? "skipped: no email opt-in"
+    : !d.to
+    ? "skipped: no recipient (guest/unlinked profile)"
+    : await sendEmail({ to: d.to, subject: d.subject, text: body });
   const summary = result.startsWith("sent")
     ? "Weekly digest emailed"
     : result.startsWith("skipped")
-    ? "Weekly digest not sent (no email opt-in)"
+    ? `Weekly digest not sent (${result.slice("skipped: ".length)})`
     : "Weekly digest prepared (simulated, no email key)";
   await store.addEvent({ profileId, kind: "note", summary }).catch(() => {});
   return { subject: d.subject, result };

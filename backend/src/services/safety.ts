@@ -231,6 +231,9 @@ export function releaseSpend(profileId: string | undefined, reservedUsd: number)
 export function forgetActor(profileId: string): void {
   delete state.perUserSpendUsd[profileId];
   delete state.perUserCallCount[profileId];
+  // Also scrub the deleted student's id from the rejection log the ops console
+  // surfaces, so "no retention after deletion" holds there too.
+  state.recentRejections = state.recentRejections.filter((r) => r.profileId !== profileId);
   persist();
 }
 

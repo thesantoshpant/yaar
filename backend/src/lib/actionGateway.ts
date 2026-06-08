@@ -75,6 +75,14 @@ export async function dispatch(p: ProposedAction): Promise<AgentAction> {
   if (!consumeExternalQuota()) {
     return store.addAction({ ...p, external, status: "failed", result: "daily external-action cap reached" });
   }
+  // Re-check the kill switch / spend cap at the last instant: reviewAction above
+  // is a multi-second Gemini round-trip, and the operator may have engaged the
+  // kill switch (or the daily cap may have filled) during it. The top-of-dispatch
+  // gate is stale by the time we reach the outbound send.
+  const liveGate = checkSpendOk(undefined, 0.01);
+  if (!liveGate.ok) {
+    return store.addAction({ ...p, external, status: "rejected", result: `safety gate: ${liveGate.reason}` });
+  }
   try {
     const result = await execute(p);
     return store.addAction({ ...p, external, status: "executed", result });

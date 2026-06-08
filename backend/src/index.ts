@@ -99,7 +99,9 @@ app.use("/api/transcribe", heavy, transcribeRouter);
 // generates; it must come BEFORE the AI-tier mock mount and skip that tier.
 app.use("/api/mock", mockAudioRouter);
 app.use("/api/mock", ai, mockRouter);
-app.use("/api/progress", progressRouter);
+// progress builds an optional Gemini recap, so it carries the AI tier like every
+// other model-calling route (not just the generic global limiter).
+app.use("/api/progress", ai, progressRouter);
 app.use("/api/eval", ai, evalsRouter);
 app.use("/api/tts", heavy, ttsRouter);
 app.use("/api/feedback", feedbackRouter);
