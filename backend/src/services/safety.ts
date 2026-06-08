@@ -217,6 +217,10 @@ export function settleSpend(profileId: string | undefined, reservedUsd: number, 
 // failed call would permanently inflate the counter and slowly starve the cap.
 export function releaseSpend(profileId: string | undefined, reservedUsd: number): void {
   if (reservedUsd <= 0) return;
+  // Roll the day first (consistent with the other mutators) so a reservation made
+  // before UTC midnight and released after doesn't subtract from the new day's
+  // fresh counter or persist a stale day.
+  rolloverIfNewDay();
   state.totalSpendUsd = Math.max(0, state.totalSpendUsd - reservedUsd);
   if (profileId) state.perUserSpendUsd[profileId] = Math.max(0, (state.perUserSpendUsd[profileId] ?? 0) - reservedUsd);
   persist();

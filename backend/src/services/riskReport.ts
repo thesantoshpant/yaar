@@ -4,6 +4,7 @@
 import { generateJson, generateJsonFromMedia, type MediaPart } from "./gemini";
 import { config } from "../config";
 import { store } from "../lib/store";
+import { rememberFacts } from "./memoryUpdate";
 import { VISA_DIMENSIONS } from "../data/rubrics";
 import { riskReportSystem } from "../lib/prompts";
 import type { RiskReport, StudentDocument } from "../lib/types";
@@ -135,6 +136,9 @@ export async function generateRiskReport(profileId: string, docs: DocInput[]): P
       .map((e) => ({ profileId, key: `doc.${e.field.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40)}`, type: "profile" as const, value: `${e.field}: ${e.value}`, confidence: 0.9, source: "module_outcome" as const })),
     ...core.weakPoints.slice(0, 3).map((w, i) => ({ profileId, key: `visa.weak_${i + 1}`, type: "constraint" as const, value: w, confidence: 0.8, source: "module_outcome" as const })),
   ];
-  await store.addFacts(facts).catch(() => {});
+  // Route through rememberFacts (not store.addFacts) so the student's context
+  // pack is invalidated — otherwise the counselor could miss the just-derived
+  // visa readiness/weak points for up to the pack's TTL.
+  await rememberFacts(facts).catch(() => {});
   return store.saveRiskReport({ profileId, ...core });
 }

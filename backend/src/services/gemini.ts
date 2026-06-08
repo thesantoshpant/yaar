@@ -189,6 +189,13 @@ export async function generateJson<T>(opts: {
         settleSpend(opts.profileId, reservation.reservedUsd, costForCall(res, promptChars + raw.length, model));
         settled = true;
         const data = JSON.parse(extractJson(raw)) as T;
+        // A live model can emit valid JSON that is NOT a usable object — bare
+        // `null` (JSON.parse("null") succeeds) or a primitive. Callers index
+        // fields off `data`, so a null/primitive would throw at the call site
+        // (-> 500). Treat it as degraded and return the caller's mock, the same
+        // graceful fallback we give for an unparseable body. This is the single
+        // chokepoint that protects every generateJson caller, present and future.
+        if (data === null || typeof data !== "object") return { data: opts.mock(), source: "mock" };
         return { data, source: "gemini" };
       } catch (err) {
         const status = (err as { status?: number })?.status;
@@ -293,6 +300,8 @@ export async function generateJsonFromMedia<T>(opts: {
     settleSpend(opts.profileId, reservation.reservedUsd, costForCall(res, (opts.prompt?.length ?? 0) + fileBytes + raw.length, model));
     settled = true;
     const data = JSON.parse(extractJson(raw)) as T;
+    // See generateJson: a null/primitive parse result is degraded; use the mock.
+    if (data === null || typeof data !== "object") return { data: opts.mock(), source: "mock" };
     return { data, source: "gemini" };
   } catch (err) {
     console.error("[gemini] generateJsonFromMedia failed, using fallback:", err);

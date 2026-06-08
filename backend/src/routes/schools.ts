@@ -61,7 +61,7 @@ schoolsRouter.post("/search", async (req, res) => {
       .slice(0, 10)
       .map((s) => `${s.name} (${s.category}, ${s.fitReason})`)
       .join("; ");
-    const { text } = await generateText({
+    const { text, source } = await generateText({
       system:
         "You are Yaar, an honest study-abroad counselor. In 2 to 3 sentences, advise the student how to use this balanced school list. Be specific and unbiased. No guarantees.",
       prompt: `Student: major=${b.intendedMajor ?? "undecided"}, country=${b.country ?? "unknown"}, max budget/yr=${
@@ -70,7 +70,10 @@ schoolsRouter.post("/search", async (req, res) => {
       temperature: 0.5,
       profileId: spendActor(req, b.profileId),
     });
-    if (text && !text.startsWith("[mock]")) advisorNote = text;
+    // Only adopt a real live response. Gating on source (not a "[mock]" prefix)
+    // keeps the honest deterministic note when the spend cap / kill switch / an
+    // API error returns a non-"[mock]" placeholder string.
+    if (source === "gemini" && text.trim()) advisorNote = text.trim();
   }
 
   // Remember what they're looking for, so the rest of the app reflects their interest.

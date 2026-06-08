@@ -41,6 +41,9 @@ export function decodePass(): PassData | null {
       typeof p !== "object" ||
       typeof p.overall !== "number" ||
       !Array.isArray(p.top) ||
+      // top is rendered as d.name, so each entry must be a well-formed object;
+      // a top:[null] (or missing-name) payload would otherwise crash the render.
+      !p.top.every((d: unknown) => !!d && typeof d === "object" && typeof (d as { name?: unknown }).name === "string") ||
       (verdict !== "passed" && verdict !== "needs work" && verdict !== "not yet ready")
     ) {
       return null;
