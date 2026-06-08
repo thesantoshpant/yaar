@@ -201,12 +201,18 @@ export function reserveSpend(
 
 // Settle a completed call: swap the reservation for the real cost and count it.
 export function settleSpend(profileId: string | undefined, reservedUsd: number, actualUsd: number): void {
+  const prevDay = state.day;
   rolloverIfNewDay();
-  const delta = Math.max(0, actualUsd) - Math.max(0, reservedUsd);
-  state.totalSpendUsd = Math.max(0, state.totalSpendUsd + delta);
+  // If the day rolled between reserve and settle (a call spanning UTC midnight),
+  // the reservation lived in the now-reset previous day, so there is nothing to
+  // net against — record the FULL actual cost on the new day. Otherwise swap the
+  // reservation for the real cost (actual - reserved).
+  const rolled = state.day !== prevDay;
+  const add = rolled ? Math.max(0, actualUsd) : Math.max(0, actualUsd) - Math.max(0, reservedUsd);
+  state.totalSpendUsd = Math.max(0, state.totalSpendUsd + add);
   state.callCount += 1;
   if (profileId) {
-    state.perUserSpendUsd[profileId] = Math.max(0, (state.perUserSpendUsd[profileId] ?? 0) + delta);
+    state.perUserSpendUsd[profileId] = Math.max(0, (state.perUserSpendUsd[profileId] ?? 0) + add);
     state.perUserCallCount[profileId] = (state.perUserCallCount[profileId] ?? 0) + 1;
   }
   persist();

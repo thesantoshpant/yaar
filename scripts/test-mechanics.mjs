@@ -101,7 +101,7 @@ async function main() {
   const tts = await call("POST", "/api/tts", { text: "hello" });
   check("heavy tier trips at limit", tts.status === 429 && tts.headers.get("retry-after"), `got ${tts.status}`);
 
-  // ---- AI tier (RATE_AI_PER_MIN=3) ----
+  // ---- AI tier (RATE_AI_PER_MIN=4; trips on the 5th call: memory.get, chat, chat-invalid, diya, chat) ----
   const chat1 = await call("POST", "/api/counselor/chat", { messages: [{ role: "user", content: "hi" }] });
   check("counselor mock reply", chat1.status === 200 && typeof chat1.json?.reply === "string" && chat1.json?.source === "mock");
 

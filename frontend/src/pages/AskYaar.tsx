@@ -62,8 +62,11 @@ export default function AskYaar() {
   const navigate = useNavigate();
 
   const empty = messages.length <= 1;
+  // Some browsers / WebViews (locked-down Android WebView, kiosk, older engines)
+  // lack the Web Speech API; guard every use and hide the Listen button there.
+  const ttsSupported = typeof window !== "undefined" && "speechSynthesis" in window;
 
-  useEffect(() => () => window.speechSynthesis.cancel(), []);
+  useEffect(() => () => { if (ttsSupported) window.speechSynthesis.cancel(); }, [ttsSupported]);
 
   // Follow the conversation to the newest message.
   useEffect(() => {
@@ -85,6 +88,7 @@ export default function AskYaar() {
   }
 
   function speak(text: string, idx: number) {
+    if (!ttsSupported) return;
     if (playingIdx === idx) {
       window.speechSynthesis.cancel();
       setPlayingIdx(null);
@@ -196,6 +200,7 @@ export default function AskYaar() {
                     className="counselor-md rounded-2xl rounded-bl-md bg-brand-600 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm"
                     dangerouslySetInnerHTML={{ __html: markdownToHtml(m.content) }}
                   />
+                  {ttsSupported && (
                   <button
                     onClick={() => speak(m.content, i)}
                     className="absolute -right-9 top-1.5 rounded-lg border border-line bg-surface p-1.5 text-muted opacity-0 transition hover:text-ink group-hover:opacity-100 focus:opacity-100"
@@ -208,6 +213,7 @@ export default function AskYaar() {
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>
                     )}
                   </button>
+                  )}
                 </div>
               </div>
             )

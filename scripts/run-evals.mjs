@@ -182,6 +182,14 @@ async function main() {
     console.error(`No cases dir at ${CASES_DIR}`);
     process.exit(2);
   }
+  // Require LIVE AI. In mock mode the grader returns a constant band for every
+  // essay (and Diya fails closed), so the suite would publish fabricated
+  // "grader agreement" / pass rates. Refuse to run unless Gemini is live.
+  const health = await fetch(`${BASE}/api/health`).then((r) => r.json()).catch(() => null);
+  if (health?.mode?.gemini !== "live") {
+    console.error("ABORT: backend is not in live AI mode (mode.gemini !== 'live'). Evals need a real Gemini/Vertex key; mock results are meaningless.");
+    process.exit(2);
+  }
   const files = (await walk(CASES_DIR)).sort();
   console.log(`Running ${files.length} cases against ${BASE}\n`);
 

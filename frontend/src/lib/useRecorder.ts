@@ -78,6 +78,14 @@ export function useRecorder() {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mountedRef.current) {
+        // Unmounted during the permission prompt / await window: the cleanup
+        // effect already ran and released nothing (streamRef was still null), so
+        // stop the freshly granted tracks here or the mic stays live until the
+        // tab closes. Return before building/starting the MediaRecorder.
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
       const mime = MediaRecorder.isTypeSupported("audio/webm")
         ? "audio/webm"

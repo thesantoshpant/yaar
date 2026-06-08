@@ -557,7 +557,10 @@ function ActionRow({ action, compact = false, onChange }: { action: OpsAction; c
               disabled={busy}
               onClick={async () => {
                 setBusy(true);
-                try { await ops.approveAction(action.id); onChange(); } finally { setBusy(false); }
+                // Always resync afterward, even on error: a 409 (another tab/click
+                // already claimed it) or 400 means this row is stale, so refetch to
+                // show its real status instead of leaving it stuck on "pending".
+                try { await ops.approveAction(action.id); } catch { /* resynced below */ } finally { onChange?.(); setBusy(false); }
               }}
             >
               Approve
@@ -567,7 +570,9 @@ function ActionRow({ action, compact = false, onChange }: { action: OpsAction; c
               disabled={busy}
               onClick={async () => {
                 setBusy(true);
-                try { await ops.rejectAction(action.id); onChange(); } finally { setBusy(false); }
+                // Resync on error too (e.g. the action was already acted on elsewhere)
+                // so the row reflects the server's real status.
+                try { await ops.rejectAction(action.id); } catch { /* resynced below */ } finally { onChange?.(); setBusy(false); }
               }}
             >
               Reject

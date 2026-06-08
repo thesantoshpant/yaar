@@ -44,8 +44,8 @@ export default function Privacy() {
           <section>
             <h2 className="text-base font-semibold">Delete everything</h2>
             <p className="mt-2 text-muted">
-              You can erase everything Yaar knows about you, permanently, from the <span className="font-medium text-ink">Mind</span> page
-              inside the app ("Delete everything Yaar knows about me"). It removes your profile, memory, history, reports, and progress.
+              You can erase everything Yaar knows about you, permanently, from <Link to="/app/settings" className="font-medium text-ink underline hover:no-underline">Settings</Link>
+              {" "}inside the app (tap the gear, then "Delete everything Yaar knows about me"). It removes your profile, memory, history, reports, and progress.
               There is no retention after that.
             </p>
           </section>

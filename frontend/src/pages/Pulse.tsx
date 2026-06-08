@@ -26,6 +26,7 @@ export default function Pulse() {
   const [status, setStatus] = useState<"loading" | "ok" | "auth" | "error">("loading");
   const [tokenInput, setTokenInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [killErr, setKillErr] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -143,9 +144,20 @@ export default function Pulse() {
             disabled={busy}
             onClick={async () => {
               setBusy(true);
+              setKillErr("");
               try {
                 await ops.setKill(!pulse.killSwitchEngaged, pulse.killSwitchEngaged ? "" : "manual stop from pulse");
                 await load();
+              } catch (e) {
+                // This is the emergency stop — never fail silently. Surface the error
+                // (and re-prompt for a token if the session expired) so the operator
+                // knows the switch did NOT change.
+                if (e instanceof OpsError && (e.status === 401 || e.status === 503)) {
+                  if (e.status === 401) localStorage.removeItem(TOKEN_KEY);
+                  setStatus("auth");
+                  return;
+                }
+                setKillErr("Couldn't reach Yaar to change the kill switch — it did NOT change. Check your connection and try again.");
               } finally {
                 setBusy(false);
               }
@@ -153,6 +165,7 @@ export default function Pulse() {
           >
             {pulse.killSwitchEngaged ? "Resume Yaar" : "Engage kill switch"}
           </button>
+          {killErr && <p className="mt-2 text-sm font-medium text-rose-500">{killErr}</p>}
         </div>
 
         <div className="card mt-4">

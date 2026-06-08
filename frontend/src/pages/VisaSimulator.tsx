@@ -117,23 +117,31 @@ export default function VisaSimulator() {
     }
   }
 
-  async function answer() {
-    const text = input.trim();
-    if (!text || loading) return;
-    const withAnswer: VisaTurn[] = [...history, { role: "student", text }];
-    setHistory(withAnswer);
-    setInput("");
+  // Ask the officer for the next question given the full turn list, which already
+  // ends with the student's answer. Split out from answer() so a failed send can
+  // be retried by resending `history` directly — the input box was cleared on the
+  // first attempt, so the old retry (which re-called answer()) did nothing.
+  async function sendTurns(turns: VisaTurn[]) {
     setLoading(true);
     setInterviewError("");
     try {
-      const res = await api.visaNext(country, withAnswer, documents.slice(0, 12000) || undefined, getProfileId() || undefined);
-      setHistory([...withAnswer, { role: "officer", text: res.question }]);
+      const res = await api.visaNext(country, turns, documents.slice(0, 12000) || undefined, getProfileId() || undefined);
+      setHistory([...turns, { role: "officer", text: res.question }]);
       if (res.done) setDone(true);
     } catch (e) {
       setInterviewError(errText(e, "That answer didn't go through. Try sending it again."));
     } finally {
       setLoading(false);
     }
+  }
+
+  async function answer() {
+    const text = input.trim();
+    if (!text || loading) return;
+    const withAnswer: VisaTurn[] = [...history, { role: "student", text }];
+    setHistory(withAnswer);
+    setInput("");
+    await sendTurns(withAnswer);
   }
 
   async function finish() {
@@ -309,7 +317,7 @@ export default function VisaSimulator() {
           </div>
 
           <div className="border-t border-line bg-surface px-5 py-4">
-            {interviewError && <div className="mb-3"><ErrorNote onRetry={() => (history[history.length - 1]?.role === "student" ? answer() : start())}>{interviewError}</ErrorNote></div>}
+            {interviewError && <div className="mb-3"><ErrorNote onRetry={() => (history[history.length - 1]?.role === "student" ? sendTurns(history) : start())}>{interviewError}</ErrorNote></div>}
             <div className="flex gap-2">
               <textarea
                 className="input min-h-[44px] resize-none"

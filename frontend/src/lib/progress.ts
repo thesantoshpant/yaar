@@ -83,5 +83,10 @@ export function getProfileSummary(): string {
 }
 
 export function setProfileSummary(summary: string): void {
-  localStorage.setItem(PROFILE_KEY, summary);
+  try {
+    localStorage.setItem(PROFILE_KEY, summary);
+  } catch {
+    // ignore (Safari private mode / quota exceeded / storage disabled) — this
+    // runs on every profile edit and must never crash the app to the boundary.
+  }
 }
