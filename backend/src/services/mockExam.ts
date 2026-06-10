@@ -232,6 +232,8 @@ Return ONLY JSON: { "title": string, "passage": string, "questions": [ { "id": s
       answer: (q.answer ?? "").toString(),
       explanation: q.explanation || "",
     }));
+  // Guard against live Gemini returning too few usable items after every retry.
+  if (questions.length < 3) throw new HttpError(503, "Test generation is temporarily unavailable (busy or at today's free limit). Your work is safe on this page — try again in a few minutes.");
 
   const testId = id();
   const targetBand = exam === "IELTS" ? "calibrated to your level" : "scaled 0-30";
@@ -611,6 +613,8 @@ Return ONLY JSON: { "title": string, "transcript": string, "questions": [ { "id"
       answer: (q.answer ?? "").toString(),
       explanation: q.explanation || "",
     }));
+  // Guard against live Gemini returning too few usable items after every retry.
+  if (questions.length < 3) throw new HttpError(503, "Test generation is temporarily unavailable (busy or at today's free limit). Your work is safe on this page — try again in a few minutes.");
 
   const testId = id();
   cache.set(testId, { exam, skill: "listening", title: data.title || "Listening", passage: data.transcript || "", questions, targetBand: "", createdAt: Date.now() });

@@ -353,7 +353,7 @@ export const store = {
       const docs = await EvidenceModel.find({ profileId }).sort({ createdAt: -1 }).lean<EvidenceArtifact[]>().exec();
       return docs.map(clean);
     }
-    return mem.evidence.filter((e) => e.profileId === profileId);
+    return mem.evidence.filter((e) => e.profileId === profileId).reverse();
   },
 
   // ---------- agent actions (company autonomy audit + approvals) ----------

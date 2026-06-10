@@ -69,7 +69,7 @@ export default function MockCard() {
   return (
     <div className="min-h-screen bg-bg p-4 text-ink sm:p-8">
       <div className="mx-auto max-w-md">
-        <div className="relative overflow-hidden rounded-3xl bg-surface p-7 shadow-lift ring-2 ring-brand-600/30 ghost-border">
+        <div className="relative overflow-hidden rounded-3xl bg-surface p-7 shadow-lift ring-2 ring-brand-600/30">
           <div className="pointer-events-none absolute inset-0 [background:radial-gradient(60%_50%_at_100%_0%,rgba(244,163,0,0.18),transparent_55%),radial-gradient(50%_45%_at_0%_100%,rgba(33,104,103,0.14),transparent_55%)]" />
           <div className="relative">
             <div className="flex items-center justify-between">

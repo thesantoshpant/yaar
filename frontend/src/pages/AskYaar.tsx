@@ -83,7 +83,7 @@ export default function AskYaar() {
   }, [messages]);
 
   function clearChat() {
-    window.speechSynthesis.cancel();
+    if (ttsSupported) window.speechSynthesis.cancel();
     setMessages([GREETING]);
   }
 
@@ -134,8 +134,10 @@ export default function AskYaar() {
   function send() {
     const text = input.trim();
     if (!text || loading) return;
-    setInput("");
-    gate("counselor", () => sendDirect(text));
+    gate("counselor", () => {
+      setInput("");
+      void sendDirect(text);
+    });
   }
 
   function tapFear(f: (typeof FEARS)[number]) {

@@ -21,7 +21,7 @@ const REGISTER: Partial<Record<PersonaTag, string>> = {
 
 export function personaPreamble(journey: JourneyState | null): string {
   if (!journey) return "";
-  const lines = journey.personaTags
+  const lines = [...journey.personaTags]
     .sort((a, b) => b.confidence - a.confidence)
     .map((t) => REGISTER[t.tag])
     .filter(Boolean);
